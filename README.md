@@ -1,75 +1,44 @@
-# Send It — PWA Setup Guide
+# Climbing App
 
-## What's in this folder
+A personal daily training log PWA built for the 12-week bouldering coaching cycle.
+
+Live at: **https://c-bearman.github.io/climbing_app/**
+
+---
+
+## Project structure
 
 ```
-sendit-pwa/
+climbing_app/
 ├── index.html      ← the entire app
 ├── manifest.json   ← makes it installable on Android
 ├── sw.js           ← service worker (offline support)
-├── icons/          ← app icons (you need to add these — see below)
+├── icons/          ← app icons
 └── README.md       ← this file
 ```
 
 ---
 
-## Step 1 — Add app icons
+## App icons
 
-You need two PNG icons. The quickest way:
+You need two PNG icons in the `icons/` folder. The quickest way to generate them:
 
 1. Go to https://favicon.io/favicon-generator/
-2. Type "SI", pick background colour `#1D9E75`, text colour white, font size ~50
-3. Download and grab the `android-chrome-192x192.png` and `android-chrome-512x512.png` files
-4. Rename them to `icon-192.png` and `icon-512.png`
-5. Drop them into the `icons/` folder
+2. Type "CA", background colour `#1D9E75`, text colour white, font size ~50
+3. Download and rename to `icon-192.png` and `icon-512.png`
+4. Drop them into the `icons/` folder, commit and push
 
 ---
 
-## Step 2 — Put it on GitHub Pages (free hosting)
+## Updating the app
 
-1. Go to https://github.com and sign in (or create a free account)
-2. Click **New repository** → name it `sendit-pwa` → set to **Public** → click Create
-3. On your computer, open a terminal in this folder and run:
-
-```bash
-git init
-git add .
-git commit -m "Initial Send It PWA"
-git branch -M main
-git remote add origin https://github.com/YOUR_USERNAME/sendit-pwa.git
-git push -u origin main
-```
-
-4. In GitHub, go to **Settings → Pages**
-5. Under "Source", select **main** branch, folder **/ (root)** → click Save
-6. After ~60 seconds your app is live at:
-   `https://YOUR_USERNAME.github.io/sendit-pwa/`
-
----
-
-## Step 3 — Install on your Pixel 8
-
-1. Open **Chrome** on your Pixel 8
-2. Go to `https://YOUR_USERNAME.github.io/sendit-pwa/`
-3. Tap the **three-dot menu (⋮)** in the top right
-4. Tap **"Add to Home screen"**
-5. Tap **Add**
-
-The app now appears on your home screen, opens full-screen with no browser bar, and works offline. It looks and feels like a native app.
-
----
-
-## Updating the app later
-
-Whenever you want to change something, edit `index.html`, then:
+Whenever you make a change, push it up and GitHub Pages will update within ~60 seconds:
 
 ```bash
 git add .
 git commit -m "describe what you changed"
 git push
 ```
-
-GitHub Pages updates within ~60 seconds. The app on your phone will pick up the new version automatically next time it has an internet connection.
 
 ---
 
@@ -81,20 +50,20 @@ In `index.html`, find this line (around line 210):
 const START = new Date('2026-06-02');
 ```
 
-Change `2026-06-02` to the actual Monday your 12-week cycle starts. The "Week X of 12" counter will calculate automatically.
+Change `2026-06-02` to the Monday your 12-week cycle actually starts. The "Week X of 12" counter will calculate automatically from there.
 
 ---
 
 ## Your data
 
-All entries are stored in your browser's **localStorage** on your phone. Nothing is sent anywhere. To back up or share with your coach, use the **Export CSV** button inside the app — it downloads a `.csv` file you can open in Google Sheets or Excel.
+All entries are stored in **localStorage** on your phone — nothing is sent anywhere. To share with your coach, use the **Export CSV** button in the app, which downloads a `.csv` you can drop into Google Sheets or Excel.
 
 ---
 
-## What's next (future features)
+## Roadmap
 
 - [ ] Water reminder notifications during sessions
 - [ ] "Are you climbing today?" morning prompt
 - [ ] Auto-sync to Google Sheets via Google Apps Script
-- [ ] Charts showing your energy/sleep trends over the 12 weeks
-- [ ] Wrap as native APK with Capacitor
+- [ ] Charts showing energy/sleep trends over the 12 weeks
+- [ ] Wrap as native APK with Capacitor → Bearman Climbs
