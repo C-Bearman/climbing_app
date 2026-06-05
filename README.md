@@ -1,46 +1,8 @@
 # Climbing App
 
-A personal daily training log PWA built for the 12-week bouldering coaching cycle.
+A personal daily training log PWA built.
 
 Live at: **https://c-bearman.github.io/climbing_app/**
-
----
-
-## Project structure
-
-```
-climbing_app/
-├── index.html      ← the entire app
-├── manifest.json   ← makes it installable on Android
-├── sw.js           ← service worker (offline support)
-├── icons/          ← app icons
-└── README.md       ← this file
-```
-
----
-
-## App icons
-
-You need two PNG icons in the `icons/` folder. The quickest way to generate them:
-
-1. Go to https://favicon.io/favicon-generator/
-2. Type "CA", background colour `#1D9E75`, text colour white, font size ~50
-3. Download and rename to `icon-192.png` and `icon-512.png`
-4. Drop them into the `icons/` folder, commit and push
-
----
-
-## Updating the app
-
-Whenever you make a change, push it up and GitHub Pages will update within ~60 seconds:
-
-```bash
-git add .
-git commit -m "describe what you changed"
-git push
-```
-
----
 
 ## Customising your training start date
 
