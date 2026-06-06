@@ -606,13 +606,6 @@
 
     <header class="charts-header">
       <div class="charts-title">Climbing <em>Charts</em></div>
-
-      <!--
-        TIME RANGE SLIDER
-        Snaps to 5 positions: 0=2w, 1=4w, 2=8w, 3=12w, 4=All
-        oninput fires on every drag movement and redraws all charts.
-        The label on the right shows the current selection.
-      -->
       <div class="range-row">
         <span class="range-label">Show last:</span>
         <input type="range" id="range-slider" min="0" max="4" step="1" value="4"
@@ -620,6 +613,45 @@
         <span class="range-val" id="range-val">All</span>
       </div>
     </header>
+
+    <!--
+      GOALS CARD
+      Two number inputs — sleep target and water target.
+      Saved to localStorage so goals persist between sessions.
+      onGoalChange() saves and redraws charts immediately.
+      Goal lines are drawn as flat dashed datasets on each chart —
+      a constant array of the same value across all x points.
+    -->
+    <div class="section" style="margin: 10px 14px 0;">
+      <div class="section-head">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        Daily goals
+      </div>
+      <div class="two-col">
+        <div>
+          <div class="field-top" style="margin-bottom:6px;">
+            <span class="field-name" style="font-size:13px;">Sleep target</span>
+          </div>
+          <div class="input-wrap">
+            <input type="number" id="goal-sleep" placeholder="8" min="4" max="12" step="0.5"
+                   oninput="onGoalChange()"
+                   style="width:100%;padding:10px 36px 10px 12px;font-size:15px;color:var(--text);background:var(--surface2);border:0.5px solid var(--border-med);border-radius:var(--radius-sm);outline:none;-webkit-appearance:none;">
+            <span class="unit">h</span>
+          </div>
+        </div>
+        <div>
+          <div class="field-top" style="margin-bottom:6px;">
+            <span class="field-name" style="font-size:13px;">Water target</span>
+          </div>
+          <div class="input-wrap">
+            <input type="number" id="goal-water" placeholder="2.5" min="0.5" max="5" step="0.25"
+                   oninput="onGoalChange()"
+                   style="width:100%;padding:10px 36px 10px 12px;font-size:15px;color:var(--text);background:var(--surface2);border:0.5px solid var(--border-med);border-radius:var(--radius-sm);outline:none;-webkit-appearance:none;">
+            <span class="unit">L</span>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <!--
       CLIMBING SESSION STATS CARD
@@ -1308,53 +1340,117 @@
   }
 
   /* ============================================================
-     CHART 2: Sleep & water over time
-     Two datasets on separate y-axes (dual axis chart).
-     y  = sleep (left axis, 0-12h)
-     y1 = water (right axis, 0-5L)
+     GOAL MANAGEMENT
+     Goals are stored in localStorage as a simple object.
+     getGoals() returns { sleep, water } — null if not set.
+     onGoalChange() saves and redraws charts so the line
+     appears/updates immediately as the user types.
+  ============================================================ */
+  function getGoals() {
+    try { return JSON.parse(localStorage.getItem('climbing_goals') || '{}'); }
+    catch(e) { return {}; }
+  }
+
+  function saveGoals() {
+    const goals = {
+      sleep: parseFloat(document.getElementById('goal-sleep').value) || null,
+      water: parseFloat(document.getElementById('goal-water').value) || null,
+    };
+    localStorage.setItem('climbing_goals', JSON.stringify(goals));
+  }
+
+  function onGoalChange() {
+    saveGoals();
+    drawAllCharts(); // redraw immediately so goal line appears
+  }
+
+  /* ============================================================
+     drawRecoveryChart() — UPDATED
+     Now adds dashed goal lines for sleep and water when set.
+
+     Goal lines are drawn as extra datasets with:
+       borderDash: [6, 4]  — the dashed pattern (6px dash, 4px gap)
+       pointRadius: 0       — no dots on the line
+       borderWidth: 1.5     — thinner than data lines
+       data: Array(n).fill(goalValue) — flat line at constant y value
+
+     This is simpler than the Chart.js annotations plugin and
+     requires no extra library — just another dataset.
   ============================================================ */
   function drawRecoveryChart(entries) {
     destroyChart('recovery');
     if (!entries.length) return;
 
-    // Sort oldest-first for time series
     const data   = [...entries].sort((a,b) => a.date.localeCompare(b.date));
     const labels = data.map(e => formatDisplayDate(e.date));
+    const goals  = getGoals();
 
     const opts = baseOptions('', 0, 12);
-    // Add second y-axis for water
     opts.scales.y1 = {
       position: 'right',
       min: 0, max: 5,
       ticks: { color: '#6C9BD2', font: { size: 10 } },
-      grid: { drawOnChartArea: false } // don't draw right-axis grid lines
+      grid: { drawOnChartArea: false },
+      afterFit: (axis) => { axis.width = 28; }
     };
+
+    // Base datasets — sleep and water lines
+    const datasets = [
+      {
+        label: 'Sleep',
+        data: data.map(e => e.sleep),
+        borderColor: '#1D9E75', backgroundColor: 'rgba(29,158,117,0.08)',
+        borderWidth: 2, tension: 0.3, fill: true,
+        pointRadius: 3, clip: false, yAxisID: 'y'
+      },
+      {
+        label: 'Water',
+        data: data.map(e => e.water),
+        borderColor: '#6C9BD2', backgroundColor: 'rgba(108,155,210,0.08)',
+        borderWidth: 2, tension: 0.3, fill: true,
+        pointRadius: 3, clip: false, yAxisID: 'y1'
+      }
+    ];
+
+    /*
+      If a sleep goal is set, add a flat dashed green line at that value.
+      Array(labels.length).fill(goals.sleep) creates an array like
+      [8, 8, 8, 8, 8] — same value for every x point = flat line.
+    */
+    if (goals.sleep) {
+      datasets.push({
+        label: 'Sleep goal',
+        data: Array(labels.length).fill(goals.sleep),
+        borderColor: '#1D9E75',
+        borderWidth: 1.5,
+        borderDash: [6, 4],       // dashed line pattern
+        pointRadius: 0,           // no dots
+        fill: false,
+        tension: 0,
+        yAxisID: 'y'
+      });
+    }
+
+    /*
+      Same pattern for water goal — dashed blue line on the right axis.
+    */
+    if (goals.water) {
+      datasets.push({
+        label: 'Water goal',
+        data: Array(labels.length).fill(goals.water),
+        borderColor: '#6C9BD2',
+        borderWidth: 1.5,
+        borderDash: [6, 4],
+        pointRadius: 0,
+        fill: false,
+        tension: 0,
+        yAxisID: 'y1'
+      });
+    }
 
     chartInstances['recovery'] = new Chart(
       document.getElementById('chart-recovery'),
-      {
-        type: 'line',
-        data: {
-          labels,
-          datasets: [
-            {
-              label: 'Sleep',
-              data: data.map(e => e.sleep),
-              borderColor: '#1D9E75', backgroundColor: 'rgba(29,158,117,0.08)',
-              borderWidth: 2, tension: 0.3, fill: true,
-              pointRadius: 3, clip: false, yAxisID: 'y'
-            },
-            {
-              label: 'Water',
-              data: data.map(e => e.water),
-              borderColor: '#6C9BD2', backgroundColor: 'rgba(108,155,210,0.08)',
-              borderWidth: 2, tension: 0.3, fill: true,
-              pointRadius: 3, clip: false, yAxisID: 'y1'
-            }
-          ]
-        },
-        options: opts
-      }
+      { type: 'line', data: { labels, datasets }, options: opts }
     );
   }
 
@@ -1455,7 +1551,12 @@
   function init() {
     document.getElementById('date-label').textContent = formatDisplayDate(selectedDate);
     document.getElementById('csv-filename').value = getFilename();
-    document.getElementById('range-val').textContent = RANGE_LABELS[4]; // 'All'
+    document.getElementById('range-val').textContent = RANGE_LABELS[4];
+
+    // Restore saved goals into input fields
+    const goals = getGoals();
+    if (goals.sleep) document.getElementById('goal-sleep').value = goals.sleep;
+    if (goals.water) document.getElementById('goal-water').value = goals.water;
     updateWeekCounter();
     renderStreak();
     prefillForm(selectedDate);
