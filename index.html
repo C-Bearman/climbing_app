@@ -1268,7 +1268,9 @@
   ============================================================ */
   function drawSessionChart(entries) {
     destroyChart('session');
-    const data = entries.filter(e => e.climbing === 'yes' && e.sess_rating);
+    const data = entries
+      .filter(e => e.climbing === 'yes' && e.sess_rating)
+      .sort((a, b) => a.date.localeCompare(b.date)); // oldest first → left to right
     if (!data.length) return;
 
     const labels = data.map(e => formatDisplayDate(e.date));
