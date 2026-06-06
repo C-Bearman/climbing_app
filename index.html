@@ -11,12 +11,9 @@
   <link rel="manifest" href="manifest.json" />
   <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png" />
   <link rel="apple-touch-icon" href="icons/icon-192.png" />
+  <!-- Chart.js — the charting library, loaded from CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
   <style>
-    /* ============================================================
-       RESET & ROOT VARIABLES
-       Like declaring constants at the top of a Python script.
-       Everything references these so you only change a value once.
-    ============================================================ */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
@@ -37,19 +34,14 @@
       --radius-sm: 8px;
       --safe-top: env(safe-area-inset-top, 0px);
       --safe-bottom: env(safe-area-inset-bottom, 0px);
+      --nav-height: 60px;
     }
 
-    /* Dark mode — swaps colours automatically based on phone setting */
     @media (prefers-color-scheme: dark) {
       :root {
-        --bg: #111110;
-        --surface: #1C1C1A;
-        --surface2: #252523;
-        --border: rgba(255,255,255,0.08);
-        --border-med: rgba(255,255,255,0.13);
-        --text: #F0EFEA;
-        --text2: #9B9B96;
-        --text3: #6B6B66;
+        --bg: #111110; --surface: #1C1C1A; --surface2: #252523;
+        --border: rgba(255,255,255,0.08); --border-med: rgba(255,255,255,0.13);
+        --text: #F0EFEA; --text2: #9B9B96; --text3: #6B6B66;
         --green-light: #0A2E22;
       }
     }
@@ -57,41 +49,68 @@
     html, body {
       height: 100%;
       font-family: -apple-system, 'SF Pro Text', 'Helvetica Neue', sans-serif;
-      background: var(--bg);
-      color: var(--text);
+      background: var(--bg); color: var(--text);
       -webkit-font-smoothing: antialiased;
     }
 
+    /* ============================================================
+       APP SHELL
+       Two views (log + charts) live inside .app-content.
+       Only one is visible at a time — switchTab() swaps them.
+       padding-bottom leaves room for the fixed bottom nav bar.
+    ============================================================ */
     .app {
-      max-width: 430px;
-      margin: 0 auto;
-      min-height: 100vh;
-      padding-bottom: calc(16px + var(--safe-bottom));
+      max-width: 430px; margin: 0 auto; min-height: 100vh;
+      padding-bottom: calc(var(--nav-height) + var(--safe-bottom));
     }
 
-    /* ── Header — sticky so it stays visible when scrolling ── */
-    .header {
+    /* Each tab view — only .active is shown */
+    .tab-view { display: none; }
+    .tab-view.active { display: block; }
+
+    /* ============================================================
+       BOTTOM NAVIGATION BAR
+       Fixed to the bottom of the screen, always visible.
+       Two tabs: Log and Charts.
+       z-index: 100 keeps it above all other content.
+    ============================================================ */
+    .bottom-nav {
+      position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+      width: 100%; max-width: 430px;
+      height: calc(var(--nav-height) + var(--safe-bottom));
+      padding-bottom: var(--safe-bottom);
       background: var(--surface);
-      border-bottom: 0.5px solid var(--border);
+      border-top: 0.5px solid var(--border);
+      display: grid; grid-template-columns: 1fr 1fr;
+      z-index: 100;
+    }
+    .nav-btn {
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: center; gap: 4px;
+      background: none; border: none; cursor: pointer;
+      color: var(--text3); font-size: 11px; font-weight: 500;
+      -webkit-tap-highlight-color: transparent;
+      transition: color 0.15s;
+    }
+    .nav-btn svg { width: 22px; height: 22px; stroke: currentColor; }
+    .nav-btn.active { color: var(--green); }
+
+    /* ── Header ── */
+    .header {
+      background: var(--surface); border-bottom: 0.5px solid var(--border);
       padding: calc(16px + var(--safe-top)) 20px 14px;
-      position: sticky;
-      top: 0;
-      z-index: 50;
+      position: sticky; top: 0; z-index: 50;
     }
     .header-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
     .app-title { font-size: 20px; font-weight: 700; letter-spacing: -0.5px; }
     .app-title em { color: var(--green); font-style: normal; }
-
     .date-badge {
-      font-size: 12px; color: var(--text2);
-      background: var(--surface2); border: 0.5px solid var(--border);
-      border-radius: 20px; padding: 4px 10px;
-      cursor: pointer;
-      display: flex; align-items: center; gap: 5px;
+      font-size: 12px; color: var(--text2); background: var(--surface2);
+      border: 0.5px solid var(--border); border-radius: 20px; padding: 4px 10px;
+      cursor: pointer; display: flex; align-items: center; gap: 5px;
       -webkit-tap-highlight-color: transparent;
     }
     .date-badge svg { width: 11px; height: 11px; stroke: var(--text3); }
-
     .header-meta { display: flex; align-items: center; justify-content: space-between; margin-top: 4px; }
     .week-tag { font-size: 12px; color: var(--text2); }
     .streak-dots { display: flex; gap: 4px; }
@@ -99,26 +118,20 @@
     .dot.on { background: var(--green); }
     .dot.today-empty { background: var(--border-med); box-shadow: 0 0 0 1.5px var(--green); }
 
-    /* ── Date picker panel — hidden until date badge is tapped ── */
+    /* ── Date picker panel ── */
     .date-picker-panel {
-      display: none;
-      background: var(--surface);
+      display: none; background: var(--surface);
       border-bottom: 0.5px solid var(--border);
-      padding: 12px 20px;
-      align-items: center;
-      gap: 10px;
+      padding: 12px 20px; align-items: center; gap: 10px;
     }
     .date-picker-panel.open { display: flex; }
     .date-picker-panel label { font-size: 13px; color: var(--text2); white-space: nowrap; }
-
     input[type=date] {
-      flex: 1; padding: 8px 12px; font-size: 14px;
-      color: var(--text); background: var(--surface2);
-      border: 0.5px solid var(--border-med);
+      flex: 1; padding: 8px 12px; font-size: 14px; color: var(--text);
+      background: var(--surface2); border: 0.5px solid var(--border-med);
       border-radius: var(--radius-sm); outline: none; font-family: inherit;
     }
     input[type=date]:focus { border-color: var(--green); }
-
     .date-confirm-btn {
       padding: 8px 14px; background: var(--green); color: white;
       border: none; border-radius: var(--radius-sm);
@@ -127,100 +140,59 @@
 
     /* ── Section cards ── */
     .section {
-      background: var(--surface);
-      border-radius: var(--radius);
-      border: 0.5px solid var(--border);
-      padding: 16px;
-      margin: 10px 14px 0;
+      background: var(--surface); border-radius: var(--radius);
+      border: 0.5px solid var(--border); padding: 16px; margin: 10px 14px 0;
     }
     .section-head {
       font-size: 11px; font-weight: 600; text-transform: uppercase;
       letter-spacing: 0.07em; color: var(--text3);
-      display: flex; align-items: center; gap: 5px;
-      margin-bottom: 14px;
+      display: flex; align-items: center; gap: 5px; margin-bottom: 14px;
     }
     .section-head svg { width: 13px; height: 13px; stroke: var(--text3); }
 
-    /* ── Climbing toggle buttons ── */
+    /* ── Toggle buttons ── */
     .climb-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
     .cbtn {
       padding: 11px 8px; border-radius: var(--radius-sm);
-      border: 0.5px solid var(--border-med);
-      background: var(--surface2); color: var(--text2);
+      border: 0.5px solid var(--border-med); background: var(--surface2); color: var(--text2);
       font-size: 14px; font-weight: 500; cursor: pointer;
       display: flex; align-items: center; justify-content: center; gap: 6px;
       transition: all 0.15s; -webkit-tap-highlight-color: transparent;
     }
     .cbtn svg { width: 16px; height: 16px; stroke: currentColor; }
-    .cbtn.sel-yes { background: var(--green-light); border-color: var(--green); color: var(--green-dark); }
-    .cbtn.sel-no  { background: var(--surface2); border-color: var(--border-med); color: var(--text); }
-    /* Amber — rest day (good, but not climbing) */
+    .cbtn.sel-yes  { background: var(--green-light); border-color: var(--green); color: var(--green-dark); }
+    .cbtn.sel-no   { background: var(--surface2); border-color: var(--border-med); color: var(--text); }
     .cbtn.sel-rest { background: #FAEEDA; border-color: var(--amber); color: var(--amber); }
-    /* Soft red — no stretching (we want to encourage it) */
     .cbtn.sel-nope { background: #FCEBEB; border-color: #C0392B; color: #A32D2D; }
-    .cbtn:active  { transform: scale(0.97); }
+    .cbtn:active   { transform: scale(0.97); }
 
-    /* ============================================================
-       SESSION DETAILS PANEL (NEW)
-       This block is hidden by default and only shown when the
-       user selects "Climbing". It uses a CSS transition on
-       max-height to animate smoothly open/closed — a common
-       technique for accordion-style reveals.
-       max-height: 0 = collapsed, max-height: 500px = expanded.
-       overflow: hidden prevents content showing during collapse.
-    ============================================================ */
+    /* ── Accordion panels ── */
     .session-details {
-      max-height: 0;
-      overflow: hidden;
-      /* Animate the height change over 0.3 seconds */
+      max-height: 0; overflow: hidden; opacity: 0; margin-top: 0;
       transition: max-height 0.3s ease, opacity 0.3s ease, margin-top 0.3s ease;
-      opacity: 0;
-      margin-top: 0;
     }
-    .session-details.open {
-      max-height: 500px;   /* large enough to fit all content */
-      opacity: 1;
-      margin-top: 14px;    /* adds breathing room below the toggle buttons */
-    }
+    .session-details.open { max-height: 500px; opacity: 1; margin-top: 14px; }
+    .session-divider { border: none; border-top: 0.5px solid var(--border); margin-bottom: 14px; }
 
-    /* Thin divider line above the session details when open */
-    .session-divider {
-      border: none;
-      border-top: 0.5px solid var(--border);
-      margin-bottom: 14px;
-    }
-
-    /* ============================================================
-       STRETCHING DETAILS PANEL
-       Same accordion pattern as session-details — hidden by default,
-       expands smoothly when "Yes" is tapped on the stretch toggle.
-    ============================================================ */
-
-    /* ── Slider fields ── */
+    /* ── Sliders ── */
     .field { margin-bottom: 15px; }
     .field:last-child { margin-bottom: 0; }
     .field-top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
     .field-name { font-size: 14px; color: var(--text); }
     .field-val { font-size: 15px; font-weight: 600; color: var(--green); }
-
     input[type=range] {
-      -webkit-appearance: none; appearance: none;
-      width: 100%; height: 4px; border-radius: 2px;
-      background: var(--surface2); outline: none; cursor: pointer;
+      -webkit-appearance: none; appearance: none; width: 100%; height: 4px;
+      border-radius: 2px; background: var(--surface2); outline: none; cursor: pointer;
     }
     input[type=range]::-webkit-slider-thumb {
-      -webkit-appearance: none; appearance: none;
-      width: 22px; height: 22px; border-radius: 50%;
-      background: var(--green); border: 3px solid var(--surface);
+      -webkit-appearance: none; appearance: none; width: 22px; height: 22px;
+      border-radius: 50%; background: var(--green); border: 3px solid var(--surface);
       box-shadow: 0 1px 4px rgba(0,0,0,0.2);
     }
     input[type=range]::-moz-range-thumb {
-      width: 22px; height: 22px; border-radius: 50%;
-      background: var(--green); border: 3px solid var(--surface);
-      box-shadow: 0 1px 4px rgba(0,0,0,0.2); cursor: pointer;
+      width: 22px; height: 22px; border-radius: 50%; background: var(--green);
+      border: 3px solid var(--surface); box-shadow: 0 1px 4px rgba(0,0,0,0.2); cursor: pointer;
     }
-
-    /* Energy sliders: coloured filled track */
     .energy-track { position: relative; }
     .energy-track input[type=range] {
       background: linear-gradient(to right, var(--green) 0%, var(--green) var(--pct,50%), var(--surface2) var(--pct,50%));
@@ -230,48 +202,40 @@
     .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
     .input-wrap { position: relative; }
     .input-wrap input[type=number] {
-      width: 100%; padding: 10px 36px 10px 12px;
-      font-size: 15px; color: var(--text);
+      width: 100%; padding: 10px 36px 10px 12px; font-size: 15px; color: var(--text);
       background: var(--surface2); border: 0.5px solid var(--border-med);
       border-radius: var(--radius-sm); outline: none; -webkit-appearance: none;
     }
     .input-wrap input[type=number]:focus { border-color: var(--green); box-shadow: 0 0 0 2px rgba(29,158,117,0.15); }
     .input-wrap .unit { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-size: 12px; color: var(--text3); pointer-events: none; }
-    input[type=number]::-webkit-inner-spin-button,
-    input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; }
+    input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; }
 
     /* ── Textarea ── */
     textarea {
-      width: 100%; min-height: 70px; resize: none;
-      padding: 11px 13px; font-size: 15px; line-height: 1.5;
-      color: var(--text); background: var(--surface2);
-      border: 0.5px solid var(--border-med);
-      border-radius: var(--radius-sm); outline: none; font-family: inherit;
+      width: 100%; min-height: 70px; resize: none; padding: 11px 13px;
+      font-size: 15px; line-height: 1.5; color: var(--text); background: var(--surface2);
+      border: 0.5px solid var(--border-med); border-radius: var(--radius-sm);
+      outline: none; font-family: inherit;
     }
     textarea:focus { border-color: var(--green); box-shadow: 0 0 0 2px rgba(29,158,117,0.15); }
     textarea::placeholder { color: var(--text3); }
 
     .opt-tag {
-      font-size: 10px; font-weight: 500; letter-spacing: 0.04em;
-      color: var(--text3); background: var(--surface2);
-      border: 0.5px solid var(--border); border-radius: 4px;
+      font-size: 10px; font-weight: 500; letter-spacing: 0.04em; color: var(--text3);
+      background: var(--surface2); border: 0.5px solid var(--border); border-radius: 4px;
       padding: 2px 5px; margin-left: 6px;
     }
 
     /* ── Save button & toast ── */
     .save-wrap { padding: 14px 14px 0; }
     .save-btn {
-      width: 100%; padding: 15px;
-      background: var(--green); color: white;
-      border: none; border-radius: var(--radius);
-      font-size: 16px; font-weight: 600; cursor: pointer;
-      display: flex; align-items: center; justify-content: center; gap: 8px;
-      -webkit-tap-highlight-color: transparent;
-      transition: background 0.15s, transform 0.1s;
+      width: 100%; padding: 15px; background: var(--green); color: white;
+      border: none; border-radius: var(--radius); font-size: 16px; font-weight: 600;
+      cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;
+      -webkit-tap-highlight-color: transparent; transition: background 0.15s, transform 0.1s;
     }
     .save-btn:active { background: var(--green-dark); transform: scale(0.98); }
     .save-btn svg { width: 18px; height: 18px; stroke: white; }
-
     .toast {
       text-align: center; font-size: 13px; color: var(--green);
       height: 0; overflow: hidden; transition: height 0.2s;
@@ -283,22 +247,11 @@
     /* ── History panel ── */
     .hist-toggle-wrap { text-align: center; padding: 14px 0 4px; }
     .hist-toggle {
-      background: none; border: none; cursor: pointer;
-      font-size: 13px; color: var(--text2);
-      display: inline-flex; align-items: center; gap: 5px;
-      -webkit-tap-highlight-color: transparent;
+      background: none; border: none; cursor: pointer; font-size: 13px; color: var(--text2);
+      display: inline-flex; align-items: center; gap: 5px; -webkit-tap-highlight-color: transparent;
     }
     .hist-toggle svg { width: 14px; height: 14px; stroke: var(--text2); }
     .hist-panel { display: none; padding: 4px 14px 0; }
-
-    .export-btn {
-      width: 100%; padding: 11px; margin-bottom: 10px;
-      background: var(--surface); border: 0.5px solid var(--border-med);
-      border-radius: var(--radius-sm); font-size: 14px; color: var(--text2);
-      cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;
-    }
-    .export-btn svg { width: 15px; height: 15px; stroke: var(--text2); }
-
     .entry-card {
       background: var(--surface); border: 0.5px solid var(--border);
       border-radius: var(--radius-sm); padding: 12px 14px; margin-bottom: 8px;
@@ -310,397 +263,574 @@
     .entry-note { font-size: 13px; color: var(--text2); margin-top: 7px; font-style: italic; border-top: 0.5px solid var(--border); padding-top: 7px; }
     .empty-hist { font-size: 13px; color: var(--text3); text-align: center; padding: 20px 0; }
 
-    /* ── Past date warning banner ── */
+    /* ── Past date banner ── */
     .past-date-banner {
-      display: none;
-      margin: 10px 14px 0;
-      padding: 10px 14px;
-      background: #FAEEDA;
-      border: 0.5px solid var(--amber);
-      border-radius: var(--radius-sm);
-      font-size: 13px; color: var(--amber);
+      display: none; margin: 10px 14px 0; padding: 10px 14px;
+      background: #FAEEDA; border: 0.5px solid var(--amber);
+      border-radius: var(--radius-sm); font-size: 13px; color: var(--amber);
       align-items: center; gap: 8px;
     }
     .past-date-banner.show { display: flex; }
     .past-date-banner svg { width: 14px; height: 14px; stroke: var(--amber); flex-shrink: 0; }
+
+    /* ============================================================
+       CHARTS TAB STYLES
+    ============================================================ */
+
+    /* ── Charts header (separate from the log header) ── */
+    .charts-header {
+      background: var(--surface); border-bottom: 0.5px solid var(--border);
+      padding: calc(16px + var(--safe-top)) 20px 14px;
+      position: sticky; top: 0; z-index: 50;
+    }
+    .charts-title { font-size: 20px; font-weight: 700; letter-spacing: -0.5px; margin-bottom: 12px; }
+    .charts-title em { color: var(--green); font-style: normal; }
+
+    /* ── Time range slider ── */
+    .range-row {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 10px;
+    }
+    .range-label { font-size: 12px; color: var(--text2); white-space: nowrap; }
+    .range-val { font-size: 12px; font-weight: 600; color: var(--green); white-space: nowrap; min-width: 30px; text-align: right; }
+
+    /*
+      The range slider for time filter snaps to 5 positions:
+      0=2w, 1=4w, 2=8w, 3=12w, 4=All
+      We map the integer value to a label in JS.
+    */
+    #range-slider { flex: 1; }
+
+    /* ============================================================
+       CHART ACCORDION SECTIONS
+       Same pattern as the log form's collapsible panels.
+       Each chart lives in a .chart-section.
+       Tapping the header toggles .open on .chart-body.
+    ============================================================ */
+    .chart-section {
+      background: var(--surface); border-radius: var(--radius);
+      border: 0.5px solid var(--border); margin: 10px 14px 0; overflow: hidden;
+    }
+    .chart-section-head {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 16px; cursor: pointer; -webkit-tap-highlight-color: transparent;
+    }
+    .chart-section-head-left { display: flex; align-items: center; gap: 8px; }
+    .chart-section-title { font-size: 14px; font-weight: 600; color: var(--text); }
+    .chart-section-sub { font-size: 11px; color: var(--text3); margin-top: 2px; }
+    .chart-chevron {
+      width: 16px; height: 16px; stroke: var(--text3);
+      transition: transform 0.2s; flex-shrink: 0;
+    }
+    .chart-section.open .chart-chevron { transform: rotate(180deg); }
+
+    /* Chart body — accordion, same max-height trick as session-details */
+    .chart-body {
+      max-height: 0; overflow: hidden;
+      transition: max-height 0.35s ease;
+    }
+    .chart-section.open .chart-body { max-height: 400px; }
+
+    .chart-inner { padding: 0 16px 16px; }
+
+    /* Canvas element that Chart.js draws into */
+    .chart-canvas { width: 100% !important; height: 220px !important; }
+
+    /* Legend row below chart — coloured dots with labels */
+    .chart-legend {
+      display: flex; flex-wrap: wrap; gap: 6px 14px;
+      margin-top: 10px;
+    }
+    .legend-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--text2); }
+    .legend-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+    /* Sleep colour legend for the session rating chart */
+    .sleep-legend { display: flex; gap: 10px; margin-top: 8px; flex-wrap: wrap; }
+    .sleep-legend-item { display: flex; align-items: center; gap: 4px; font-size: 10px; color: var(--text3); }
+    .sleep-legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+
+    /* Empty state inside a chart */
+    .chart-empty { text-align: center; font-size: 13px; color: var(--text3); padding: 30px 0; }
+
+    /* ── Stats summary row ── */
+    .stats-row {
+      display: grid; grid-template-columns: repeat(3, 1fr);
+      gap: 8px; margin: 10px 14px 0;
+    }
+    .stat-card {
+      background: var(--surface); border: 0.5px solid var(--border);
+      border-radius: var(--radius-sm); padding: 12px 10px; text-align: center;
+    }
+    .stat-val { font-size: 22px; font-weight: 700; color: var(--green); }
+    .stat-label { font-size: 10px; color: var(--text3); margin-top: 2px; text-transform: uppercase; letter-spacing: 0.05em; }
   </style>
 </head>
 <body>
 <div class="app">
 
-  <!-- Header -->
-  <header class="header">
-    <div class="header-top">
-      <div class="app-title">Climbing <em>App</em></div>
-      <div class="date-badge" id="date-badge" onclick="toggleDatePicker()">
-        <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-        <span id="date-label"></span>
+  <!-- ═══════════════════════════════════════════
+       LOG TAB
+  ═══════════════════════════════════════════ -->
+  <div class="tab-view active" id="tab-log">
+
+    <header class="header">
+      <div class="header-top">
+        <div class="app-title">Climbing <em>App</em></div>
+        <div class="date-badge" id="date-badge" onclick="toggleDatePicker()">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          <span id="date-label"></span>
+        </div>
+      </div>
+      <div class="header-meta">
+        <div class="week-tag" id="week-tag"></div>
+        <div class="streak-dots" id="streak-dots"></div>
+      </div>
+    </header>
+
+    <div class="date-picker-panel" id="date-picker-panel">
+      <label for="date-input">Logging for:</label>
+      <input type="date" id="date-input" onchange="previewDate(this.value)" />
+      <button class="date-confirm-btn" onclick="confirmDate()">Set date</button>
+    </div>
+
+    <div class="past-date-banner" id="past-banner">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <span id="past-banner-text"></span>
+    </div>
+
+    <!-- Climbing today? -->
+    <div class="section">
+      <div class="section-head">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+        Climbing today?
+      </div>
+      <div class="climb-btns">
+        <button class="cbtn" id="btn-yes" onclick="setClimb('yes')">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M12 2C8 2 4 6 4 10c0 6 8 12 8 12s8-6 8-12c0-4-4-8-8-8z"/><circle cx="12" cy="10" r="2"/></svg>
+          Climbing
+        </button>
+        <button class="cbtn" id="btn-no" onclick="setClimb('no')">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M20 9V7a2 2 0 00-2-2H4a2 2 0 00-2 2v6a2 2 0 002 2h8"/><path d="M16 14l2 2 4-4"/></svg>
+          Rest day
+        </button>
+      </div>
+      <div class="session-details" id="session-details">
+        <hr class="session-divider">
+        <div class="field">
+          <div class="field-top">
+            <span class="field-name">Session rating</span>
+            <span class="field-val" id="sess-val">5</span>
+          </div>
+          <div class="energy-track" id="sess-track">
+            <input type="range" id="sess" min="1" max="10" step="1" value="5" oninput="updEnergy('sess',this.value)">
+          </div>
+        </div>
+        <div style="margin-top:14px;">
+          <div class="field-top" style="margin-bottom:8px;">
+            <span class="field-name" style="font-size:13px;color:var(--text2);">Session notes</span>
+          </div>
+          <textarea id="sess-notes" placeholder="e.g. 'Crimps & Fingers felt good, felt weak on powerful moves'"></textarea>
+        </div>
       </div>
     </div>
-    <div class="header-meta">
-      <div class="week-tag" id="week-tag"></div>
-      <div class="streak-dots" id="streak-dots"></div>
-    </div>
-  </header>
 
-  <!-- Date picker panel -->
-  <div class="date-picker-panel" id="date-picker-panel">
-    <label for="date-input">Logging for:</label>
-    <input type="date" id="date-input" onchange="previewDate(this.value)" />
-    <button class="date-confirm-btn" onclick="confirmDate()">Set date</button>
-  </div>
-
-  <!-- Past date warning banner -->
-  <div class="past-date-banner" id="past-banner">
-    <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-    <span id="past-banner-text"></span>
-  </div>
-
-  <!--
-    CLIMBING TODAY? SECTION
-    This card now contains three things:
-      1. The yes/no toggle (unchanged)
-      2. The session details panel — hidden until "Climbing" is tapped
-         (session rating slider, mobility checkbox, session notes)
-    All three live in one card so the expanding content feels
-    like it naturally belongs to the climbing choice.
-  -->
-  <div class="section">
-    <div class="section-head">
-      <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
-      Climbing today?
+    <!-- Stretching / Mobility -->
+    <div class="section">
+      <div class="section-head">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M18 3a3 3 0 00-3 3v12a3 3 0 003 3 3 3 0 003-3 3 3 0 00-3-3H6a3 3 0 00-3 3 3 3 0 003 3 3 3 0 003-3V6a3 3 0 00-3-3 3 3 0 00-3 3 3 3 0 003 3h12a3 3 0 003-3 3 3 0 00-3-3z"/></svg>
+        Stretching / Mobility
+      </div>
+      <div class="climb-btns">
+        <button class="cbtn" id="stretch-yes" onclick="setStretch('yes')">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+          Yes
+        </button>
+        <button class="cbtn" id="stretch-no" onclick="setStretch('no')">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          No
+        </button>
+      </div>
+      <div class="session-details" id="stretch-details">
+        <hr class="session-divider">
+        <div class="field">
+          <div class="field-top">
+            <span class="field-name">Flexibility rating</span>
+            <span class="field-val" id="flex-val">5</span>
+          </div>
+          <div class="energy-track" id="flex-track">
+            <input type="range" id="flex" min="1" max="10" step="1" value="5" oninput="updEnergy('flex',this.value)">
+          </div>
+        </div>
+      </div>
     </div>
 
-    <!-- Toggle buttons — unchanged from before -->
-    <div class="climb-btns">
-      <button class="cbtn" id="btn-yes" onclick="setClimb('yes')">
-        <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M12 2C8 2 4 6 4 10c0 6 8 12 8 12s8-6 8-12c0-4-4-8-8-8z"/><circle cx="12" cy="10" r="2"/></svg>
-        Climbing
-      </button>
-      <button class="cbtn" id="btn-no" onclick="setClimb('no')">
-        <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M20 9V7a2 2 0 00-2-2H4a2 2 0 00-2 2v6a2 2 0 002 2h8"/><path d="M16 14l2 2 4-4"/></svg>
-        Rest day
-      </button>
-    </div>
-
-    <!--
-      SESSION DETAILS — NEW
-      Hidden by default. setClimb('yes') adds the 'open' class
-      which triggers the CSS transition to expand it smoothly.
-      setClimb('no') removes 'open' and it collapses back.
-    -->
-    <div class="session-details" id="session-details">
-      <hr class="session-divider">
-
-      <!-- Session rating slider — same pattern as energy sliders -->
+    <!-- Recovery -->
+    <div class="section">
+      <div class="section-head">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M12 3a6 6 0 009 9 9 9 0 11-9-9z"/></svg>
+        Recovery
+      </div>
       <div class="field">
-        <div class="field-top">
-          <span class="field-name">Session rating</span>
-          <span class="field-val" id="sess-val">5</span>
-        </div>
-        <div class="energy-track" id="sess-track">
-          <input type="range" id="sess" min="1" max="10" step="1" value="5"
-                 oninput="updEnergy('sess', this.value)">
-        </div>
+        <div class="field-top"><span class="field-name">Sleep</span><span class="field-val" id="sleep-val">7h</span></div>
+        <input type="range" id="sleep" min="2" max="12" step="0.5" value="7" oninput="updSleep(this.value)">
       </div>
-
-      <!-- Session notes — specific to this climbing session -->
-      <div style="margin-top: 14px;">
-        <div class="field-top" style="margin-bottom: 8px;">
-          <span class="field-name" style="font-size:13px; color: var(--text2);">Session notes</span>
-        </div>
-        <textarea id="sess-notes" placeholder="e.g. 'Crimps & Fingers felt good, felt weak on powerful moves'"></textarea>
-      </div>
-    </div>
-  </div>
-
-  <!--
-    STRETCHING / MOBILITY SECTION — NEW, always visible
-    Sits between climbing and recovery so it's relevant on both
-    climbing days and rest days. Same yes/no toggle pattern as
-    the climbing card. Tapping "Yes" reveals the flexibility
-    rating slider using the same accordion CSS as session-details.
-  -->
-  <div class="section">
-    <div class="section-head">
-      <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M18 3a3 3 0 00-3 3v12a3 3 0 003 3 3 3 0 003-3 3 3 0 00-3-3H6a3 3 0 00-3 3 3 3 0 003 3 3 3 0 003-3V6a3 3 0 00-3-3 3 3 0 00-3 3 3 3 0 003 3h12a3 3 0 003-3 3 3 0 00-3-3z"/></svg>
-      Stretching / Mobility
-    </div>
-
-    <!-- Yes/No toggle — identical pattern to the climbing toggle -->
-    <div class="climb-btns">
-      <button class="cbtn" id="stretch-yes" onclick="setStretch('yes')">
-        <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
-        Yes
-      </button>
-      <button class="cbtn" id="stretch-no" onclick="setStretch('no')">
-        <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-        No
-      </button>
-    </div>
-
-    <!--
-      Flexibility rating — only shown when stretching = yes.
-      Uses the same session-details accordion CSS class and
-      the same updEnergy() function for colour-coded display.
-    -->
-    <div class="session-details" id="stretch-details">
-      <hr class="session-divider">
       <div class="field">
-        <div class="field-top">
-          <span class="field-name">Flexibility rating</span>
-          <span class="field-val" id="flex-val">5</span>
-        </div>
-        <div class="energy-track" id="flex-track">
-          <input type="range" id="flex" min="1" max="10" step="1" value="5"
-                 oninput="updEnergy('flex', this.value)">
-        </div>
+        <div class="field-top"><span class="field-name">Water</span><span class="field-val" id="water-val">2.0L</span></div>
+        <input type="range" id="water" min="0" max="5" step="0.25" value="2" oninput="updWater(this.value)">
       </div>
     </div>
-  </div>
 
-  <!-- Recovery -->
-  <div class="section">
-    <div class="section-head">
-      <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M12 3a6 6 0 009 9 9 9 0 11-9-9z"/></svg>
-      Recovery
-    </div>
-    <div class="field">
-      <div class="field-top">
-        <span class="field-name">Sleep</span>
-        <span class="field-val" id="sleep-val">7h</span>
+    <!-- Energy -->
+    <div class="section">
+      <div class="section-head">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+        Energy
       </div>
-      <input type="range" id="sleep" min="2" max="12" step="0.5" value="7" oninput="updSleep(this.value)">
-    </div>
-    <div class="field">
-      <div class="field-top">
-        <span class="field-name">Water</span>
-        <span class="field-val" id="water-val">2.0L</span>
-      </div>
-      <input type="range" id="water" min="0" max="5" step="0.25" value="2" oninput="updWater(this.value)">
-    </div>
-  </div>
-
-  <!-- Energy -->
-  <div class="section">
-    <div class="section-head">
-      <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-      Energy
-    </div>
-    <div class="field">
-      <div class="field-top">
-        <span class="field-name">Physical</span>
-        <span class="field-val" id="phys-val">5</span>
-      </div>
-      <div class="energy-track" id="phys-track">
-        <input type="range" id="phys" min="1" max="10" step="1" value="5" oninput="updEnergy('phys',this.value)">
-      </div>
-    </div>
-    <div class="field">
-      <div class="field-top">
-        <span class="field-name">Mental</span>
-        <span class="field-val" id="ment-val">5</span>
-      </div>
-      <div class="energy-track" id="ment-track">
-        <input type="range" id="ment" min="1" max="10" step="1" value="5" oninput="updEnergy('ment',this.value)">
-      </div>
-    </div>
-  </div>
-
-  <!-- Nutrition (optional) -->
-  <div class="section">
-    <div class="section-head">
-      <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M12 2a10 10 0 100 20A10 10 0 0012 2z"/><path d="M12 6v6l4 2"/></svg>
-      Nutrition <span class="opt-tag">optional</span>
-    </div>
-    <div class="two-col">
-      <div>
-        <div class="field-top" style="margin-bottom:6px;"><span class="field-name" style="font-size:13px;">Calories</span></div>
-        <div class="input-wrap">
-          <input type="number" id="cals" placeholder="2200" min="0" max="9999">
-          <span class="unit">kcal</span>
+      <div class="field">
+        <div class="field-top"><span class="field-name">Physical</span><span class="field-val" id="phys-val">5</span></div>
+        <div class="energy-track" id="phys-track">
+          <input type="range" id="phys" min="1" max="10" step="1" value="5" oninput="updEnergy('phys',this.value)">
         </div>
       </div>
-      <div>
-        <div class="field-top" style="margin-bottom:6px;"><span class="field-name" style="font-size:13px;">Protein</span></div>
-        <div class="input-wrap">
-          <input type="number" id="prot" placeholder="150" min="0" max="999">
-          <span class="unit">g</span>
+      <div class="field">
+        <div class="field-top"><span class="field-name">Mental</span><span class="field-val" id="ment-val">5</span></div>
+        <div class="energy-track" id="ment-track">
+          <input type="range" id="ment" min="1" max="10" step="1" value="5" oninput="updEnergy('ment',this.value)">
         </div>
       </div>
     </div>
-  </div>
 
-  <!-- General notes — day/life notes, separate from session notes above -->
-  <div class="section">
-    <div class="section-head">
-      <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-      General notes
+    <!-- Nutrition -->
+    <div class="section">
+      <div class="section-head">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M12 2a10 10 0 100 20A10 10 0 0012 2z"/><path d="M12 6v6l4 2"/></svg>
+        Nutrition <span class="opt-tag">optional</span>
+      </div>
+      <div class="two-col">
+        <div>
+          <div class="field-top" style="margin-bottom:6px;"><span class="field-name" style="font-size:13px;">Calories</span></div>
+          <div class="input-wrap">
+            <input type="number" id="cals" placeholder="2200" min="0" max="9999">
+            <span class="unit">kcal</span>
+          </div>
+        </div>
+        <div>
+          <div class="field-top" style="margin-bottom:6px;"><span class="field-name" style="font-size:13px;">Protein</span></div>
+          <div class="input-wrap">
+            <input type="number" id="prot" placeholder="150" min="0" max="999">
+            <span class="unit">g</span>
+          </div>
+        </div>
+      </div>
     </div>
-    <textarea id="notes" placeholder="e.g. 'slept awfully, work stress' or 'feeling good this week'"></textarea>
-  </div>
 
-  <!-- Save -->
-  <div class="save-wrap">
-    <button class="save-btn" onclick="saveEntry()">
-      <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-      Log entry
-    </button>
-    <div class="toast" id="toast">
-      <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-      <span id="toast-msg">Entry saved!</span>
+    <!-- General notes -->
+    <div class="section">
+      <div class="section-head">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        General notes
+      </div>
+      <textarea id="notes" placeholder="e.g. 'slept awfully, work stress' or 'feeling good this week'"></textarea>
     </div>
-  </div>
 
-  <!--
-    DATA MANAGEMENT SECTION — NEW
-    Contains filename setting, export and import.
-    Sits above the history log so it's easy to find.
-  -->
-  <div class="section" style="margin-top:14px;">
-    <div class="section-head">
-      <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
-      Data
+    <!-- Save -->
+    <div class="save-wrap">
+      <button class="save-btn" onclick="saveEntry()">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+        Log entry
+      </button>
+      <div class="toast" id="toast">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+        <span id="toast-msg">Entry saved!</span>
+      </div>
+    </div>
+
+    <!-- Data management -->
+    <div class="section" style="margin-top:14px;">
+      <div class="section-head">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+        Data
+      </div>
+      <div class="field-top" style="margin-bottom:6px;">
+        <span class="field-name" style="font-size:13px;">File name</span>
+      </div>
+      <div class="input-wrap" style="margin-bottom:12px;">
+        <input type="text" id="csv-filename" placeholder="climbing_data"
+               style="width:100%;padding:10px 46px 10px 12px;font-size:15px;color:var(--text);background:var(--surface2);border:0.5px solid var(--border-med);border-radius:var(--radius-sm);outline:none;font-family:inherit;"
+               oninput="saveFilename(this.value)">
+        <span class="unit">.csv</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
+        <button class="cbtn sel-yes" style="padding:11px 8px;" onclick="exportCSV(false)">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" style="width:15px;height:15px;stroke:currentColor;"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Export
+        </button>
+        <button class="cbtn" style="padding:11px 8px;" onclick="exportCSV(true)">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" style="width:15px;height:15px;stroke:currentColor;"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+          Save as new
+        </button>
+      </div>
+      <input type="file" id="csv-file-input" accept=".csv,text/csv,text/plain,*/*" style="display:none" onchange="importCSV(this)">
+      <button class="cbtn" style="width:100%;padding:11px;" onclick="document.getElementById('csv-file-input').click()">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" style="width:15px;height:15px;stroke:currentColor;"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 10 12 5 7 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Import CSV
+      </button>
+      <div class="toast" id="import-toast" style="margin-top:8px;">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" style="width:14px;height:14px;stroke:var(--green);"><polyline points="20 6 9 17 4 12"/></svg>
+        <span id="import-msg"></span>
+      </div>
+    </div>
+
+    <!-- History -->
+    <div class="hist-toggle-wrap">
+      <button class="hist-toggle" onclick="toggleHist()">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg>
+        <span id="hist-lbl">Show log history</span>
+      </button>
+    </div>
+    <div class="hist-panel" id="hist-panel">
+      <div id="hist-list"></div>
+    </div>
+
+  </div><!-- end #tab-log -->
+
+
+  <!-- ═══════════════════════════════════════════
+       CHARTS TAB
+  ═══════════════════════════════════════════ -->
+  <div class="tab-view" id="tab-charts">
+
+    <header class="charts-header">
+      <div class="charts-title">Climbing <em>Charts</em></div>
+
+      <!--
+        TIME RANGE SLIDER
+        Snaps to 5 positions: 0=2w, 1=4w, 2=8w, 3=12w, 4=All
+        oninput fires on every drag movement and redraws all charts.
+        The label on the right shows the current selection.
+      -->
+      <div class="range-row">
+        <span class="range-label">Show last:</span>
+        <input type="range" id="range-slider" min="0" max="4" step="1" value="4"
+               style="flex:1;" oninput="onRangeChange(this.value)">
+        <span class="range-val" id="range-val">All</span>
+      </div>
+    </header>
+
+    <!--
+      SUMMARY STATS ROW
+      Three quick numbers at a glance — total sessions, avg session
+      rating, avg sleep. Re-calculated whenever the range changes.
+    -->
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-val" id="stat-sessions">—</div>
+        <div class="stat-label">Sessions</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-val" id="stat-avg-sess">—</div>
+        <div class="stat-label">Avg rating</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-val" id="stat-avg-sleep">—</div>
+        <div class="stat-label">Avg sleep</div>
+      </div>
     </div>
 
     <!--
-      Filename input — user sets their master CSV filename once.
-      Stored in localStorage so it persists between sessions.
-      The .csv extension is appended automatically on export.
+      CHART 1: SESSION RATING OVER TIME
+      Line chart — only climbing days plotted.
+      Each dot is colour-coded by sleep that night:
+        green  = 8h+
+        amber  = 6-8h
+        red    = under 6h
+      This gives the correlation hint without needing statistics.
     -->
-    <div class="field-top" style="margin-bottom:6px;">
-      <span class="field-name" style="font-size:13px;">File name</span>
-    </div>
-    <div class="input-wrap" style="margin-bottom:12px;">
-      <input type="text" id="csv-filename" placeholder="climbing_data"
-             style="width:100%;padding:10px 46px 10px 12px;font-size:15px;
-                    color:var(--text);background:var(--surface2);
-                    border:0.5px solid var(--border-med);
-                    border-radius:var(--radius-sm);outline:none;font-family:inherit;"
-             oninput="saveFilename(this.value)">
-      <span class="unit">.csv</span>
-    </div>
-
-    <!-- Export buttons — main export + optional "save as new" -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
-      <!--
-        Main export — uses the saved filename, overwrites the previous file.
-        This is the one you'll tap most often.
-      -->
-      <button class="cbtn sel-yes" style="padding:11px 8px;" onclick="exportCSV(false)">
-        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" style="width:15px;height:15px;stroke:currentColor;">
-          <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
-          <polyline points="7 10 12 15 17 10"/>
-          <line x1="12" y1="15" x2="12" y2="3"/>
-        </svg>
-        Export
-      </button>
-      <!--
-        Save as new — prompts for a different filename so you can take
-        a named snapshot (e.g. "week_6_checkpoint") without changing
-        your default filename.
-      -->
-      <button class="cbtn" style="padding:11px 8px;" onclick="exportCSV(true)">
-        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" style="width:15px;height:15px;stroke:currentColor;">
-          <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/>
-          <polyline points="17 21 17 13 7 13 7 21"/>
-          <polyline points="7 3 7 8 15 8"/>
-        </svg>
-        Save as new
-      </button>
+    <div class="chart-section open" id="cs-session">
+      <div class="chart-section-head" onclick="toggleChart('cs-session')">
+        <div class="chart-section-head-left">
+          <div>
+            <div class="chart-section-title">Session Rating</div>
+            <div class="chart-section-sub">Dots coloured by sleep quality</div>
+          </div>
+        </div>
+        <svg class="chart-chevron" viewBox="0 0 24 24" fill="none" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div class="chart-body">
+        <div class="chart-inner">
+          <canvas id="chart-session" class="chart-canvas"></canvas>
+          <div class="sleep-legend">
+            <div class="sleep-legend-item"><div class="sleep-legend-dot" style="background:#1D9E75"></div> 8h+ sleep</div>
+            <div class="sleep-legend-item"><div class="sleep-legend-dot" style="background:#BA7517"></div> 6–8h sleep</div>
+            <div class="sleep-legend-item"><div class="sleep-legend-dot" style="background:#A32D2D"></div> &lt;6h sleep</div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!--
-      Import section — hidden file input triggered by the visible button.
-      <input type="file"> is invisible; the button calls click() on it.
-      On mobile this opens the file picker so you can select your CSV.
-      After selection, importCSV() fires and parses the file.
+      CHART 2: SLEEP & WATER OVER TIME
+      Two lines on the same chart using dual y-axes.
+      Left axis = sleep (hours), right axis = water (litres).
+      All entries plotted (not just climbing days).
     -->
-    <input type="file" id="csv-file-input" accept=".csv,text/csv,text/plain,*/*"
-           style="display:none" onchange="importCSV(this)">
-    <button class="cbtn" style="width:100%;padding:11px;" onclick="document.getElementById('csv-file-input').click()">
-      <svg viewBox="0 0 24 24" fill="none" stroke-width="2" style="width:15px;height:15px;stroke:currentColor;">
-        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
-        <polyline points="7 10 12 15 17 10"/><!-- arrow up -->
-        <polyline points="17 10 12 5 7 10"/>
-        <line x1="12" y1="15" x2="12" y2="3"/>
-      </svg>
-      Import CSV
-    </button>
-
-    <!-- Import result banner — shown briefly after a successful import -->
-    <div class="toast" id="import-toast" style="margin-top:8px;">
-      <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" style="width:14px;height:14px;stroke:var(--green);"><polyline points="20 6 9 17 4 12"/></svg>
-      <span id="import-msg"></span>
+    <div class="chart-section" id="cs-recovery">
+      <div class="chart-section-head" onclick="toggleChart('cs-recovery')">
+        <div class="chart-section-head-left">
+          <div>
+            <div class="chart-section-title">Sleep & Water</div>
+            <div class="chart-section-sub">Recovery inputs over time</div>
+          </div>
+        </div>
+        <svg class="chart-chevron" viewBox="0 0 24 24" fill="none" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div class="chart-body">
+        <div class="chart-inner">
+          <canvas id="chart-recovery" class="chart-canvas"></canvas>
+          <div class="chart-legend">
+            <div class="legend-item"><div class="legend-dot" style="background:#1D9E75"></div> Sleep (h)</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#6C9BD2"></div> Water (L)</div>
+          </div>
+        </div>
+      </div>
     </div>
-  </div>
 
-  <!-- History toggle -->
-  <div class="hist-toggle-wrap">
-    <button class="hist-toggle" onclick="toggleHist()">
-      <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg>
-      <span id="hist-lbl">Show log history</span>
-    </button>
-  </div>
+    <!--
+      CHART 3: PHYSICAL & MENTAL ENERGY
+      Two lines — how you felt going into each day.
+      Useful for spotting when both dip together (fatigue weeks).
+    -->
+    <div class="chart-section" id="cs-energy">
+      <div class="chart-section-head" onclick="toggleChart('cs-energy')">
+        <div class="chart-section-head-left">
+          <div>
+            <div class="chart-section-title">Energy Levels</div>
+            <div class="chart-section-sub">Physical & mental over time</div>
+          </div>
+        </div>
+        <svg class="chart-chevron" viewBox="0 0 24 24" fill="none" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div class="chart-body">
+        <div class="chart-inner">
+          <canvas id="chart-energy" class="chart-canvas"></canvas>
+          <div class="chart-legend">
+            <div class="legend-item"><div class="legend-dot" style="background:#1D9E75"></div> Physical</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#9B59B6"></div> Mental</div>
+          </div>
+        </div>
+      </div>
+    </div>
 
-  <!-- History panel -->
-  <div class="hist-panel" id="hist-panel">
-    <div id="hist-list"></div>
-  </div>
+    <!--
+      CHART 4: WEEKLY STRETCHING CONSISTENCY
+      Bar chart — one bar per week showing how many days you stretched.
+      Maximum possible = 7. Good visual for habit tracking.
+    -->
+    <div class="chart-section" id="cs-stretch">
+      <div class="chart-section-head" onclick="toggleChart('cs-stretch')">
+        <div class="chart-section-head-left">
+          <div>
+            <div class="chart-section-title">Stretching Consistency</div>
+            <div class="chart-section-sub">Days stretched per week</div>
+          </div>
+        </div>
+        <svg class="chart-chevron" viewBox="0 0 24 24" fill="none" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div class="chart-body">
+        <div class="chart-inner">
+          <canvas id="chart-stretch" class="chart-canvas"></canvas>
+        </div>
+      </div>
+    </div>
 
-</div>
+    <div style="height:10px;"></div>
+
+  </div><!-- end #tab-charts -->
+
+</div><!-- end .app -->
+
+<!--
+  BOTTOM NAVIGATION BAR
+  Fixed at the bottom. switchTab() swaps the visible tab
+  and updates which nav button is highlighted green.
+-->
+<nav class="bottom-nav">
+  <button class="nav-btn active" id="nav-log" onclick="switchTab('log')">
+    <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+    Log
+  </button>
+  <button class="nav-btn" id="nav-charts" onclick="switchTab('charts')">
+    <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+    Charts
+  </button>
+</nav>
 
 <script>
-  /* ── State variables ── */
+  /* ── State ── */
   const STORAGE_KEY = 'climbing_app_v1';
   let climbVal     = null;
+  let stretchVal   = null;
   let selectedDate = todayStr();
 
-  /* ── todayStr(): returns today as YYYY-MM-DD ── */
-  function todayStr() {
-    return new Date().toISOString().split('T')[0];
-  }
+  /* Chart.js instances — kept so we can destroy & redraw on range change */
+  let chartInstances = {};
 
-  /* ── formatDisplayDate(): YYYY-MM-DD → "Fri 6 Jun" ── */
+  /* ── Utility ── */
+  function todayStr() { return new Date().toISOString().split('T')[0]; }
+
   function formatDisplayDate(dateStr) {
-    const d = new Date(dateStr + 'T12:00:00'); // noon avoids timezone edge cases
+    const d = new Date(dateStr + 'T12:00:00');
     return d.toLocaleDateString('en-GB', { weekday:'short', day:'numeric', month:'short' });
   }
 
-  /* ── getEntries() / saveEntries(): read/write localStorage ── */
   function getEntries() {
-    try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); }
-    catch(e) { return []; }
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch(e) { return []; }
   }
-  function saveEntries(arr) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(arr));
+  function saveEntries(arr) { localStorage.setItem(STORAGE_KEY, JSON.stringify(arr)); }
+
+  /* ============================================================
+     switchTab(tab)
+     Shows the selected tab view and hides the other.
+     Updates nav button active state.
+     When switching to charts, draws them fresh so data is current.
+  ============================================================ */
+  function switchTab(tab) {
+    document.getElementById('tab-log').classList.toggle('active', tab === 'log');
+    document.getElementById('tab-charts').classList.toggle('active', tab === 'charts');
+    document.getElementById('nav-log').classList.toggle('active', tab === 'log');
+    document.getElementById('nav-charts').classList.toggle('active', tab === 'charts');
+    if (tab === 'charts') drawAllCharts();
+  }
+
+  /* ============================================================
+     toggleChart(id)
+     Opens/closes a chart accordion section.
+     When opening, redraws the chart inside in case data changed.
+  ============================================================ */
+  function toggleChart(id) {
+    const section = document.getElementById(id);
+    const wasOpen = section.classList.contains('open');
+    section.classList.toggle('open');
+    if (!wasOpen) drawAllCharts(); // redraw when expanding
   }
 
   /* ── Date picker ── */
   function toggleDatePicker() {
     const panel = document.getElementById('date-picker-panel');
     const isOpen = panel.classList.contains('open');
-    if (isOpen) {
-      panel.classList.remove('open');
-    } else {
-      document.getElementById('date-input').value = selectedDate;
-      panel.classList.add('open');
-    }
+    if (isOpen) { panel.classList.remove('open'); }
+    else { document.getElementById('date-input').value = selectedDate; panel.classList.add('open'); }
   }
-
   function previewDate(val) {
     if (val) document.getElementById('date-label').textContent = formatDisplayDate(val);
   }
-
   function confirmDate() {
     const val = document.getElementById('date-input').value;
     if (!val) return;
     selectedDate = val;
     document.getElementById('date-picker-panel').classList.remove('open');
-    updateDateUI();
-    prefillForm(selectedDate);
+    updateDateUI(); prefillForm(selectedDate);
   }
-
   function updateDateUI() {
     const isPast = selectedDate < todayStr();
     document.getElementById('date-label').textContent = formatDisplayDate(selectedDate);
@@ -709,224 +839,135 @@
       document.getElementById('past-banner-text').textContent =
         `Logging for ${formatDisplayDate(selectedDate)} — existing entry will be updated`;
       banner.classList.add('show');
-    } else {
-      banner.classList.remove('show');
-    }
+    } else { banner.classList.remove('show'); }
   }
 
-  /* ============================================================
-     setClimb(val) — UPDATED
-     Now also handles showing/hiding the session details panel.
-     When 'yes' is selected, adds 'open' class to trigger the
-     CSS max-height transition. When 'no', removes it.
-  ============================================================ */
+  /* ── Climb / stretch toggles ── */
   function setClimb(val) {
     climbVal = val;
     document.getElementById('btn-yes').className = 'cbtn' + (val === 'yes' ? ' sel-yes' : '');
     document.getElementById('btn-no').className  = 'cbtn' + (val === 'no'  ? ' sel-rest' : '');
-
-    // Show session details only on climbing days
-    const details = document.getElementById('session-details');
-    if (val === 'yes') {
-      details.classList.add('open');
-    } else {
-      details.classList.remove('open');
-    }
+    document.getElementById('session-details').classList.toggle('open', val === 'yes');
   }
-
-  /* ============================================================
-     setStretch(val)
-     Same pattern as setClimb() — updates button styles and
-     toggles the flexibility rating panel open/closed.
-     stretchVal is a new state variable alongside climbVal.
-  ============================================================ */
-  let stretchVal = null; // tracks yes/no for stretching
-
   function setStretch(val) {
     stretchVal = val;
     document.getElementById('stretch-yes').className = 'cbtn' + (val === 'yes' ? ' sel-yes' : '');
     document.getElementById('stretch-no').className  = 'cbtn' + (val === 'no'  ? ' sel-nope' : '');
-
-    // Show flexibility slider only when stretching was done
-    const details = document.getElementById('stretch-details');
-    if (val === 'yes') {
-      details.classList.add('open');
-    } else {
-      details.classList.remove('open');
-    }
+    document.getElementById('stretch-details').classList.toggle('open', val === 'yes');
   }
 
   /* ── Slider updates ── */
   function updSleep(v) {
-    document.getElementById('sleep-val').textContent =
-      parseFloat(v).toFixed(1).replace('.0','') + 'h';
+    document.getElementById('sleep-val').textContent = parseFloat(v).toFixed(1).replace('.0','') + 'h';
   }
-
   function updWater(v) {
-    document.getElementById('water-val').textContent =
-      parseFloat(v).toFixed(2).replace(/0$/,'').replace(/\.$/,'') + 'L';
+    document.getElementById('water-val').textContent = parseFloat(v).toFixed(2).replace(/0$/,'').replace(/\.$/,'') + 'L';
   }
-
-  /*
-    updEnergy(id, v) — UPDATED
-    Now also handles the session rating slider ('sess') since it
-    shares the same colour-coded behaviour as physical/mental energy.
-    Reusable for any slider that needs green/amber/red colouring.
-  */
   function updEnergy(id, v) {
-    const n   = parseInt(v);
+    const n = parseInt(v);
     const col = n >= 7 ? 'var(--green)' : n >= 4 ? 'var(--amber)' : 'var(--red)';
     document.getElementById(id+'-val').textContent = n;
     document.getElementById(id+'-val').style.color = col;
-    const pct = ((n - 1) / 9 * 100).toFixed(1) + '%';
+    const pct = ((n-1)/9*100).toFixed(1) + '%';
     document.getElementById(id+'-track').querySelector('input').style.background =
-      `linear-gradient(to right, ${col} 0%, ${col} ${pct}, var(--surface2) ${pct})`;
+      `linear-gradient(to right,${col} 0%,${col} ${pct},var(--surface2) ${pct})`;
   }
 
-  /* ============================================================
-     prefillForm(dateStr) — UPDATED
-     Now also resets and restores the three new fields:
-     session rating, mobility checkbox, and session notes.
-  ============================================================ */
+  /* ── prefillForm ── */
   function prefillForm(dateStr) {
     const prev = getEntries().find(e => e.date === dateStr);
-
-    // Reset all fields to defaults
-    document.getElementById('sleep').value = 7;  updSleep(7);
-    document.getElementById('water').value = 2;  updWater(2);
-    document.getElementById('phys').value  = 5;  updEnergy('phys', 5);
-    document.getElementById('ment').value  = 5;  updEnergy('ment', 5);
-    document.getElementById('sess').value  = 5;  updEnergy('sess', 5); // NEW
+    document.getElementById('sleep').value = 7; updSleep(7);
+    document.getElementById('water').value = 2; updWater(2);
+    document.getElementById('phys').value  = 5; updEnergy('phys',5);
+    document.getElementById('ment').value  = 5; updEnergy('ment',5);
+    document.getElementById('sess').value  = 5; updEnergy('sess',5);
+    document.getElementById('flex').value  = 5; updEnergy('flex',5);
     document.getElementById('cals').value  = '';
     document.getElementById('prot').value  = '';
     document.getElementById('notes').value = '';
     document.getElementById('sess-notes').value = '';
-    climbVal   = null;
-    stretchVal = null;
-    document.getElementById('btn-yes').className     = 'cbtn';
-    document.getElementById('btn-no').className      = 'cbtn';
-    document.getElementById('stretch-yes').className = 'cbtn';
-    document.getElementById('stretch-no').className  = 'cbtn';
+    climbVal = null; stretchVal = null;
+    ['btn-yes','btn-no','stretch-yes','stretch-no'].forEach(id => document.getElementById(id).className = 'cbtn');
     document.getElementById('session-details').classList.remove('open');
     document.getElementById('stretch-details').classList.remove('open');
-    // Reset flexibility slider
-    document.getElementById('flex').value = 5; updEnergy('flex', 5);
-
-    // Overwrite with saved values if an entry exists for this date
     if (prev) {
       document.getElementById('sleep').value = prev.sleep; updSleep(prev.sleep);
       document.getElementById('water').value = prev.water; updWater(prev.water);
-      document.getElementById('phys').value  = prev.physical; updEnergy('phys', prev.physical);
-      document.getElementById('ment').value  = prev.mental;   updEnergy('ment', prev.mental);
-      if (prev.calories)  document.getElementById('cals').value = prev.calories;
-      if (prev.protein)   document.getElementById('prot').value = prev.protein;
-      if (prev.notes)     document.getElementById('notes').value = prev.notes;
-      // Restore session fields
-      if (prev.sess_rating) {
-        document.getElementById('sess').value = prev.sess_rating;
-        updEnergy('sess', prev.sess_rating);
-      }
-      if (prev.sess_notes) document.getElementById('sess-notes').value = prev.sess_notes;
-      // Restore climbing toggle (also opens/closes session panel)
-      if (prev.climbing) setClimb(prev.climbing);
-      // Restore stretching toggle (also opens/closes flex panel)
+      document.getElementById('phys').value  = prev.physical; updEnergy('phys',prev.physical);
+      document.getElementById('ment').value  = prev.mental;   updEnergy('ment',prev.mental);
+      if (prev.calories) document.getElementById('cals').value = prev.calories;
+      if (prev.protein)  document.getElementById('prot').value = prev.protein;
+      if (prev.notes)    document.getElementById('notes').value = prev.notes;
+      if (prev.sess_rating) { document.getElementById('sess').value = prev.sess_rating; updEnergy('sess',prev.sess_rating); }
+      if (prev.sess_notes)  document.getElementById('sess-notes').value = prev.sess_notes;
+      if (prev.climbing)  setClimb(prev.climbing);
       if (prev.stretching) setStretch(prev.stretching);
-      if (prev.flex_rating) {
-        document.getElementById('flex').value = prev.flex_rating;
-        updEnergy('flex', prev.flex_rating);
-      }
+      if (prev.flex_rating) { document.getElementById('flex').value = prev.flex_rating; updEnergy('flex',prev.flex_rating); }
     }
   }
 
-  /* ============================================================
-     saveEntry() — UPDATED
-     Three new fields added to the entry object:
-       sess_rating: the 1-10 session score (null on rest days)
-       mobility: boolean — did you stretch? (null on rest days)
-       sess_notes: session-specific notes (null on rest days)
-     These are only saved when climbing = 'yes', otherwise null.
-  ============================================================ */
+  /* ── saveEntry ── */
   function saveEntry() {
     const isClimbing   = climbVal   === 'yes';
     const isStretching = stretchVal === 'yes';
-
     const entry = {
-      date:        selectedDate,
-      climbing:    climbVal,
-      sleep:       parseFloat(document.getElementById('sleep').value),
-      water:       parseFloat(document.getElementById('water').value),
-      physical:    parseInt(document.getElementById('phys').value),
-      mental:      parseInt(document.getElementById('ment').value),
-      calories:    document.getElementById('cals').value || null,
-      protein:     document.getElementById('prot').value || null,
-      notes:       document.getElementById('notes').value.trim() || null,
-      // Session fields — only populated on climbing days
+      date: selectedDate, climbing: climbVal,
+      sleep:    parseFloat(document.getElementById('sleep').value),
+      water:    parseFloat(document.getElementById('water').value),
+      physical: parseInt(document.getElementById('phys').value),
+      mental:   parseInt(document.getElementById('ment').value),
+      calories: document.getElementById('cals').value  || null,
+      protein:  document.getElementById('prot').value  || null,
+      notes:    document.getElementById('notes').value.trim() || null,
       sess_rating: isClimbing   ? parseInt(document.getElementById('sess').value) : null,
       sess_notes:  isClimbing   ? (document.getElementById('sess-notes').value.trim() || null) : null,
-      // Stretching fields — populated on any day stretching was done
       stretching:  stretchVal,
       flex_rating: isStretching ? parseInt(document.getElementById('flex').value) : null
     };
-
     const arr = getEntries().filter(e => e.date !== selectedDate);
     arr.unshift(entry);
-    arr.sort((a, b) => b.date.localeCompare(a.date));
+    arr.sort((a,b) => b.date.localeCompare(a.date));
     saveEntries(arr);
-
     const toastMsg = document.getElementById('toast-msg');
-    toastMsg.textContent = selectedDate === todayStr()
-      ? 'Entry saved!'
-      : `Entry saved for ${formatDisplayDate(selectedDate)}`;
+    toastMsg.textContent = selectedDate === todayStr() ? 'Entry saved!' : `Entry saved for ${formatDisplayDate(selectedDate)}`;
     const toast = document.getElementById('toast');
     toast.classList.add('show');
     setTimeout(() => toast.classList.remove('show'), 2500);
-
-    renderStreak();
+    renderStreak(); updateWeekCounter();
     if (document.getElementById('hist-panel').style.display === 'block') renderHist();
   }
 
-  /* ── renderStreak(): draws the 12 dots in the header ── */
+  /* ── Streak ── */
   function renderStreak() {
     const logged = new Set(getEntries().map(e => e.date));
-    const bar    = document.getElementById('streak-dots');
-    const today  = todayStr();
+    const bar = document.getElementById('streak-dots');
+    const today = todayStr();
     bar.innerHTML = '';
     for (let i = 11; i >= 0; i--) {
-      const d  = new Date(); d.setDate(d.getDate() - i);
+      const d = new Date(); d.setDate(d.getDate() - i);
       const ds = d.toISOString().split('T')[0];
       const dot = document.createElement('div');
       dot.title = ds;
-      if      (logged.has(ds)) dot.className = 'dot on';
-      else if (ds === today)   dot.className = 'dot today-empty';
-      else                     dot.className = 'dot';
+      dot.className = logged.has(ds) ? 'dot on' : ds === today ? 'dot today-empty' : 'dot';
       bar.appendChild(dot);
     }
   }
 
-  /* ── toggleHist() / renderHist() ── */
+  /* ── History ── */
   function toggleHist() {
-    const p    = document.getElementById('hist-panel');
+    const p = document.getElementById('hist-panel');
     const open = p.style.display === 'block';
     p.style.display = open ? 'none' : 'block';
     document.getElementById('hist-lbl').textContent = open ? 'Show log history' : 'Hide log history';
     if (!open) renderHist();
   }
-
-  /*
-    renderHist() — UPDATED
-    Now also displays session rating, mobility, and session notes
-    in the history cards when they exist.
-  */
   function renderHist() {
     const entries = getEntries();
-    const list    = document.getElementById('hist-list');
-    if (!entries.length) {
-      list.innerHTML = '<p class="empty-hist">No entries yet — log today first!</p>';
-      return;
-    }
-    list.innerHTML = entries.slice(0, 30).map(e => {
-      const icon      = e.climbing  === 'yes' ? '🧗' : e.climbing === 'no' ? '💤' : '';
-      const stretchStr = e.stretching === 'yes' ? ' · 🧘 stretched' : '';
+    const list = document.getElementById('hist-list');
+    if (!entries.length) { list.innerHTML = '<p class="empty-hist">No entries yet!</p>'; return; }
+    list.innerHTML = entries.slice(0,30).map(e => {
+      const icon = e.climbing === 'yes' ? '🧗' : e.climbing === 'no' ? '💤' : '';
+      const stretchStr = e.stretching === 'yes' ? ' · 🧘' : '';
       return `<div class="entry-card">
         <div class="entry-date">${icon} ${formatDisplayDate(e.date)}${stretchStr}</div>
         <div class="entry-stats">
@@ -934,10 +975,8 @@
           <div class="estat">Water <b>${e.water}L</b></div>
           <div class="estat">Physical <b>${e.physical}/10</b></div>
           <div class="estat">Mental <b>${e.mental}/10</b></div>
-          ${e.sess_rating  ? `<div class="estat">Session <b>${e.sess_rating}/10</b></div>` : ''}
-          ${e.flex_rating  ? `<div class="estat">Flexibility <b>${e.flex_rating}/10</b></div>` : ''}
-          ${e.calories     ? `<div class="estat">Cals <b>${e.calories}</b></div>` : ''}
-          ${e.protein      ? `<div class="estat">Protein <b>${e.protein}g</b></div>` : ''}
+          ${e.sess_rating ? `<div class="estat">Session <b>${e.sess_rating}/10</b></div>` : ''}
+          ${e.flex_rating ? `<div class="estat">Flex <b>${e.flex_rating}/10</b></div>` : ''}
         </div>
         ${e.sess_notes ? `<div class="entry-note">🧗 "${e.sess_notes}"</div>` : ''}
         ${e.notes      ? `<div class="entry-note">📋 "${e.notes}"</div>` : ''}
@@ -945,191 +984,398 @@
     }).join('');
   }
 
-  /* ============================================================
-     exportCSV() — UPDATED
-     Three new columns added to the CSV:
-       session_rating, mobility, session_notes
-     These will be empty on rest days, populated on climb days.
-     This keeps the CSV format consistent so every row has the
-     same columns — important for your coach's spreadsheet.
-  ============================================================ */
-
-
-  /* ============================================================
-     FILENAME MANAGEMENT
-     The chosen filename is saved to localStorage under 'csv_filename'
-     so it persists between sessions. Defaults to 'climbing_data'.
-  ============================================================ */
+  /* ── Data / CSV ── */
   function saveFilename(val) {
-    const clean = val.trim().replace(/\.csv$/i, '') || 'climbing_data';
-    localStorage.setItem('csv_filename', clean);
+    localStorage.setItem('csv_filename', val.trim().replace(/\.csv$/i,'') || 'climbing_data');
   }
-  function getFilename() {
-    return localStorage.getItem('csv_filename') || 'climbing_data';
-  }
-
-  /* ============================================================
-     getEarliestDate()
-     Finds the earliest logged date — used to auto-calculate
-     the training start. Returns null if no entries exist.
-  ============================================================ */
+  function getFilename() { return localStorage.getItem('csv_filename') || 'climbing_data'; }
   function getEarliestDate() {
-    const entries = getEntries();
-    if (!entries.length) return null;
-    return entries[entries.length - 1].date; // sorted newest-first, so last = earliest
+    const e = getEntries(); return e.length ? e[e.length-1].date : null;
   }
 
-  /* ============================================================
-     exportCSV(saveAs)
-     saveAs=false → export using saved filename (main workflow)
-     saveAs=true  → prompt for a snapshot filename, keeps default
-  ============================================================ */
   function exportCSV(saveAs = false) {
     const entries = getEntries();
     if (!entries.length) { alert('No entries to export yet!'); return; }
-
     let filename = getFilename();
     if (saveAs) {
       const custom = prompt('Save as (without .csv):', filename);
       if (!custom) return;
-      filename = custom.trim().replace(/\.csv$/i, '') || filename;
+      filename = custom.trim().replace(/\.csv$/i,'') || filename;
     }
-
-    const headers = [
-      'date','climbing','sleep_h','water_L',
-      'physical_energy','mental_energy',
-      'session_rating','session_notes',
-      'stretching','flexibility_rating',
-      'calories_kcal','protein_g','general_notes'
-    ];
+    const headers = ['date','climbing','sleep_h','water_L','physical_energy','mental_energy','session_rating','session_notes','stretching','flexibility_rating','calories_kcal','protein_g','general_notes'];
     const rows = entries.map(e => [
-      e.date, e.climbing||'', e.sleep, e.water,
-      e.physical, e.mental,
-      e.sess_rating||'', '"' + (e.sess_notes||'').replace(/"/g,"'") + '"',
-      e.stretching||'', e.flex_rating||'',
-      e.calories||'', e.protein||'',
-      '"' + (e.notes||'').replace(/"/g,"'") + '"'
+      e.date, e.climbing||'', e.sleep, e.water, e.physical, e.mental,
+      e.sess_rating||'', '"'+(e.sess_notes||'').replace(/"/g,"'")+'"',
+      e.stretching||'', e.flex_rating||'', e.calories||'', e.protein||'',
+      '"'+(e.notes||'').replace(/"/g,"'")+'"'
     ]);
-
-    const csv  = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement('a');
-    a.href = url; a.download = filename + '.csv';
-    document.body.appendChild(a); a.click();
-    document.body.removeChild(a); URL.revokeObjectURL(url);
+    const csv = [headers.join(','), ...rows.map(r=>r.join(','))].join('\n');
+    const blob = new Blob([csv],{type:'text/csv'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href=url; a.download=filename+'.csv';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
   }
 
-  /* ============================================================
-     importCSV(input)
-     Reads a CSV file, parses rows into entry objects, and merges
-     into localStorage. CSV wins on any date conflict.
-     FileReader reads the file asynchronously — the onload
-     callback fires when the file content is ready.
-  ============================================================ */
   function importCSV(input) {
-    const file = input.files[0];
-    if (!file) return;
-
-    // Extract filename without .csv extension and save it as the new default
-    const importedName = file.name.replace(/\.csv$/i, '').trim();
-    if (importedName) {
-      localStorage.setItem('csv_filename', importedName);
-      document.getElementById('csv-filename').value = importedName;
-    }
-
+    const file = input.files[0]; if (!file) return;
+    const importedName = file.name.replace(/\.csv$/i,'').trim();
+    if (importedName) { localStorage.setItem('csv_filename',importedName); document.getElementById('csv-filename').value=importedName; }
     const reader = new FileReader();
     reader.onload = function(e) {
       const lines = e.target.result.trim().split('\n');
       if (lines.length < 2) { alert('CSV appears to be empty.'); return; }
-      const headers  = lines[0].split(',').map(h => h.trim());
+      const headers = lines[0].split(',').map(h=>h.trim());
       const imported = [];
-
-      for (let i = 1; i < lines.length; i++) {
+      for (let i=1; i<lines.length; i++) {
         const cols = parseCSVLine(lines[i]);
         if (cols.length < 2) continue;
-        const get = col => {
-          const idx = headers.indexOf(col);
-          return idx >= 0 ? (cols[idx]||'').replace(/^"|"$/g,'').trim() : '';
-        };
+        const get = col => { const idx=headers.indexOf(col); return idx>=0?(cols[idx]||'').replace(/^"|"$/g,'').trim():''; };
         const entry = {
-          date:        get('date'),
-          climbing:    get('climbing')||null,
-          sleep:       parseFloat(get('sleep_h'))||7,
-          water:       parseFloat(get('water_L'))||2,
-          physical:    parseInt(get('physical_energy'))||5,
-          mental:      parseInt(get('mental_energy'))||5,
-          sess_rating: parseInt(get('session_rating'))||null,
-          sess_notes:  get('session_notes')||null,
-          stretching:  get('stretching')||null,
-          flex_rating: parseInt(get('flexibility_rating'))||null,
-          calories:    get('calories_kcal')||null,
-          protein:     get('protein_g')||null,
-          notes:       get('general_notes')||null,
+          date:get('date'), climbing:get('climbing')||null,
+          sleep:parseFloat(get('sleep_h'))||7, water:parseFloat(get('water_L'))||2,
+          physical:parseInt(get('physical_energy'))||5, mental:parseInt(get('mental_energy'))||5,
+          sess_rating:parseInt(get('session_rating'))||null, sess_notes:get('session_notes')||null,
+          stretching:get('stretching')||null, flex_rating:parseInt(get('flexibility_rating'))||null,
+          calories:get('calories_kcal')||null, protein:get('protein_g')||null, notes:get('general_notes')||null
         };
-        if (isNaN(entry.sess_rating)) entry.sess_rating = null;
-        if (isNaN(entry.flex_rating)) entry.flex_rating = null;
+        if (isNaN(entry.sess_rating)) entry.sess_rating=null;
+        if (isNaN(entry.flex_rating)) entry.flex_rating=null;
         if (entry.date) imported.push(entry);
       }
-
       if (!imported.length) { alert('No valid entries found in CSV.'); return; }
-
-      // Merge: CSV wins on conflicts
-      const existing     = getEntries();
-      const importedDates = new Set(imported.map(e => e.date));
-      const merged = [...existing.filter(e => !importedDates.has(e.date)), ...imported];
-      merged.sort((a, b) => b.date.localeCompare(a.date));
-      saveEntries(merged);
-      input.value = '';
-
-      const msg = document.getElementById('import-msg');
-      const toast = document.getElementById('import-toast');
-      msg.textContent = `Imported ${imported.length} entries — ${merged.length} total`;
-      toast.classList.add('show');
-      setTimeout(() => toast.classList.remove('show'), 3000);
-
-      renderStreak();
-      updateWeekCounter();
-      if (document.getElementById('hist-panel').style.display === 'block') renderHist();
+      const existing = getEntries();
+      const importedDates = new Set(imported.map(e=>e.date));
+      const merged = [...existing.filter(e=>!importedDates.has(e.date)),...imported];
+      merged.sort((a,b)=>b.date.localeCompare(a.date));
+      saveEntries(merged); input.value='';
+      const msg=document.getElementById('import-msg'), toast=document.getElementById('import-toast');
+      msg.textContent=`Imported ${imported.length} entries — ${merged.length} total`;
+      toast.classList.add('show'); setTimeout(()=>toast.classList.remove('show'),3000);
+      renderStreak(); updateWeekCounter();
+      if (document.getElementById('hist-panel').style.display==='block') renderHist();
     };
     reader.readAsText(file);
   }
 
-  /* ============================================================
-     parseCSVLine(line)
-     Splits a CSV line by commas but respects quoted fields —
-     so commas inside notes don't break the parse.
-  ============================================================ */
   function parseCSVLine(line) {
-    const result = []; let current = ''; let inQuotes = false;
-    for (let i = 0; i < line.length; i++) {
-      const ch = line[i];
-      if (ch === '"') { inQuotes = !inQuotes; }
-      else if (ch === ',' && !inQuotes) { result.push(current); current = ''; }
-      else { current += ch; }
+    const result=[]; let current=''; let inQuotes=false;
+    for (let i=0;i<line.length;i++) {
+      const ch=line[i];
+      if (ch==='"') { inQuotes=!inQuotes; }
+      else if (ch===','&&!inQuotes) { result.push(current); current=''; }
+      else { current+=ch; }
     }
-    result.push(current);
-    return result;
+    result.push(current); return result;
   }
 
-  /* ============================================================
-     updateWeekCounter()
-     Calculates week number from earliest entry date.
-     Hides the counter if no entries logged yet.
-  ============================================================ */
   function updateWeekCounter() {
     const earliest = getEarliestDate();
-    const weekTag  = document.getElementById('week-tag');
-    if (!earliest) { weekTag.textContent = ''; return; }
-    const START = new Date(earliest + 'T12:00:00');
-    const diff  = Math.floor((new Date() - START) / (1000*60*60*24*7));
-    weekTag.textContent = `Week ${Math.max(1, diff + 1)}`;
+    const weekTag = document.getElementById('week-tag');
+    if (!earliest) { weekTag.textContent=''; return; }
+    const diff = Math.floor((new Date()-new Date(earliest+'T12:00:00'))/(1000*60*60*24*7));
+    weekTag.textContent = `Week ${Math.max(1,diff+1)}`;
   }
 
-  /* ── init(): runs on page load ── */
+  /* ============================================================
+     TIME RANGE FILTER
+     Maps slider position (0-4) to a number of days to look back.
+     Infinity = show all data.
+     Called oninput on the slider — redraws all open charts.
+  ============================================================ */
+  const RANGE_LABELS = ['2 weeks','4 weeks','8 weeks','12 weeks','All'];
+  const RANGE_DAYS   = [14, 28, 56, 84, Infinity];
+
+  function onRangeChange(val) {
+    document.getElementById('range-val').textContent = RANGE_LABELS[val];
+    drawAllCharts();
+  }
+
+  /* Returns entries filtered to the current time range selection */
+  function getFilteredEntries() {
+    const val  = parseInt(document.getElementById('range-slider').value);
+    const days = RANGE_DAYS[val];
+    const all  = getEntries();
+    if (days === Infinity) return all;
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - days);
+    const cutoffStr = cutoff.toISOString().split('T')[0];
+    return all.filter(e => e.date >= cutoffStr);
+  }
+
+  /* ============================================================
+     drawAllCharts()
+     Master function that redraws every chart.
+     Called when switching to Charts tab or changing the range.
+
+     For each chart:
+       1. Filter entries to the selected range
+       2. Pull out x (dates) and y (values) arrays
+       3. Destroy the old Chart.js instance if it exists
+          (otherwise Chart.js draws on top of itself)
+       4. Create a new Chart.js instance on the <canvas> element
+
+     Chart.js config structure:
+       type:    chart type ('line', 'bar')
+       data:    { labels: [...dates], datasets: [{...}] }
+       options: axis scales, grid styling, tooltips etc.
+  ============================================================ */
+  function drawAllCharts() {
+    const entries = getFilteredEntries();
+    updateSummaryStats(entries);
+    drawSessionChart(entries);
+    drawRecoveryChart(entries);
+    drawEnergyChart(entries);
+    drawStretchChart(entries);
+  }
+
+  /* ── Summary stats ── */
+  function updateSummaryStats(entries) {
+    const climbDays = entries.filter(e => e.climbing === 'yes' && e.sess_rating);
+    const avgSess   = climbDays.length
+      ? (climbDays.reduce((s,e) => s + e.sess_rating, 0) / climbDays.length).toFixed(1)
+      : '—';
+    const avgSleep  = entries.length
+      ? (entries.reduce((s,e) => s + e.sleep, 0) / entries.length).toFixed(1) + 'h'
+      : '—';
+    document.getElementById('stat-sessions').textContent  = climbDays.length || '—';
+    document.getElementById('stat-avg-sess').textContent  = avgSess;
+    document.getElementById('stat-avg-sleep').textContent = avgSleep;
+  }
+
+  /* ============================================================
+     Shared Chart.js default options
+     Applied to all charts for consistent styling.
+     responsive:false + explicit canvas size = reliable mobile sizing.
+  ============================================================ */
+  function baseOptions(yLabel, yMin, yMax) {
+    return {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false }, // we draw our own legends below the chart
+        tooltip: { callbacks: {
+          title: ctx => ctx[0].label,
+          label: ctx => ' ' + ctx.parsed.y
+        }}
+      },
+      scales: {
+        x: {
+          ticks: {
+            color: '#9B9B96', font: { size: 10 },
+            maxRotation: 45, minRotation: 45,
+            // Only show every Nth label to avoid crowding on mobile
+            maxTicksLimit: 8
+          },
+          grid: { color: 'rgba(0,0,0,0.04)' }
+        },
+        y: {
+          min: yMin, max: yMax,
+          ticks: { color: '#9B9B96', font: { size: 10 } },
+          grid: { color: 'rgba(0,0,0,0.04)' },
+          title: { display: !!yLabel, text: yLabel, color: '#9B9B96', font: { size: 10 } }
+        }
+      }
+    };
+  }
+
+  /* Helper: destroy a chart instance before redrawing */
+  function destroyChart(id) {
+    if (chartInstances[id]) { chartInstances[id].destroy(); delete chartInstances[id]; }
+  }
+
+  /* ============================================================
+     CHART 1: Session rating over time
+     Only plots entries where climbing = 'yes' and sess_rating exists.
+     Point colours reflect sleep quality — the correlation hint.
+  ============================================================ */
+  function drawSessionChart(entries) {
+    destroyChart('session');
+    const data = entries.filter(e => e.climbing === 'yes' && e.sess_rating);
+    if (!data.length) return;
+
+    const labels = data.map(e => formatDisplayDate(e.date));
+    const values = data.map(e => e.sess_rating);
+
+    // Colour each dot by sleep quality
+    const pointColors = data.map(e => {
+      if (e.sleep >= 8) return '#1D9E75'; // green
+      if (e.sleep >= 6) return '#BA7517'; // amber
+      return '#A32D2D';                   // red
+    });
+
+    chartInstances['session'] = new Chart(
+      document.getElementById('chart-session'),
+      {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [{
+            data: values,
+            borderColor: 'rgba(29,158,117,0.4)', // faint green line
+            borderWidth: 2,
+            tension: 0.3,                        // slight curve
+            pointBackgroundColor: pointColors,   // coloured dots
+            pointBorderColor: pointColors,
+            pointRadius: 6,
+            pointHoverRadius: 8,
+            fill: false
+          }]
+        },
+        options: baseOptions('', 1, 10)
+      }
+    );
+  }
+
+  /* ============================================================
+     CHART 2: Sleep & water over time
+     Two datasets on separate y-axes (dual axis chart).
+     y  = sleep (left axis, 0-12h)
+     y1 = water (right axis, 0-5L)
+  ============================================================ */
+  function drawRecoveryChart(entries) {
+    destroyChart('recovery');
+    if (!entries.length) return;
+
+    // Sort oldest-first for time series
+    const data   = [...entries].sort((a,b) => a.date.localeCompare(b.date));
+    const labels = data.map(e => formatDisplayDate(e.date));
+
+    const opts = baseOptions('', 0, 12);
+    // Add second y-axis for water
+    opts.scales.y1 = {
+      position: 'right',
+      min: 0, max: 5,
+      ticks: { color: '#6C9BD2', font: { size: 10 } },
+      grid: { drawOnChartArea: false } // don't draw right-axis grid lines
+    };
+
+    chartInstances['recovery'] = new Chart(
+      document.getElementById('chart-recovery'),
+      {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [
+            {
+              label: 'Sleep',
+              data: data.map(e => e.sleep),
+              borderColor: '#1D9E75', backgroundColor: 'rgba(29,158,117,0.08)',
+              borderWidth: 2, tension: 0.3, fill: true,
+              pointRadius: 3, yAxisID: 'y'
+            },
+            {
+              label: 'Water',
+              data: data.map(e => e.water),
+              borderColor: '#6C9BD2', backgroundColor: 'rgba(108,155,210,0.08)',
+              borderWidth: 2, tension: 0.3, fill: true,
+              pointRadius: 3, yAxisID: 'y1'
+            }
+          ]
+        },
+        options: opts
+      }
+    );
+  }
+
+  /* ============================================================
+     CHART 3: Physical & mental energy over time
+     Two lines on the same axis (both 1-10).
+  ============================================================ */
+  function drawEnergyChart(entries) {
+    destroyChart('energy');
+    if (!entries.length) return;
+
+    const data   = [...entries].sort((a,b) => a.date.localeCompare(b.date));
+    const labels = data.map(e => formatDisplayDate(e.date));
+
+    chartInstances['energy'] = new Chart(
+      document.getElementById('chart-energy'),
+      {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [
+            {
+              label: 'Physical',
+              data: data.map(e => e.physical),
+              borderColor: '#1D9E75', borderWidth: 2, tension: 0.3,
+              pointRadius: 3, fill: false
+            },
+            {
+              label: 'Mental',
+              data: data.map(e => e.mental),
+              borderColor: '#9B59B6', borderWidth: 2, tension: 0.3,
+              pointRadius: 3, fill: false
+            }
+          ]
+        },
+        options: baseOptions('', 1, 10)
+      }
+    );
+  }
+
+  /* ============================================================
+     CHART 4: Weekly stretching consistency
+     Bar chart — groups entries by week, counts stretch days.
+     Week label = Monday's date for that week.
+  ============================================================ */
+  function drawStretchChart(entries) {
+    destroyChart('stretch');
+    if (!entries.length) return;
+
+    // Group entries by ISO week (Monday = start of week)
+    const weekMap = {};
+    entries.forEach(e => {
+      const d = new Date(e.date + 'T12:00:00');
+      // Roll back to Monday
+      const day = d.getDay(); // 0=Sun
+      const diff = (day === 0) ? -6 : 1 - day;
+      const monday = new Date(d);
+      monday.setDate(d.getDate() + diff);
+      const weekKey = monday.toISOString().split('T')[0];
+      if (!weekMap[weekKey]) weekMap[weekKey] = 0;
+      if (e.stretching === 'yes') weekMap[weekKey]++;
+    });
+
+    const weeks  = Object.keys(weekMap).sort();
+    const labels = weeks.map(w => {
+      const d = new Date(w + 'T12:00:00');
+      return d.toLocaleDateString('en-GB', { day:'numeric', month:'short' });
+    });
+    const values = weeks.map(w => weekMap[w]);
+
+    // Colour bars: green if 4+ days, amber if 2-3, red if 0-1
+    const barColors = values.map(v =>
+      v >= 4 ? '#1D9E75' : v >= 2 ? '#BA7517' : '#A32D2D'
+    );
+
+    const opts = baseOptions('Days', 0, 7);
+    opts.scales.y.ticks.stepSize = 1;
+
+    chartInstances['stretch'] = new Chart(
+      document.getElementById('chart-stretch'),
+      {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [{
+            data: values,
+            backgroundColor: barColors,
+            borderRadius: 4,     // rounded bar tops
+            borderSkipped: false
+          }]
+        },
+        options: opts
+      }
+    );
+  }
+
+  /* ── init ── */
   function init() {
     document.getElementById('date-label').textContent = formatDisplayDate(selectedDate);
     document.getElementById('csv-filename').value = getFilename();
+    document.getElementById('range-val').textContent = RANGE_LABELS[4]; // 'All'
     updateWeekCounter();
     renderStreak();
     prefillForm(selectedDate);
