@@ -1193,6 +1193,32 @@
        data:    { labels: [...dates], datasets: [{...}] }
        options: axis scales, grid styling, tooltips etc.
   ============================================================ */
+  /* ============================================================
+     checkMinData(entries, canvasId, pillsId, min)
+     Returns true (skip chart) if not enough data — shows a
+     friendly nudge message instead. Returns false if ok to draw.
+     min defaults to 7 — roughly one week of logging.
+  ============================================================ */
+  function checkMinData(entries, canvasId, pillsId, min = 7) {
+    const canvas = document.getElementById(canvasId);
+    const inner  = canvas ? canvas.closest('.chart-inner') : null;
+    if (!inner) return false;
+    const existing = inner.querySelector('.chart-empty');
+    if (existing) existing.remove();
+    if (entries.length < min) {
+      canvas.style.display = 'none';
+      if (pillsId) { const pr = document.getElementById(pillsId); if (pr) pr.style.display = 'none'; }
+      const msg = document.createElement('p');
+      msg.className = 'chart-empty';
+      msg.textContent = 'Keep logging — trends will appear once you have a bit more data.';
+      inner.appendChild(msg);
+      return true;
+    }
+    canvas.style.display = '';
+    if (pillsId) { const pr = document.getElementById(pillsId); if (pr) pr.style.display = ''; }
+    return false;
+  }
+
   function drawAllCharts() {
     const entries = getFilteredEntries();
     updateSessionStatsCard();
@@ -1314,63 +1340,101 @@
   ============================================================ */
   function drawSessionChart(entries) {
     destroyChart('session');
-    if (!entries.length) return;
 
     /*
-      Use all entries sorted oldest-first as the x-axis backbone.
-      Session and flexibility are sparse — null on days they don't apply.
-      spanGaps: false shows honest gaps rather than misleading bridges.
+      MIN_ENTRIES check — if fewer than 7 entries in the selected range,
+      show a friendly nudge instead of a sparse/misleading chart.
+      7 is enough for roughly one climbing week worth of data.
     */
-    const data   = [...entries].sort((a,b) => a.date.localeCompare(b.date));
-    const labels = data.map(e => formatDisplayDate(e.date));
+    const MIN_ENTRIES = 7;
+    const canvas = document.getElementById('chart-session');
+    const inner  = canvas.closest('.chart-inner');
 
-    // Helper: colour a dot by sleep quality on that night
+    // Remove any existing empty-state message
+    const existing = inner.querySelector('.chart-empty');
+    if (existing) existing.remove();
+
+    if (entries.length < MIN_ENTRIES) {
+      canvas.style.display = 'none';
+      const msg = document.createElement('p');
+      msg.className = 'chart-empty';
+      msg.textContent = 'Keep logging — trends will appear once you have a bit more data.';
+      inner.appendChild(msg);
+      // Also hide pills — nothing to toggle yet
+      const pillRow = document.getElementById('pills-session');
+      if (pillRow) pillRow.style.display = 'none';
+      return;
+    }
+
+    // Enough data — show chart and pills
+    canvas.style.display = '';
+    const pillRow = document.getElementById('pills-session');
+    if (pillRow) pillRow.style.display = '';
+
+    const data   = [...entries].sort((a,b) => a.date.localeCompare(b.date));
+
+    // Helper: dot colour based on sleep quality
     const sleepColor = e => {
-      if (e.sleep >= 8) return '#1D9E75'; // green — good sleep
-      if (e.sleep >= 6) return '#BA7517'; // amber — okay sleep
-      return '#A32D2D';                   // red   — poor sleep
+      if (e.sleep >= 8) return '#1D9E75';
+      if (e.sleep >= 6) return '#BA7517';
+      return '#A32D2D';
     };
 
-    // Session dataset — only climbing days have a value, rest are null
-    const sessData   = data.map(e => (e.climbing === 'yes' && e.sess_rating) ? e.sess_rating : null);
-    const sessColors = data.map(e => (e.climbing === 'yes' && e.sess_rating) ? sleepColor(e) : 'transparent');
+    /*
+      Each dataset gets its OWN filtered data and labels — no shared
+      backbone. This avoids the mismatched trend-line problem where
+      Chart.js tries to connect dots across days that don't exist in
+      the other dataset.
+      showLine: false = dots only, no connecting lines.
+      This is honest for sparse data — a line between a Monday climb
+      and a Friday climb implies something happened Wed/Thu which it didn't.
+    */
+    const sessEntries = data.filter(e => e.climbing === 'yes' && e.sess_rating);
+    const flexEntries = data.filter(e => e.stretching === 'yes' && e.flex_rating);
 
-    // Flexibility dataset — only stretching days have a value
-    const flexData   = data.map(e => (e.stretching === 'yes' && e.flex_rating) ? e.flex_rating : null);
-    const flexColors = data.map(e => (e.stretching === 'yes' && e.flex_rating) ? sleepColor(e) : 'transparent');
-
-    chartInstances['session'] = new Chart(
-      document.getElementById('chart-session'),
-      {
-        type: 'line',
-        data: {
-          labels,
-          datasets: [
-            {
-              label: 'Session',
-              data: sessData,
-              borderColor: 'rgba(29,158,117,0.35)',  // faint green line
-              borderWidth: 2, tension: 0.3,
-              pointBackgroundColor: sessColors,
-              pointBorderColor: sessColors,
-              pointRadius: 4, pointHoverRadius: 6,
-              fill: false, clip: false, spanGaps: false
-            },
-            {
-              label: 'Flexibility',
-              data: flexData,
-              borderColor: 'rgba(155,89,182,0.35)',  // faint purple line
-              borderWidth: 2, tension: 0.3,
-              pointBackgroundColor: flexColors,
-              pointBorderColor: flexColors,
-              pointRadius: 4, pointHoverRadius: 6,
-              fill: false, clip: false, spanGaps: false
-            }
-          ]
-        },
-        options: baseOptions('', 1, 10)
-      }
-    );
+    chartInstances['session'] = new Chart(canvas, {
+      type: 'line',
+      data: {
+        // Labels are the union of all dates for tooltip context
+        labels: data.map(e => formatDisplayDate(e.date)),
+        datasets: [
+          {
+            label: 'Session',
+            // Map full entry list — non-climbing days get null (invisible)
+            data: data.map(e => (e.climbing === 'yes' && e.sess_rating) ? e.sess_rating : null),
+            showLine: false,           // dots only — no connecting line
+            pointBackgroundColor: data.map(e =>
+              (e.climbing === 'yes' && e.sess_rating) ? sleepColor(e) : 'transparent'
+            ),
+            pointBorderColor: data.map(e =>
+              (e.climbing === 'yes' && e.sess_rating) ? sleepColor(e) : 'transparent'
+            ),
+            pointRadius: data.map(e =>
+              (e.climbing === 'yes' && e.sess_rating) ? 5 : 0  // hide null points completely
+            ),
+            pointHoverRadius: 7,
+            clip: false
+          },
+          {
+            label: 'Flexibility',
+            data: data.map(e => (e.stretching === 'yes' && e.flex_rating) ? e.flex_rating : null),
+            showLine: false,
+            pointBackgroundColor: data.map(e =>
+              (e.stretching === 'yes' && e.flex_rating) ? sleepColor(e) : 'transparent'
+            ),
+            pointBorderColor: data.map(e =>
+              (e.stretching === 'yes' && e.flex_rating) ? sleepColor(e) : 'transparent'
+            ),
+            pointRadius: data.map(e =>
+              (e.stretching === 'yes' && e.flex_rating) ? 5 : 0
+            ),
+            pointHoverRadius: 7,
+            clip: false
+          }
+        ]
+      },
+      options: baseOptions('', 1, 10)
+    });
     restorePillStates('session');
   }
 
@@ -1454,7 +1518,7 @@
   ============================================================ */
   function drawTrendsChart(entries) {
     destroyChart('trends');
-    if (!entries.length) return;
+    if (checkMinData(entries, 'chart-trends', 'pills-trends')) return;
 
     const data   = [...entries].sort((a,b) => a.date.localeCompare(b.date));
     const labels = data.map(e => formatDisplayDate(e.date));
@@ -1580,7 +1644,7 @@
   ============================================================ */
   function drawStretchChart(entries) {
     destroyChart('stretch');
-    if (!entries.length) return;
+    if (checkMinData(entries, 'chart-stretch', null)) return;
 
     const weekMap = {};
     entries.forEach(e => {
