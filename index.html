@@ -1152,8 +1152,9 @@
     return {
       responsive: true,
       maintainAspectRatio: false,
+      layout: { padding: { top: 10, right: 10 } }, // top padding prevents clipping of max-value points
       plugins: {
-        legend: { display: false }, // we draw our own legends below the chart
+        legend: { display: false },
         tooltip: { callbacks: {
           title: ctx => ctx[0].label,
           label: ctx => ' ' + ctx.parsed.y
@@ -1164,7 +1165,6 @@
           ticks: {
             color: '#9B9B96', font: { size: 10 },
             maxRotation: 45, minRotation: 45,
-            // Only show every Nth label to avoid crowding on mobile
             maxTicksLimit: 8
           },
           grid: { color: 'rgba(0,0,0,0.04)' }
@@ -1173,7 +1173,13 @@
           min: yMin, max: yMax,
           ticks: { color: '#9B9B96', font: { size: 10 } },
           grid: { color: 'rgba(0,0,0,0.04)' },
-          title: { display: !!yLabel, text: yLabel, color: '#9B9B96', font: { size: 10 } }
+          title: { display: !!yLabel, text: yLabel, color: '#9B9B96', font: { size: 10 } },
+          /*
+            afterFit: fires after Chart.js calculates the y-axis width.
+            By forcing a fixed width of 28px on every chart, the plot
+            areas all start at the same x position — giving aligned axes.
+          */
+          afterFit: (axis) => { axis.width = 28; }
         }
       }
     };
@@ -1212,14 +1218,15 @@
           labels,
           datasets: [{
             data: values,
-            borderColor: 'rgba(29,158,117,0.4)', // faint green line
+            borderColor: 'rgba(29,158,117,0.4)',
             borderWidth: 2,
-            tension: 0.3,                        // slight curve
-            pointBackgroundColor: pointColors,   // coloured dots
+            tension: 0.3,
+            pointBackgroundColor: pointColors,
             pointBorderColor: pointColors,
-            pointRadius: 6,
-            pointHoverRadius: 8,
-            fill: false
+            pointRadius: 4,       // smaller, less dominant
+            pointHoverRadius: 6,
+            fill: false,
+            clip: false           // prevents points being cut off at chart edges
           }]
         },
         options: baseOptions('', 1, 10)
@@ -1262,14 +1269,14 @@
               data: data.map(e => e.sleep),
               borderColor: '#1D9E75', backgroundColor: 'rgba(29,158,117,0.08)',
               borderWidth: 2, tension: 0.3, fill: true,
-              pointRadius: 3, yAxisID: 'y'
+              pointRadius: 3, clip: false, yAxisID: 'y'
             },
             {
               label: 'Water',
               data: data.map(e => e.water),
               borderColor: '#6C9BD2', backgroundColor: 'rgba(108,155,210,0.08)',
               borderWidth: 2, tension: 0.3, fill: true,
-              pointRadius: 3, yAxisID: 'y1'
+              pointRadius: 3, clip: false, yAxisID: 'y1'
             }
           ]
         },
@@ -1300,13 +1307,13 @@
               label: 'Physical',
               data: data.map(e => e.physical),
               borderColor: '#1D9E75', borderWidth: 2, tension: 0.3,
-              pointRadius: 3, fill: false
+              pointRadius: 3, clip: false, fill: false
             },
             {
               label: 'Mental',
               data: data.map(e => e.mental),
               borderColor: '#9B59B6', borderWidth: 2, tension: 0.3,
-              pointRadius: 3, fill: false
+              pointRadius: 3, clip: false, fill: false
             }
           ]
         },
