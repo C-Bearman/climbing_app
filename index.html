@@ -6,12 +6,18 @@
   <meta name="theme-color" content="#1D9E75" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-  <meta name="apple-mobile-web-app-title" content="Send It" />
-  <title>Send It</title>
+  <meta name="apple-mobile-web-app-title" content="Climbing App" />
+  <title>Climbing App</title>
   <link rel="manifest" href="manifest.json" />
   <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png" />
   <link rel="apple-touch-icon" href="icons/icon-192.png" />
   <style>
+    /* ============================================================
+       RESET & ROOT VARIABLES
+       Like declaring constants at the top of a Python script.
+       Everything that follows references these variables so you
+       only ever need to change a colour/size in one place.
+    ============================================================ */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
@@ -19,9 +25,7 @@
       --green-dark: #0F6E56;
       --green-light: #E1F5EE;
       --amber: #BA7517;
-      --amber-light: #FAEEDA;
       --red: #A32D2D;
-      --red-light: #FCEBEB;
       --bg: #F5F5F2;
       --surface: #FFFFFF;
       --surface2: #F1F0EC;
@@ -32,10 +36,12 @@
       --text3: #9B9B96;
       --radius: 14px;
       --radius-sm: 8px;
+      /* safe-area-inset accounts for the Pixel's notch/nav bar */
       --safe-top: env(safe-area-inset-top, 0px);
       --safe-bottom: env(safe-area-inset-bottom, 0px);
     }
 
+    /* Dark mode — swaps surface colours automatically based on phone setting */
     @media (prefers-color-scheme: dark) {
       :root {
         --bg: #111110;
@@ -47,8 +53,6 @@
         --text2: #9B9B96;
         --text3: #6B6B66;
         --green-light: #0A2E22;
-        --amber-light: #2A1F08;
-        --red-light: #2A0E0E;
       }
     }
 
@@ -60,6 +64,7 @@
       -webkit-font-smoothing: antialiased;
     }
 
+    /* ── App wrapper: centres content and caps width for mobile ── */
     .app {
       max-width: 430px;
       margin: 0 auto;
@@ -67,7 +72,10 @@
       padding-bottom: calc(16px + var(--safe-bottom));
     }
 
-    /* ── Header ── */
+    /* ============================================================
+       HEADER
+       Sticky so it stays at the top when you scroll.
+    ============================================================ */
     .header {
       background: var(--surface);
       border-bottom: 0.5px solid var(--border);
@@ -79,19 +87,73 @@
     .header-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
     .app-title { font-size: 20px; font-weight: 700; letter-spacing: -0.5px; }
     .app-title em { color: var(--green); font-style: normal; }
+
+    /* ── NEW: date badge is now a clickable button to open the date picker ── */
     .date-badge {
       font-size: 12px; color: var(--text2);
       background: var(--surface2); border: 0.5px solid var(--border);
       border-radius: 20px; padding: 4px 10px;
+      cursor: pointer;
+      display: flex; align-items: center; gap: 5px;
+      -webkit-tap-highlight-color: transparent;
     }
-    .header-meta { display: flex; align-items: center; justify-content: space-between; }
+    .date-badge svg { width: 11px; height: 11px; stroke: var(--text3); }
+
+    .header-meta { display: flex; align-items: center; justify-content: space-between; margin-top: 4px; }
     .week-tag { font-size: 12px; color: var(--text2); }
     .streak-dots { display: flex; gap: 4px; }
     .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--border-med); transition: background 0.2s; }
     .dot.on { background: var(--green); }
     .dot.today-empty { background: var(--border-med); box-shadow: 0 0 0 1.5px var(--green); }
 
-    /* ── Sections ── */
+    /* ============================================================
+       DATE PICKER PANEL
+       NEW: hidden by default, slides open when you tap the date badge.
+       Contains a native <input type="date"> which gives you the
+       phone's built-in date picker UI for free.
+    ============================================================ */
+    .date-picker-panel {
+      display: none;                        /* hidden until toggled */
+      background: var(--surface);
+      border-bottom: 0.5px solid var(--border);
+      padding: 12px 20px;
+      align-items: center;
+      gap: 10px;
+    }
+    .date-picker-panel.open { display: flex; }
+    .date-picker-panel label { font-size: 13px; color: var(--text2); white-space: nowrap; }
+
+    /* Style the native date input to match the rest of the app */
+    input[type=date] {
+      flex: 1;
+      padding: 8px 12px;
+      font-size: 14px;
+      color: var(--text);
+      background: var(--surface2);
+      border: 0.5px solid var(--border-med);
+      border-radius: var(--radius-sm);
+      outline: none;
+      font-family: inherit;
+    }
+    input[type=date]:focus { border-color: var(--green); }
+
+    .date-confirm-btn {
+      padding: 8px 14px;
+      background: var(--green);
+      color: white;
+      border: none;
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    /* ============================================================
+       SECTION CARDS
+       Each card on screen is a .section div. Consistent styling
+       applied once here rather than repeating on every card.
+    ============================================================ */
     .section {
       background: var(--surface);
       border-radius: var(--radius);
@@ -107,7 +169,7 @@
     }
     .section-head svg { width: 13px; height: 13px; stroke: var(--text3); }
 
-    /* ── Climb toggle ── */
+    /* ── Climb toggle buttons ── */
     .climb-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
     .cbtn {
       padding: 11px 8px; border-radius: var(--radius-sm);
@@ -122,13 +184,14 @@
     .cbtn.sel-no  { background: var(--surface2); border-color: var(--border-med); color: var(--text); }
     .cbtn:active  { transform: scale(0.97); }
 
-    /* ── Sliders ── */
+    /* ── Slider fields ── */
     .field { margin-bottom: 15px; }
     .field:last-child { margin-bottom: 0; }
     .field-top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
     .field-name { font-size: 14px; color: var(--text); }
     .field-val { font-size: 15px; font-weight: 600; color: var(--green); }
 
+    /* Range slider — removes browser default styling and applies custom look */
     input[type=range] {
       -webkit-appearance: none; appearance: none;
       width: 100%; height: 4px; border-radius: 2px;
@@ -146,13 +209,13 @@
       box-shadow: 0 1px 4px rgba(0,0,0,0.2); cursor: pointer;
     }
 
-    /* Energy track colour */
+    /* Energy sliders get a colour-filled track (green/amber/red) */
     .energy-track { position: relative; }
     .energy-track input[type=range] {
       background: linear-gradient(to right, var(--green) 0%, var(--green) var(--pct,50%), var(--surface2) var(--pct,50%));
     }
 
-    /* ── Number inputs ── */
+    /* ── Number inputs (calories, protein) ── */
     .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
     .input-wrap { position: relative; }
     .input-wrap input[type=number] {
@@ -167,7 +230,7 @@
     input[type=number]::-webkit-inner-spin-button,
     input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; }
 
-    /* ── Textarea ── */
+    /* ── Textarea (notes) ── */
     textarea {
       width: 100%; min-height: 80px; resize: none;
       padding: 11px 13px; font-size: 15px; line-height: 1.5;
@@ -179,7 +242,7 @@
     textarea:focus { border-color: var(--green); box-shadow: 0 0 0 2px rgba(29,158,117,0.15); }
     textarea::placeholder { color: var(--text3); }
 
-    /* ── Optional tag ── */
+    /* ── Optional label tag ── */
     .opt-tag {
       font-size: 10px; font-weight: 500; letter-spacing: 0.04em;
       color: var(--text3); background: var(--surface2);
@@ -187,7 +250,11 @@
       padding: 2px 5px; margin-left: 6px;
     }
 
-    /* ── Save button ── */
+    /* ============================================================
+       SAVE BUTTON & TOAST
+       Toast = the little "Entry saved!" confirmation that appears
+       briefly then disappears. Height animates from 0 to 32px.
+    ============================================================ */
     .save-wrap { padding: 14px 14px 0; }
     .save-btn {
       width: 100%; padding: 15px;
@@ -209,7 +276,9 @@
     .toast.show { height: 32px; margin-top: 8px; }
     .toast svg { width: 14px; height: 14px; stroke: var(--green); }
 
-    /* ── History ── */
+    /* ============================================================
+       HISTORY PANEL
+    ============================================================ */
     .hist-toggle-wrap { text-align: center; padding: 14px 0 4px; }
     .hist-toggle {
       background: none; border: none; cursor: pointer;
@@ -218,7 +287,6 @@
       -webkit-tap-highlight-color: transparent;
     }
     .hist-toggle svg { width: 14px; height: 14px; stroke: var(--text2); }
-
     .hist-panel { display: none; padding: 4px 14px 0; }
 
     .export-btn {
@@ -238,24 +306,70 @@
     .estat { font-size: 13px; color: var(--text2); }
     .estat b { color: var(--text); font-weight: 600; }
     .entry-note { font-size: 13px; color: var(--text2); margin-top: 7px; font-style: italic; border-top: 0.5px solid var(--border); padding-top: 7px; }
-
     .empty-hist { font-size: 13px; color: var(--text3); text-align: center; padding: 20px 0; }
+
+    /* ── NEW: "logging for past date" banner shown below header ── */
+    .past-date-banner {
+      display: none;
+      margin: 10px 14px 0;
+      padding: 10px 14px;
+      background: var(--amber-light, #FAEEDA);
+      border: 0.5px solid var(--amber);
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      color: var(--amber);
+      align-items: center;
+      gap: 8px;
+    }
+    .past-date-banner.show { display: flex; }
+    .past-date-banner svg { width: 14px; height: 14px; stroke: var(--amber); flex-shrink: 0; }
   </style>
 </head>
 <body>
 <div class="app">
 
-  <!-- Header -->
+  <!-- ── Header ── -->
   <header class="header">
     <div class="header-top">
-      <div class="app-title"><em>Send</em> It</div>
-      <div class="date-badge" id="date-badge"></div>
+      <div class="app-title">Climbing <em>App</em></div>
+
+      <!--
+        NEW: The date badge is now a button.
+        Tapping it toggles the date picker panel open/closed.
+        The pencil icon hints that it's editable.
+      -->
+      <div class="date-badge" id="date-badge" onclick="toggleDatePicker()">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        <span id="date-label"></span>
+      </div>
     </div>
     <div class="header-meta">
       <div class="week-tag" id="week-tag"></div>
       <div class="streak-dots" id="streak-dots"></div>
     </div>
   </header>
+
+  <!--
+    NEW: Date picker panel — hidden by default.
+    Uses a native <input type="date"> so the phone's own
+    date picker UI appears (no custom calendar needed).
+    Confirm button calls setSelectedDate() to apply the choice.
+  -->
+  <div class="date-picker-panel" id="date-picker-panel">
+    <label for="date-input">Logging for:</label>
+    <input type="date" id="date-input" onchange="previewDate(this.value)" />
+    <button class="date-confirm-btn" onclick="confirmDate()">Set date</button>
+  </div>
+
+  <!--
+    NEW: Amber warning banner — only visible when logging for a past date.
+    Reminds you which date you're filling in so you don't accidentally
+    overwrite the wrong entry.
+  -->
+  <div class="past-date-banner" id="past-banner">
+    <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+    <span id="past-banner-text"></span>
+  </div>
 
   <!-- Climbing today? -->
   <div class="section">
@@ -323,7 +437,7 @@
     </div>
   </div>
 
-  <!-- Nutrition -->
+  <!-- Nutrition (optional) -->
   <div class="section">
     <div class="section-head">
       <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M12 2a10 10 0 100 20A10 10 0 0012 2z"/><path d="M12 6v6l4 2"/></svg>
@@ -360,11 +474,11 @@
   <div class="save-wrap">
     <button class="save-btn" onclick="saveEntry()">
       <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-      Log today
+      Log entry
     </button>
     <div class="toast" id="toast">
       <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-      Entry saved!
+      <span id="toast-msg">Entry saved!</span>
     </div>
   </div>
 
@@ -385,85 +499,269 @@
     <div id="hist-list"></div>
   </div>
 
-</div>
+</div><!-- end .app -->
 
 <script>
-  const STORAGE_KEY = 'sendit_v1';
-  let climbVal = null;
+  /* ============================================================
+     CONSTANTS & STATE
+     STORAGE_KEY: the key under which all entries are saved in
+     localStorage — like a filename for our persistent dict.
+     selectedDate: tracks which date the user is currently logging
+     for. Defaults to today but can be changed via the date picker.
+  ============================================================ */
+  const STORAGE_KEY = 'climbing_app_v1';
+  let climbVal     = null;
+  let selectedDate = todayStr(); // NEW: tracks the active logging date
 
-  /* ── Data helpers ── */
-  function getEntries() {
-    try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch(e) { return []; }
+  /* ============================================================
+     UTILITY: todayStr()
+     Returns today's date as a string in YYYY-MM-DD format.
+     This format is used as the unique key for each entry —
+     like a dict key — so entries for the same date overwrite
+     each other rather than duplicating.
+  ============================================================ */
+  function todayStr() {
+    return new Date().toISOString().split('T')[0];
   }
-  function saveEntries(arr) { localStorage.setItem(STORAGE_KEY, JSON.stringify(arr)); }
-  function todayStr() { return new Date().toISOString().split('T')[0]; }
 
-  /* ── Slider updates ── */
-  function updSleep(v) { document.getElementById('sleep-val').textContent = parseFloat(v).toFixed(1).replace('.0','') + 'h'; }
-  function updWater(v) { document.getElementById('water-val').textContent = parseFloat(v).toFixed(2).replace(/0$/,'').replace(/\.$/,'') + 'L'; }
+  /* ============================================================
+     UTILITY: formatDisplayDate(dateStr)
+     NEW function. Takes a YYYY-MM-DD string and returns a
+     human-readable label like "Fri 5 Jun".
+     The 'T12:00:00' trick forces noon local time so the date
+     doesn't shift by a day due to timezone offsets.
+  ============================================================ */
+  function formatDisplayDate(dateStr) {
+    const d = new Date(dateStr + 'T12:00:00');
+    return d.toLocaleDateString('en-GB', { weekday:'short', day:'numeric', month:'short' });
+  }
+
+  /* ============================================================
+     DATA HELPERS: getEntries() / saveEntries()
+     localStorage stores everything as strings, so we use
+     JSON.stringify/parse to convert our array of entry objects
+     to/from text — equivalent to json.dumps/loads in Python.
+  ============================================================ */
+  function getEntries() {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); }
+    catch(e) { return []; }
+  }
+  function saveEntries(arr) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(arr));
+  }
+
+  /* ============================================================
+     DATE PICKER FUNCTIONS (all NEW)
+
+     toggleDatePicker(): shows/hides the date picker panel.
+     previewDate(): updates the header label as you scroll
+       through dates in the picker (before confirming).
+     confirmDate(): applies the chosen date as selectedDate,
+       updates the UI, and pre-fills any existing entry for
+       that date so you can edit it.
+  ============================================================ */
+
+  function toggleDatePicker() {
+    const panel = document.getElementById('date-picker-panel');
+    const isOpen = panel.classList.contains('open');
+    if (isOpen) {
+      panel.classList.remove('open');
+    } else {
+      // Set the picker's value to the currently selected date before opening
+      document.getElementById('date-input').value = selectedDate;
+      panel.classList.add('open');
+    }
+  }
+
+  function previewDate(val) {
+    // Live-update the header label as the user scrolls the date picker
+    if (val) document.getElementById('date-label').textContent = formatDisplayDate(val);
+  }
+
+  function confirmDate() {
+    const val = document.getElementById('date-input').value;
+    if (!val) return;
+
+    selectedDate = val;
+    document.getElementById('date-picker-panel').classList.remove('open');
+    updateDateUI();
+    prefillForm(selectedDate);
+  }
+
+  /* ============================================================
+     updateDateUI()
+     NEW helper. Refreshes all the date-dependent UI:
+     - Header date label
+     - The amber "logging for past date" banner
+     - The save button label
+  ============================================================ */
+  function updateDateUI() {
+    const isToday = selectedDate === todayStr();
+    const isPast  = selectedDate < todayStr();
+
+    // Update header badge label
+    document.getElementById('date-label').textContent = formatDisplayDate(selectedDate);
+
+    // Show amber warning banner if logging for a past date
+    const banner = document.getElementById('past-banner');
+    if (isPast) {
+      document.getElementById('past-banner-text').textContent =
+        `Logging for ${formatDisplayDate(selectedDate)} — existing entry will be updated`;
+      banner.classList.add('show');
+    } else {
+      banner.classList.remove('show');
+    }
+  }
+
+  /* ============================================================
+     prefillForm(dateStr)
+     NEW version of the old init() pre-fill logic, but now
+     accepts any date rather than always using today.
+     Looks up whether an entry exists for that date and
+     populates all the form fields if so — so you can edit
+     a past entry without losing what you already entered.
+  ============================================================ */
+  function prefillForm(dateStr) {
+    const prev = getEntries().find(e => e.date === dateStr);
+
+    // Reset form to defaults first
+    document.getElementById('sleep').value = 7;  updSleep(7);
+    document.getElementById('water').value = 2;  updWater(2);
+    document.getElementById('phys').value  = 5;  updEnergy('phys', 5);
+    document.getElementById('ment').value  = 5;  updEnergy('ment', 5);
+    document.getElementById('cals').value  = '';
+    document.getElementById('prot').value  = '';
+    document.getElementById('notes').value = '';
+    climbVal = null;
+    document.getElementById('btn-yes').className = 'cbtn';
+    document.getElementById('btn-no').className  = 'cbtn';
+
+    // If an entry exists for this date, overwrite defaults with saved values
+    if (prev) {
+      document.getElementById('sleep').value = prev.sleep; updSleep(prev.sleep);
+      document.getElementById('water').value = prev.water; updWater(prev.water);
+      document.getElementById('phys').value  = prev.physical; updEnergy('phys', prev.physical);
+      document.getElementById('ment').value  = prev.mental;   updEnergy('ment', prev.mental);
+      if (prev.calories) document.getElementById('cals').value = prev.calories;
+      if (prev.protein)  document.getElementById('prot').value = prev.protein;
+      if (prev.notes)    document.getElementById('notes').value = prev.notes;
+      if (prev.climbing) setClimb(prev.climbing);
+    }
+  }
+
+  /* ============================================================
+     SLIDER UPDATE FUNCTIONS
+     Called via oninput on each slider — updates the displayed
+     value label in real time as the thumb is dragged.
+  ============================================================ */
+
+  function updSleep(v) {
+    document.getElementById('sleep-val').textContent =
+      parseFloat(v).toFixed(1).replace('.0','') + 'h';
+  }
+
+  function updWater(v) {
+    document.getElementById('water-val').textContent =
+      parseFloat(v).toFixed(2).replace(/0$/,'').replace(/\.$/,'') + 'L';
+  }
+
+  /* updEnergy: also colours the slider track and value label
+     green (7-10), amber (4-6), or red (1-3) */
   function updEnergy(id, v) {
-    const n = parseInt(v);
+    const n   = parseInt(v);
     const col = n >= 7 ? 'var(--green)' : n >= 4 ? 'var(--amber)' : 'var(--red)';
-    document.getElementById(id+'-val').textContent = n;
-    document.getElementById(id+'-val').style.color = col;
+    document.getElementById(id+'-val').textContent  = n;
+    document.getElementById(id+'-val').style.color  = col;
     const pct = ((n - 1) / 9 * 100).toFixed(1) + '%';
-    document.getElementById(id+'-track').style.setProperty('--pct', pct);
     document.getElementById(id+'-track').querySelector('input').style.background =
       `linear-gradient(to right, ${col} 0%, ${col} ${pct}, var(--surface2) ${pct})`;
   }
 
-  /* ── Climb toggle ── */
+  /* ============================================================
+     setClimb(val)
+     Stores the climb/rest choice in the climbVal variable and
+     updates the button styles to show which is selected.
+  ============================================================ */
   function setClimb(val) {
     climbVal = val;
     document.getElementById('btn-yes').className = 'cbtn' + (val === 'yes' ? ' sel-yes' : '');
     document.getElementById('btn-no').className  = 'cbtn' + (val === 'no'  ? ' sel-no'  : '');
   }
 
-  /* ── Save ── */
+  /* ============================================================
+     saveEntry()
+     Collects all form values into an entry object (like a dict),
+     removes any existing entry for the same date, prepends the
+     new entry to the array, and saves back to localStorage.
+     Uses selectedDate (NEW) rather than hardcoded todayStr().
+  ============================================================ */
   function saveEntry() {
-    const today = todayStr();
     const entry = {
-      date: today,
+      date:     selectedDate,           // NEW: uses selectedDate not todayStr()
       climbing: climbVal,
-      sleep: parseFloat(document.getElementById('sleep').value),
-      water: parseFloat(document.getElementById('water').value),
+      sleep:    parseFloat(document.getElementById('sleep').value),
+      water:    parseFloat(document.getElementById('water').value),
       physical: parseInt(document.getElementById('phys').value),
-      mental: parseInt(document.getElementById('ment').value),
-      calories: document.getElementById('cals').value || null,
-      protein: document.getElementById('prot').value || null,
-      notes: document.getElementById('notes').value.trim() || null
+      mental:   parseInt(document.getElementById('ment').value),
+      calories: document.getElementById('cals').value  || null,
+      protein:  document.getElementById('prot').value  || null,
+      notes:    document.getElementById('notes').value.trim() || null
     };
-    const arr = getEntries().filter(e => e.date !== today);
+
+    // Filter out any existing entry for this date, then add the new one at the top
+    const arr = getEntries().filter(e => e.date !== selectedDate);
     arr.unshift(entry);
+
+    // Sort by date descending so history is always newest-first
+    arr.sort((a, b) => b.date.localeCompare(a.date));
+
     saveEntries(arr);
-    const toast = document.getElementById('toast');
+
+    // Show the toast confirmation message briefly
+    const toast    = document.getElementById('toast');
+    const toastMsg = document.getElementById('toast-msg');
+    toastMsg.textContent = selectedDate === todayStr()
+      ? 'Entry saved!'
+      : `Entry saved for ${formatDisplayDate(selectedDate)}`;
     toast.classList.add('show');
     setTimeout(() => toast.classList.remove('show'), 2500);
+
     renderStreak();
     if (document.getElementById('hist-panel').style.display === 'block') renderHist();
   }
 
-  /* ── Streak ── */
+  /* ============================================================
+     renderStreak()
+     Draws the 12 dots in the header — one per day going back
+     12 days. Green = logged, outlined = today not yet logged,
+     grey = missed. Uses a Set for O(1) lookups.
+  ============================================================ */
   function renderStreak() {
-    const entries = getEntries();
-    const logged = new Set(entries.map(e => e.date));
-    const bar = document.getElementById('streak-dots');
+    const logged = new Set(getEntries().map(e => e.date));
+    const bar    = document.getElementById('streak-dots');
+    const today  = todayStr();
     bar.innerHTML = '';
-    const today = todayStr();
     for (let i = 11; i >= 0; i--) {
-      const d = new Date(); d.setDate(d.getDate() - i);
+      const d  = new Date(); d.setDate(d.getDate() - i);
       const ds = d.toISOString().split('T')[0];
       const dot = document.createElement('div');
-      if (logged.has(ds)) { dot.className = 'dot on'; }
-      else if (ds === today) { dot.className = 'dot today-empty'; }
-      else { dot.className = 'dot'; }
+      dot.title = ds;
+      if      (logged.has(ds))  dot.className = 'dot on';
+      else if (ds === today)    dot.className = 'dot today-empty';
+      else                      dot.className = 'dot';
       bar.appendChild(dot);
     }
   }
 
-  /* ── History ── */
+  /* ============================================================
+     toggleHist() / renderHist()
+     toggleHist: shows/hides the history panel.
+     renderHist: builds the list of entry cards from localStorage.
+     Template literals (backtick strings) build the HTML for
+     each card — similar to f-strings in Python.
+  ============================================================ */
   function toggleHist() {
-    const p = document.getElementById('hist-panel');
+    const p    = document.getElementById('hist-panel');
     const open = p.style.display === 'block';
     p.style.display = open ? 'none' : 'block';
     document.getElementById('hist-lbl').textContent = open ? 'Show log history' : 'Hide log history';
@@ -472,18 +770,15 @@
 
   function renderHist() {
     const entries = getEntries();
-    const list = document.getElementById('hist-list');
+    const list    = document.getElementById('hist-list');
     if (!entries.length) {
       list.innerHTML = '<p class="empty-hist">No entries yet — log today first!</p>';
       return;
     }
-    const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
     list.innerHTML = entries.slice(0, 30).map(e => {
-      const d = new Date(e.date + 'T12:00:00');
-      const label = dayNames[d.getDay()] + ' ' + d.getDate() + ' ' + d.toLocaleString('en-GB',{month:'short'});
       const icon = e.climbing === 'yes' ? '🧗' : e.climbing === 'no' ? '💤' : '';
       return `<div class="entry-card">
-        <div class="entry-date">${icon} ${label}</div>
+        <div class="entry-date">${icon} ${formatDisplayDate(e.date)}</div>
         <div class="entry-stats">
           <div class="estat">Sleep <b>${e.sleep}h</b></div>
           <div class="estat">Water <b>${e.water}L</b></div>
@@ -497,54 +792,60 @@
     }).join('');
   }
 
-  /* ── CSV Export ── */
+  /* ============================================================
+     exportCSV()
+     Converts the entries array to a CSV string and triggers
+     a file download. The filename includes today's date so
+     you always know when it was exported.
+     Notes are wrapped in quotes to handle any commas inside them.
+  ============================================================ */
   function exportCSV() {
     const entries = getEntries();
     if (!entries.length) { alert('No entries to export yet!'); return; }
+
     const headers = ['date','climbing','sleep_h','water_L','physical_energy','mental_energy','calories_kcal','protein_g','notes'];
-    const rows = entries.map(e => [
+    const rows    = entries.map(e => [
       e.date, e.climbing||'', e.sleep, e.water,
       e.physical, e.mental, e.calories||'', e.protein||'',
       '"' + (e.notes||'').replace(/"/g,"'") + '"'
     ]);
-    const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+
+    const csv  = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
     const url  = URL.createObjectURL(blob);
     const a    = document.createElement('a');
-    a.href = url; a.download = 'sendit_log_' + todayStr() + '.csv';
+    a.href     = url;
+    a.download = 'climbing_log_' + todayStr() + '.csv';
     document.body.appendChild(a); a.click();
     document.body.removeChild(a); URL.revokeObjectURL(url);
   }
 
-  /* ── Init ── */
+  /* ============================================================
+     init()
+     Runs once when the page loads. Sets up the date display,
+     calculates the training week, renders the streak dots,
+     and pre-fills the form with today's entry if one exists.
+  ============================================================ */
   function init() {
-    const now   = new Date();
-    const opts  = { weekday:'short', day:'numeric', month:'short' };
-    document.getElementById('date-badge').textContent = now.toLocaleDateString('en-GB', opts);
+    // Set the header date label to today on load
+    document.getElementById('date-label').textContent = formatDisplayDate(selectedDate);
 
-    /* Week counter — update this date to your actual training start date */
-    const START = new Date('2026-06-02');
-    const diff  = Math.floor((now - START) / (1000*60*60*24*7));
-    const wk    = Math.max(1, Math.min(12, diff + 1));
+    // Week counter — reads training start date from localStorage if set,
+    // otherwise falls back to a default. We'll make this user-editable in
+    // a future branch (feature/training-start-date).
+    const startStr = localStorage.getItem('training_start') || '2026-09-01';
+    const START    = new Date(startStr + 'T12:00:00');
+    const now      = new Date();
+    const diff     = Math.floor((now - START) / (1000*60*60*24*7));
+    const wk       = Math.max(1, Math.min(12, diff + 1));
     document.getElementById('week-tag').textContent = `Week ${wk} of 12`;
 
     renderStreak();
 
-    /* Pre-fill if already logged today */
-    const prev = getEntries().find(e => e.date === todayStr());
-    if (prev) {
-      document.getElementById('sleep').value = prev.sleep; updSleep(prev.sleep);
-      document.getElementById('water').value = prev.water; updWater(prev.water);
-      document.getElementById('phys').value  = prev.physical; updEnergy('phys', prev.physical);
-      document.getElementById('ment').value  = prev.mental;   updEnergy('ment', prev.mental);
-      if (prev.calories) document.getElementById('cals').value = prev.calories;
-      if (prev.protein)  document.getElementById('prot').value = prev.protein;
-      if (prev.notes)    document.getElementById('notes').value = prev.notes;
-      if (prev.climbing) setClimb(prev.climbing);
-    } else {
-      updEnergy('phys', 5);
-      updEnergy('ment', 5);
-    }
+    // Pre-fill with today's entry if it exists
+    prefillForm(selectedDate);
+    updEnergy('phys', document.getElementById('phys').value);
+    updEnergy('ment', document.getElementById('ment').value);
   }
 
   init();
