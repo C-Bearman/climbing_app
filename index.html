@@ -732,7 +732,7 @@
         <div class="chart-section-head-left">
           <div>
             <div class="chart-section-title">Session & Flexibility</div>
-            <div class="chart-section-sub">Dots coloured by sleep quality</div>
+            <div class="chart-section-sub">Tap a dot to see the date · coloured by sleep</div>
           </div>
         </div>
         <svg class="chart-chevron" viewBox="0 0 24 24" fill="none" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
@@ -1383,52 +1383,74 @@
       .filter(e => e.stretching === 'yes' && e.flex_rating)
       .sort((a,b) => a.date.localeCompare(b.date));
 
-    /*
-      Build a union of all dates that appear in either dataset,
-      sorted oldest first. This is the shared x-axis backbone.
-      Each dataset then maps this union — returning the value on
-      days it has data, null on days it doesn't.
-      spanGaps: false means the line stops at null rather than
-      bridging across days with no data.
-    */
-    const allDates = [...new Set([
-      ...sessData.map(e => e.date),
-      ...flexData.map(e => e.date)
-    ])].sort();
-
-    const sessMap = Object.fromEntries(sessData.map(e => [e.date, e]));
-    const flexMap = Object.fromEntries(flexData.map(e => [e.date, e]));
-
     chartInstances['session'] = new Chart(canvas, {
       type: 'line',
       data: {
-        labels: allDates.map(d => formatDisplayDate(d)),
+        /*
+          Ordinal x-axis — each dataset is just numbered 1, 2, 3...
+          Session: "Session 1", "Session 2"... (climbing days only)
+          Flexibility: "Stretch 1", "Stretch 2"... (stretching days only)
+          No shared date backbone needed — each line is completely
+          independent and unbroken. Tooltip shows the actual date.
+        */
         datasets: [
           {
             label: 'Session',
-            data: allDates.map(d => sessMap[d] ? sessMap[d].sess_rating : null),
+            data: sessData.map((e, i) => ({
+              x: i + 1,
+              y: e.sess_rating,
+              date: formatDisplayDate(e.date) // stored for tooltip
+            })),
             borderColor: 'rgba(29,158,117,0.5)',
             borderWidth: 2, tension: 0.3,
-            pointBackgroundColor: allDates.map(d => sessMap[d] ? sleepColor(sessMap[d]) : 'transparent'),
-            pointBorderColor:     allDates.map(d => sessMap[d] ? sleepColor(sessMap[d]) : 'transparent'),
-            pointRadius:          allDates.map(d => sessMap[d] ? 5 : 0),
-            pointHoverRadius: 7,
-            fill: false, clip: false, spanGaps: false
+            pointBackgroundColor: sessData.map(e => sleepColor(e)),
+            pointBorderColor:     sessData.map(e => sleepColor(e)),
+            pointRadius: 5, pointHoverRadius: 7,
+            fill: false, clip: false
           },
           {
             label: 'Flexibility',
-            data: allDates.map(d => flexMap[d] ? flexMap[d].flex_rating : null),
+            data: flexData.map((e, i) => ({
+              x: i + 1,
+              y: e.flex_rating,
+              date: formatDisplayDate(e.date)
+            })),
             borderColor: 'rgba(155,89,182,0.5)',
             borderWidth: 2, tension: 0.3,
-            pointBackgroundColor: allDates.map(d => flexMap[d] ? sleepColor(flexMap[d]) : 'transparent'),
-            pointBorderColor:     allDates.map(d => flexMap[d] ? sleepColor(flexMap[d]) : 'transparent'),
-            pointRadius:          allDates.map(d => flexMap[d] ? 5 : 0),
-            pointHoverRadius: 7,
-            fill: false, clip: false, spanGaps: false
+            pointBackgroundColor: flexData.map(e => sleepColor(e)),
+            pointBorderColor:     flexData.map(e => sleepColor(e)),
+            pointRadius: 5, pointHoverRadius: 7,
+            fill: false, clip: false
           }
         ]
       },
-      options: baseOptions('', 1, 10)
+      options: {
+        ...baseOptions('', 1, 10),
+        parsing: { xAxisKey: 'x', yAxisKey: 'y' },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              // Show "Session 3 — Mon 17 Mar" in the tooltip
+              title: ctx => `${ctx[0].dataset.label} ${ctx[0].parsed.x}`,
+              label: ctx => `${ctx[0].raw.date} · Rating: ${ctx[0].parsed.y}`
+            }
+          }
+        },
+        scales: {
+          x: {
+            type: 'linear',
+            ticks: {
+              color: '#9B9B96', font: { size: 10 },
+              stepSize: 1,
+              // Show whole numbers only
+              callback: val => Number.isInteger(val) ? val : ''
+            },
+            grid: { color: 'rgba(0,0,0,0.04)' }
+          },
+          y: { ...baseOptions('', 1, 10).scales.y }
+        }
+      }
     });
     restorePillStates('session');
   }
