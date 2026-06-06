@@ -783,9 +783,39 @@
     </div>
 
     <!--
+      CHART 3: SESSION & FLEXIBILITY RATINGS
+      Two lines on the same 1-10 axis — session rating (climbing days only)
+      and flexibility rating (stretching days only).
+      Toggle pills to show/hide each independently.
+    -->
+    <div class="chart-section" id="cs-ratings">
+      <div class="chart-section-head" onclick="toggleChart('cs-ratings')">
+        <div class="chart-section-head-left">
+          <div>
+            <div class="chart-section-title">Session & Flexibility</div>
+            <div class="chart-section-sub">How your sessions & mobility felt</div>
+          </div>
+        </div>
+        <svg class="chart-chevron" viewBox="0 0 24 24" fill="none" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div class="chart-body">
+        <div class="chart-inner">
+          <canvas id="chart-ratings" class="chart-canvas"></canvas>
+          <div class="pill-row" id="pills-ratings">
+            <button class="pill pill-active" style="--pill-color:#1D9E75"
+                    onclick="toggleDataset('ratings', 0)">Session</button>
+            <button class="pill pill-active" style="--pill-color:#9B59B6"
+                    onclick="toggleDataset('ratings', 1)">Flexibility</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!--
       CHART 4: WEEKLY STRETCHING CONSISTENCY
       Bar chart — one bar per week showing how many days you stretched.
-      Maximum possible = 7. Good visual for habit tracking.
+      Coloured green/amber/red by frequency. Y-axis title removed to
+      avoid overlapping with tick labels on mobile.
     -->
     <div class="chart-section" id="cs-stretch">
       <div class="chart-section-head" onclick="toggleChart('cs-stretch')">
@@ -800,6 +830,12 @@
       <div class="chart-body">
         <div class="chart-inner">
           <canvas id="chart-stretch" class="chart-canvas"></canvas>
+          <!-- Colour key since bars change colour by frequency -->
+          <div class="chart-legend" style="margin-top:10px;">
+            <div class="legend-item"><div class="legend-dot" style="background:#1D9E75"></div> 4+ days</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#BA7517"></div> 2–3 days</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#A32D2D"></div> 0–1 days</div>
+          </div>
         </div>
       </div>
     </div>
@@ -1186,6 +1222,7 @@
     updateSessionStatsCard();
     drawSessionChart(entries);
     drawTrendsChart(entries);
+    drawRatingsChart(entries);
     drawStretchChart(entries);
   }
 
@@ -1540,20 +1577,59 @@
   }
 
   /* ============================================================
-     CHART 4: Weekly stretching consistency
-     Bar chart — groups entries by week, counts stretch days.
-     Week label = Monday's date for that week.
+     CHART 3: Session & Flexibility ratings over time
+     Two sparse lines — session rating only on climbing days,
+     flexibility only on stretching days. Both on 1-10 axis.
+     spanGaps: false means the line shows gaps rather than
+     bridging over days with no data.
+  ============================================================ */
+  function drawRatingsChart(entries) {
+    destroyChart('ratings');
+    if (!entries.length) return;
+
+    const data   = [...entries].sort((a,b) => a.date.localeCompare(b.date));
+    const labels = data.map(e => formatDisplayDate(e.date));
+
+    chartInstances['ratings'] = new Chart(
+      document.getElementById('chart-ratings'),
+      {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [
+            {
+              label: 'Session',
+              data: data.map(e => (e.climbing === 'yes' && e.sess_rating) ? e.sess_rating : null),
+              borderColor: '#1D9E75', borderWidth: 2, tension: 0.3,
+              pointRadius: 4, clip: false, fill: false, spanGaps: false
+            },
+            {
+              label: 'Flexibility',
+              data: data.map(e => (e.stretching === 'yes' && e.flex_rating) ? e.flex_rating : null),
+              borderColor: '#9B59B6', borderWidth: 2, tension: 0.3,
+              pointRadius: 4, clip: false, fill: false, spanGaps: false
+            }
+          ]
+        },
+        options: baseOptions('', 1, 10)
+      }
+    );
+    restorePillStates('ratings');
+  }
+
+  /* ============================================================
+     CHART 4: Weekly stretching consistency — TIDIED
+     Y-axis title removed to fix label/tick overlap on mobile.
+     Colour key moved to HTML legend below the chart.
   ============================================================ */
   function drawStretchChart(entries) {
     destroyChart('stretch');
     if (!entries.length) return;
 
-    // Group entries by ISO week (Monday = start of week)
     const weekMap = {};
     entries.forEach(e => {
-      const d = new Date(e.date + 'T12:00:00');
-      // Roll back to Monday
-      const day = d.getDay(); // 0=Sun
+      const d    = new Date(e.date + 'T12:00:00');
+      const day  = d.getDay();
       const diff = (day === 0) ? -6 : 1 - day;
       const monday = new Date(d);
       monday.setDate(d.getDate() + diff);
@@ -1562,34 +1638,23 @@
       if (e.stretching === 'yes') weekMap[weekKey]++;
     });
 
-    const weeks  = Object.keys(weekMap).sort();
-    const labels = weeks.map(w => {
+    const weeks     = Object.keys(weekMap).sort();
+    const labels    = weeks.map(w => {
       const d = new Date(w + 'T12:00:00');
       return d.toLocaleDateString('en-GB', { day:'numeric', month:'short' });
     });
-    const values = weeks.map(w => weekMap[w]);
+    const values    = weeks.map(w => weekMap[w]);
+    const barColors = values.map(v => v >= 4 ? '#1D9E75' : v >= 2 ? '#BA7517' : '#A32D2D');
 
-    // Colour bars: green if 4+ days, amber if 2-3, red if 0-1
-    const barColors = values.map(v =>
-      v >= 4 ? '#1D9E75' : v >= 2 ? '#BA7517' : '#A32D2D'
-    );
-
-    const opts = baseOptions('Days', 0, 7);
+    // No y-axis title — avoids overlapping with tick numbers on mobile
+    const opts = baseOptions('', 0, 7);
     opts.scales.y.ticks.stepSize = 1;
 
     chartInstances['stretch'] = new Chart(
       document.getElementById('chart-stretch'),
       {
         type: 'bar',
-        data: {
-          labels,
-          datasets: [{
-            data: values,
-            backgroundColor: barColors,
-            borderRadius: 4,     // rounded bar tops
-            borderSkipped: false
-          }]
-        },
+        data: { labels, datasets: [{ data: values, backgroundColor: barColors, borderRadius: 4, borderSkipped: false }] },
         options: opts
       }
     );
