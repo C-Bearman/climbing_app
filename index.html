@@ -154,6 +154,10 @@
     .cbtn svg { width: 16px; height: 16px; stroke: currentColor; }
     .cbtn.sel-yes { background: var(--green-light); border-color: var(--green); color: var(--green-dark); }
     .cbtn.sel-no  { background: var(--surface2); border-color: var(--border-med); color: var(--text); }
+    /* Amber — rest day (good, but not climbing) */
+    .cbtn.sel-rest { background: #FAEEDA; border-color: var(--amber); color: var(--amber); }
+    /* Soft red — no stretching (we want to encourage it) */
+    .cbtn.sel-nope { background: #FCEBEB; border-color: #C0392B; color: #A32D2D; }
     .cbtn:active  { transform: scale(0.97); }
 
     /* ============================================================
@@ -719,7 +723,7 @@
   function setClimb(val) {
     climbVal = val;
     document.getElementById('btn-yes').className = 'cbtn' + (val === 'yes' ? ' sel-yes' : '');
-    document.getElementById('btn-no').className  = 'cbtn' + (val === 'no'  ? ' sel-no'  : '');
+    document.getElementById('btn-no').className  = 'cbtn' + (val === 'no'  ? ' sel-rest' : '');
 
     // Show session details only on climbing days
     const details = document.getElementById('session-details');
@@ -741,7 +745,7 @@
   function setStretch(val) {
     stretchVal = val;
     document.getElementById('stretch-yes').className = 'cbtn' + (val === 'yes' ? ' sel-yes' : '');
-    document.getElementById('stretch-no').className  = 'cbtn' + (val === 'no'  ? ' sel-no'  : '');
+    document.getElementById('stretch-no').className  = 'cbtn' + (val === 'no'  ? ' sel-nope' : '');
 
     // Show flexibility slider only when stretching was done
     const details = document.getElementById('stretch-details');
@@ -799,8 +803,8 @@
     document.getElementById('sess-notes').value = '';
     climbVal   = null;
     stretchVal = null;
-    document.getElementById('btn-yes').className    = 'cbtn';
-    document.getElementById('btn-no').className     = 'cbtn';
+    document.getElementById('btn-yes').className     = 'cbtn';
+    document.getElementById('btn-no').className      = 'cbtn';
     document.getElementById('stretch-yes').className = 'cbtn';
     document.getElementById('stretch-no').className  = 'cbtn';
     document.getElementById('session-details').classList.remove('open');
