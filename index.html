@@ -612,7 +612,7 @@
       On mobile this opens the file picker so you can select your CSV.
       After selection, importCSV() fires and parses the file.
     -->
-    <input type="file" id="csv-file-input" accept=".csv"
+    <input type="file" id="csv-file-input" accept=".csv,text/csv,text/plain,*/*"
            style="display:none" onchange="importCSV(this)">
     <button class="cbtn" style="width:100%;padding:11px;" onclick="document.getElementById('csv-file-input').click()">
       <svg viewBox="0 0 24 24" fill="none" stroke-width="2" style="width:15px;height:15px;stroke:currentColor;">
