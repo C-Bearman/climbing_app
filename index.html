@@ -548,6 +548,89 @@
     </div>
   </div>
 
+  <!--
+    DATA MANAGEMENT SECTION — NEW
+    Contains filename setting, export and import.
+    Sits above the history log so it's easy to find.
+  -->
+  <div class="section" style="margin-top:14px;">
+    <div class="section-head">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+      Data
+    </div>
+
+    <!--
+      Filename input — user sets their master CSV filename once.
+      Stored in localStorage so it persists between sessions.
+      The .csv extension is appended automatically on export.
+    -->
+    <div class="field-top" style="margin-bottom:6px;">
+      <span class="field-name" style="font-size:13px;">File name</span>
+    </div>
+    <div class="input-wrap" style="margin-bottom:12px;">
+      <input type="text" id="csv-filename" placeholder="climbing_data"
+             style="width:100%;padding:10px 46px 10px 12px;font-size:15px;
+                    color:var(--text);background:var(--surface2);
+                    border:0.5px solid var(--border-med);
+                    border-radius:var(--radius-sm);outline:none;font-family:inherit;"
+             oninput="saveFilename(this.value)">
+      <span class="unit">.csv</span>
+    </div>
+
+    <!-- Export buttons — main export + optional "save as new" -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
+      <!--
+        Main export — uses the saved filename, overwrites the previous file.
+        This is the one you'll tap most often.
+      -->
+      <button class="cbtn sel-yes" style="padding:11px 8px;" onclick="exportCSV(false)">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" style="width:15px;height:15px;stroke:currentColor;">
+          <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+          <polyline points="7 10 12 15 17 10"/>
+          <line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+        Export
+      </button>
+      <!--
+        Save as new — prompts for a different filename so you can take
+        a named snapshot (e.g. "week_6_checkpoint") without changing
+        your default filename.
+      -->
+      <button class="cbtn" style="padding:11px 8px;" onclick="exportCSV(true)">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" style="width:15px;height:15px;stroke:currentColor;">
+          <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/>
+          <polyline points="17 21 17 13 7 13 7 21"/>
+          <polyline points="7 3 7 8 15 8"/>
+        </svg>
+        Save as new
+      </button>
+    </div>
+
+    <!--
+      Import section — hidden file input triggered by the visible button.
+      <input type="file"> is invisible; the button calls click() on it.
+      On mobile this opens the file picker so you can select your CSV.
+      After selection, importCSV() fires and parses the file.
+    -->
+    <input type="file" id="csv-file-input" accept=".csv"
+           style="display:none" onchange="importCSV(this)">
+    <button class="cbtn" style="width:100%;padding:11px;" onclick="document.getElementById('csv-file-input').click()">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2" style="width:15px;height:15px;stroke:currentColor;">
+        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+        <polyline points="7 10 12 15 17 10"/><!-- arrow up -->
+        <polyline points="17 10 12 5 7 10"/>
+        <line x1="12" y1="15" x2="12" y2="3"/>
+      </svg>
+      Import CSV
+    </button>
+
+    <!-- Import result banner — shown briefly after a successful import -->
+    <div class="toast" id="import-toast" style="margin-top:8px;">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" style="width:14px;height:14px;stroke:var(--green);"><polyline points="20 6 9 17 4 12"/></svg>
+      <span id="import-msg"></span>
+    </div>
+  </div>
+
   <!-- History toggle -->
   <div class="hist-toggle-wrap">
     <button class="hist-toggle" onclick="toggleHist()">
@@ -558,10 +641,6 @@
 
   <!-- History panel -->
   <div class="hist-panel" id="hist-panel">
-    <button class="export-btn" onclick="exportCSV()">
-      <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-      Export CSV for coach
-    </button>
     <div id="hist-list"></div>
   </div>
 
@@ -870,9 +949,47 @@
      This keeps the CSV format consistent so every row has the
      same columns — important for your coach's spreadsheet.
   ============================================================ */
-  function exportCSV() {
+
+
+  /* ============================================================
+     FILENAME MANAGEMENT
+     The chosen filename is saved to localStorage under 'csv_filename'
+     so it persists between sessions. Defaults to 'climbing_data'.
+  ============================================================ */
+  function saveFilename(val) {
+    const clean = val.trim().replace(/\.csv$/i, '') || 'climbing_data';
+    localStorage.setItem('csv_filename', clean);
+  }
+  function getFilename() {
+    return localStorage.getItem('csv_filename') || 'climbing_data';
+  }
+
+  /* ============================================================
+     getEarliestDate()
+     Finds the earliest logged date — used to auto-calculate
+     the training start. Returns null if no entries exist.
+  ============================================================ */
+  function getEarliestDate() {
+    const entries = getEntries();
+    if (!entries.length) return null;
+    return entries[entries.length - 1].date; // sorted newest-first, so last = earliest
+  }
+
+  /* ============================================================
+     exportCSV(saveAs)
+     saveAs=false → export using saved filename (main workflow)
+     saveAs=true  → prompt for a snapshot filename, keeps default
+  ============================================================ */
+  function exportCSV(saveAs = false) {
     const entries = getEntries();
     if (!entries.length) { alert('No entries to export yet!'); return; }
+
+    let filename = getFilename();
+    if (saveAs) {
+      const custom = prompt('Save as (without .csv):', filename);
+      if (!custom) return;
+      filename = custom.trim().replace(/\.csv$/i, '') || filename;
+    }
 
     const headers = [
       'date','climbing','sleep_h','water_L',
@@ -894,23 +1011,114 @@
     const blob = new Blob([csv], { type: 'text/csv' });
     const url  = URL.createObjectURL(blob);
     const a    = document.createElement('a');
-    a.href = url;
-    a.download = 'climbing_log_' + todayStr() + '.csv';
+    a.href = url; a.download = filename + '.csv';
     document.body.appendChild(a); a.click();
     document.body.removeChild(a); URL.revokeObjectURL(url);
+  }
+
+  /* ============================================================
+     importCSV(input)
+     Reads a CSV file, parses rows into entry objects, and merges
+     into localStorage. CSV wins on any date conflict.
+     FileReader reads the file asynchronously — the onload
+     callback fires when the file content is ready.
+  ============================================================ */
+  function importCSV(input) {
+    const file = input.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const lines = e.target.result.trim().split('\n');
+      if (lines.length < 2) { alert('CSV appears to be empty.'); return; }
+      const headers  = lines[0].split(',').map(h => h.trim());
+      const imported = [];
+
+      for (let i = 1; i < lines.length; i++) {
+        const cols = parseCSVLine(lines[i]);
+        if (cols.length < 2) continue;
+        const get = col => {
+          const idx = headers.indexOf(col);
+          return idx >= 0 ? (cols[idx]||'').replace(/^"|"$/g,'').trim() : '';
+        };
+        const entry = {
+          date:        get('date'),
+          climbing:    get('climbing')||null,
+          sleep:       parseFloat(get('sleep_h'))||7,
+          water:       parseFloat(get('water_L'))||2,
+          physical:    parseInt(get('physical_energy'))||5,
+          mental:      parseInt(get('mental_energy'))||5,
+          sess_rating: parseInt(get('session_rating'))||null,
+          sess_notes:  get('session_notes')||null,
+          stretching:  get('stretching')||null,
+          flex_rating: parseInt(get('flexibility_rating'))||null,
+          calories:    get('calories_kcal')||null,
+          protein:     get('protein_g')||null,
+          notes:       get('general_notes')||null,
+        };
+        if (isNaN(entry.sess_rating)) entry.sess_rating = null;
+        if (isNaN(entry.flex_rating)) entry.flex_rating = null;
+        if (entry.date) imported.push(entry);
+      }
+
+      if (!imported.length) { alert('No valid entries found in CSV.'); return; }
+
+      // Merge: CSV wins on conflicts
+      const existing     = getEntries();
+      const importedDates = new Set(imported.map(e => e.date));
+      const merged = [...existing.filter(e => !importedDates.has(e.date)), ...imported];
+      merged.sort((a, b) => b.date.localeCompare(a.date));
+      saveEntries(merged);
+      input.value = '';
+
+      const msg = document.getElementById('import-msg');
+      const toast = document.getElementById('import-toast');
+      msg.textContent = `Imported ${imported.length} entries — ${merged.length} total`;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 3000);
+
+      renderStreak();
+      updateWeekCounter();
+      if (document.getElementById('hist-panel').style.display === 'block') renderHist();
+    };
+    reader.readAsText(file);
+  }
+
+  /* ============================================================
+     parseCSVLine(line)
+     Splits a CSV line by commas but respects quoted fields —
+     so commas inside notes don't break the parse.
+  ============================================================ */
+  function parseCSVLine(line) {
+    const result = []; let current = ''; let inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (ch === '"') { inQuotes = !inQuotes; }
+      else if (ch === ',' && !inQuotes) { result.push(current); current = ''; }
+      else { current += ch; }
+    }
+    result.push(current);
+    return result;
+  }
+
+  /* ============================================================
+     updateWeekCounter()
+     Calculates week number from earliest entry date.
+     Hides the counter if no entries logged yet.
+  ============================================================ */
+  function updateWeekCounter() {
+    const earliest = getEarliestDate();
+    const weekTag  = document.getElementById('week-tag');
+    if (!earliest) { weekTag.textContent = ''; return; }
+    const START = new Date(earliest + 'T12:00:00');
+    const diff  = Math.floor((new Date() - START) / (1000*60*60*24*7));
+    weekTag.textContent = `Week ${Math.max(1, diff + 1)}`;
   }
 
   /* ── init(): runs on page load ── */
   function init() {
     document.getElementById('date-label').textContent = formatDisplayDate(selectedDate);
-
-    // Week counter — reads from localStorage, falls back to placeholder date
-    const startStr = localStorage.getItem('training_start') || '2026-09-01';
-    const START    = new Date(startStr + 'T12:00:00');
-    const diff     = Math.floor((new Date() - START) / (1000*60*60*24*7));
-    const wk       = Math.max(1, Math.min(12, diff + 1));
-    document.getElementById('week-tag').textContent = `Week ${wk} of 12`;
-
+    document.getElementById('csv-filename').value = getFilename();
+    updateWeekCounter();
     renderStreak();
     prefillForm(selectedDate);
     updEnergy('phys', document.getElementById('phys').value);
