@@ -13,6 +13,8 @@
   <link rel="apple-touch-icon" href="icons/icon-192.png" />
   <!-- Chart.js — the charting library, loaded from CDN -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <!-- Date adapter required for time axis -->
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -1593,44 +1595,106 @@
   }
 
   /* ============================================================
-     CHART 3: Session & Flexibility ratings over time
-     Two sparse lines — session rating only on climbing days,
-     flexibility only on stretching days. Both on 1-10 axis.
-     spanGaps: false means the line shows gaps rather than
-     bridging over days with no data.
+     drawAllCharts() — master function, redraws everything
   ============================================================ */
-  function drawRatingsChart(entries) {
-    destroyChart('ratings');
-    if (!entries.length) return;
+  function drawAllCharts() {
+    const entries = getFilteredEntries();
+    updateSessionStatsCard();
+    drawSessionChart(entries);
+    drawTrendsChart(entries);
+    drawStretchChart(entries);
+  }
 
-    const data   = [...entries].sort((a,b) => a.date.localeCompare(b.date));
-    const labels = data.map(e => formatDisplayDate(e.date));
+  /* ============================================================
+     drawSessionChart(entries)
+     Session rating + flexibility rating on one chart.
+     Each dataset uses its OWN filtered entries as the x-axis —
+     session line only connects climbing days to climbing days,
+     flexibility line only connects stretching days to stretching days.
+     Dots are sleep-coloured (green/amber/red).
+     Two toggle pills: Session and Flexibility.
+  ============================================================ */
+  function drawSessionChart(entries) {
+    destroyChart('session');
 
-    chartInstances['ratings'] = new Chart(
-      document.getElementById('chart-ratings'),
-      {
-        type: 'line',
-        data: {
-          labels,
-          datasets: [
-            {
-              label: 'Session',
-              data: data.map(e => (e.climbing === 'yes' && e.sess_rating) ? e.sess_rating : null),
-              borderColor: '#1D9E75', borderWidth: 2, tension: 0.3,
-              pointRadius: 4, clip: false, fill: false, spanGaps: false
-            },
-            {
-              label: 'Flexibility',
-              data: data.map(e => (e.stretching === 'yes' && e.flex_rating) ? e.flex_rating : null),
-              borderColor: '#9B59B6', borderWidth: 2, tension: 0.3,
-              pointRadius: 4, clip: false, fill: false, spanGaps: false
-            }
-          ]
-        },
-        options: baseOptions('', 1, 10)
+    const MIN_ENTRIES = 7;
+    const canvas  = document.getElementById('chart-session');
+    const inner   = canvas.closest('.chart-inner');
+    const pillRow = document.getElementById('pills-session');
+    const existing = inner.querySelector('.chart-empty');
+    if (existing) existing.remove();
+
+    if (entries.length < MIN_ENTRIES) {
+      canvas.style.display = 'none';
+      if (pillRow) pillRow.style.display = 'none';
+      const msg = document.createElement('p');
+      msg.className = 'chart-empty';
+      msg.textContent = 'Keep logging — trends will appear once you have a bit more data.';
+      inner.appendChild(msg);
+      return;
+    }
+    canvas.style.display = '';
+    if (pillRow) pillRow.style.display = '';
+
+    // Colour each dot by sleep quality on that night
+    const sleepColor = e => {
+      if (e.sleep >= 8) return '#1D9E75';
+      if (e.sleep >= 6) return '#BA7517';
+      return '#A32D2D';
+    };
+
+    // Each dataset filtered and sorted independently
+    const sessData = entries
+      .filter(e => e.climbing === 'yes' && e.sess_rating)
+      .sort((a,b) => a.date.localeCompare(b.date));
+
+    const flexData = entries
+      .filter(e => e.stretching === 'yes' && e.flex_rating)
+      .sort((a,b) => a.date.localeCompare(b.date));
+
+    const opts = baseOptions('', 1, 10);
+
+    chartInstances['session'] = new Chart(canvas, {
+      type: 'line',
+      data: {
+        datasets: [
+          {
+            label: 'Session',
+            data: sessData.map(e => ({ x: e.date, y: e.sess_rating })),
+            borderColor: 'rgba(29,158,117,0.5)',
+            borderWidth: 2, tension: 0.3,
+            pointBackgroundColor: sessData.map(e => sleepColor(e)),
+            pointBorderColor:     sessData.map(e => sleepColor(e)),
+            pointRadius: 5, pointHoverRadius: 7,
+            fill: false, clip: false
+          },
+          {
+            label: 'Flexibility',
+            data: flexData.map(e => ({ x: e.date, y: e.flex_rating })),
+            borderColor: 'rgba(155,89,182,0.5)',
+            borderWidth: 2, tension: 0.3,
+            pointBackgroundColor: flexData.map(e => sleepColor(e)),
+            pointBorderColor:     flexData.map(e => sleepColor(e)),
+            pointRadius: 5, pointHoverRadius: 7,
+            fill: false, clip: false
+          }
+        ]
+      },
+      options: {
+        ...opts,
+        parsing: false,
+        scales: {
+          x: {
+            type: 'time',
+            time: { unit: 'day', tooltipFormat: 'dd MMM', displayFormats: { day: 'd MMM' } },
+            ticks: { color: '#9B9B96', font: { size: 10 }, maxRotation: 45, minRotation: 45, maxTicksLimit: 8 },
+            grid: { color: 'rgba(0,0,0,0.04)' }
+          },
+          y: { ...opts.scales.y }
+        }
       }
-    );
-    restorePillStates('ratings');
+    });
+    restorePillStates('session');
   }
 
   /* ============================================================
