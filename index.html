@@ -352,17 +352,21 @@
     /* Empty state inside a chart */
     .chart-empty { text-align: center; font-size: 13px; color: var(--text3); padding: 30px 0; }
 
-    /* ── Stats summary row ── */
-    .stats-row {
-      display: grid; grid-template-columns: repeat(3, 1fr);
-      gap: 8px; margin: 10px 14px 0;
+    /* ── Stats card slider — slightly smaller thumb than main sliders ── */
+    .stats-slider { flex: 1; }
+    .stats-slider::-webkit-slider-thumb {
+      -webkit-appearance: none; appearance: none;
+      width: 16px; height: 16px; border-radius: 50%;
+      background: var(--green); border: 2px solid var(--surface);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
     }
-    .stat-card {
-      background: var(--surface); border: 0.5px solid var(--border);
-      border-radius: var(--radius-sm); padding: 12px 10px; text-align: center;
+    .stats-slider::-moz-range-thumb {
+      width: 16px; height: 16px; border-radius: 50%;
+      background: var(--green); border: 2px solid var(--surface);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
     }
-    .stat-val { font-size: 22px; font-weight: 700; color: var(--green); }
-    .stat-label { font-size: 10px; color: var(--text3); margin-top: 2px; text-transform: uppercase; letter-spacing: 0.05em; }
+
+    /* ── Stats summary row (kept for potential future use) ── */
   </style>
 </head>
 <body>
@@ -618,22 +622,44 @@
     </header>
 
     <!--
-      SUMMARY STATS ROW
-      Three quick numbers at a glance — total sessions, avg session
-      rating, avg sleep. Re-calculated whenever the range changes.
+      CLIMBING SESSION STATS CARD
+      Shows last session rating and a rolling average controlled
+      by a small slider. The slider snaps to the same positions
+      as the main range slider but only affects this card's average.
+      onRangeStatsChange() updates the average label live on drag.
     -->
-    <div class="stats-row">
-      <div class="stat-card">
-        <div class="stat-val" id="stat-sessions">—</div>
-        <div class="stat-label">Sessions</div>
+    <div class="section" style="margin: 10px 14px 0;">
+      <div class="section-head">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+        Your climbing sessions
       </div>
-      <div class="stat-card">
-        <div class="stat-val" id="stat-avg-sess">—</div>
-        <div class="stat-label">Avg rating</div>
+
+      <!-- Last session score -->
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px;">
+        <span style="font-size:14px;color:var(--text2);">Last session</span>
+        <span style="font-size:22px;font-weight:700;color:var(--green);" id="stat-last-sess">—</span>
       </div>
-      <div class="stat-card">
-        <div class="stat-val" id="stat-avg-sleep">—</div>
-        <div class="stat-label">Avg sleep</div>
+
+      <!-- Rolling average with slider -->
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;">
+        <span style="font-size:14px;color:var(--text2);">Avg
+          <!-- Label updates live as slider moves -->
+          (<span id="stat-avg-period">all time</span>)
+        </span>
+        <span style="font-size:22px;font-weight:700;color:var(--green);" id="stat-avg-val">—</span>
+      </div>
+
+      <!--
+        Smaller range slider — same 5-position snap as the main one.
+        Uses a slightly thinner thumb via the .stats-slider class.
+        oninput calls onRangeStatsChange() which recalculates the avg.
+      -->
+      <div style="display:flex;align-items:center;gap:10px;">
+        <input type="range" class="stats-slider" id="stats-range-slider"
+               min="0" max="4" step="1" value="4"
+               oninput="onRangeStatsChange(this.value)">
+        <span style="font-size:11px;color:var(--text3);white-space:nowrap;min-width:44px;text-align:right;"
+              id="stats-range-label">All</span>
       </div>
     </div>
 
@@ -1122,25 +1148,70 @@
   ============================================================ */
   function drawAllCharts() {
     const entries = getFilteredEntries();
-    updateSummaryStats(entries);
+    updateSessionStatsCard();
     drawSessionChart(entries);
     drawRecoveryChart(entries);
     drawEnergyChart(entries);
     drawStretchChart(entries);
   }
 
-  /* ── Summary stats ── */
-  function updateSummaryStats(entries) {
-    const climbDays = entries.filter(e => e.climbing === 'yes' && e.sess_rating);
-    const avgSess   = climbDays.length
-      ? (climbDays.reduce((s,e) => s + e.sess_rating, 0) / climbDays.length).toFixed(1)
+  /* ============================================================
+     CLIMBING SESSION STATS CARD
+     updateSessionStatsCard(): populates the card on the charts tab.
+       - Last session: most recent entry where climbing = 'yes'
+       - Rolling avg: average session rating over the period
+         selected by the stats card's own slider (independent
+         of the main chart range slider)
+
+     onRangeStatsChange(val): fires on every slider drag,
+       updates the period label and recalculates the average.
+  ============================================================ */
+  function updateSessionStatsCard() {
+    const all         = getEntries();
+    const climbDays   = all.filter(e => e.climbing === 'yes' && e.sess_rating);
+
+    // Last session — most recent climbing entry (entries are newest-first)
+    const lastSess = climbDays.length ? climbDays[0].sess_rating : null;
+    document.getElementById('stat-last-sess').textContent = lastSess || '—';
+
+    // Rolling average based on stats slider position
+    const val = parseInt(document.getElementById('stats-range-slider').value);
+    calcStatsAvg(val, climbDays);
+  }
+
+  function calcStatsAvg(val, climbDays) {
+    // If climbDays not passed in, fetch fresh
+    if (!climbDays) {
+      climbDays = getEntries().filter(e => e.climbing === 'yes' && e.sess_rating);
+    }
+
+    const days   = RANGE_DAYS[val];
+    const label  = RANGE_LABELS[val].toLowerCase();
+
+    // Filter to the selected period
+    let filtered = climbDays;
+    if (days !== Infinity) {
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - days);
+      const cutoffStr = cutoff.toISOString().split('T')[0];
+      filtered = climbDays.filter(e => e.date >= cutoffStr);
+    }
+
+    const avg = filtered.length
+      ? (filtered.reduce((s,e) => s + e.sess_rating, 0) / filtered.length).toFixed(1)
       : '—';
-    const avgSleep  = entries.length
-      ? (entries.reduce((s,e) => s + e.sleep, 0) / entries.length).toFixed(1) + 'h'
-      : '—';
-    document.getElementById('stat-sessions').textContent  = climbDays.length || '—';
-    document.getElementById('stat-avg-sess').textContent  = avgSess;
-    document.getElementById('stat-avg-sleep').textContent = avgSleep;
+
+    // e.g. "Avg (2 weeks · 6 sessions)" or "Avg (all time · 34 sessions)"
+    const countStr = filtered.length ? ` · ${filtered.length} session${filtered.length === 1 ? '' : 's'}` : '';
+
+    document.getElementById('stat-avg-val').textContent    = avg;
+    document.getElementById('stat-avg-period').textContent = label + countStr;
+    document.getElementById('stats-range-label').textContent = RANGE_LABELS[val];
+  }
+
+  function onRangeStatsChange(val) {
+    // Just recalculate the stats card — doesn't affect the charts
+    calcStatsAvg(parseInt(val), null);
   }
 
   /* ============================================================
