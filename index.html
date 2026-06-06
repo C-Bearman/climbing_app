@@ -187,46 +187,10 @@
     }
 
     /* ============================================================
-       CHECKBOX (NEW)
-       Custom styled checkbox to match the app's look.
-       We hide the native checkbox and build our own visual using
-       a <label> — this is standard practice for custom checkboxes.
+       STRETCHING DETAILS PANEL
+       Same accordion pattern as session-details — hidden by default,
+       expands smoothly when "Yes" is tapped on the stretch toggle.
     ============================================================ */
-    .check-row {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 4px 0;
-    }
-    .check-row input[type=checkbox] {
-      /* Hide the native checkbox — we style via the label below */
-      appearance: none; -webkit-appearance: none;
-      width: 20px; height: 20px; flex-shrink: 0;
-      border-radius: 6px;
-      border: 1.5px solid var(--border-med);
-      background: var(--surface2);
-      cursor: pointer;
-      position: relative;
-      transition: all 0.15s;
-    }
-    /* The green tick — only visible when checked */
-    .check-row input[type=checkbox]:checked {
-      background: var(--green);
-      border-color: var(--green);
-    }
-    .check-row input[type=checkbox]:checked::after {
-      content: '';
-      position: absolute;
-      left: 5px; top: 2px;
-      width: 6px; height: 10px;
-      border: 2px solid white;
-      border-top: none; border-left: none;
-      transform: rotate(45deg);
-    }
-    .check-label {
-      font-size: 14px;
-      color: var(--text);
-    }
 
     /* ── Slider fields ── */
     .field { margin-bottom: 15px; }
@@ -436,18 +400,57 @@
         </div>
       </div>
 
-      <!-- Mobility checkbox — NEW input type for this app -->
-      <div class="check-row" style="margin-top: 14px;">
-        <input type="checkbox" id="mobility" />
-        <label class="check-label" for="mobility">Stretching / mobility done</label>
-      </div>
-
       <!-- Session notes — specific to this climbing session -->
       <div style="margin-top: 14px;">
         <div class="field-top" style="margin-bottom: 8px;">
           <span class="field-name" style="font-size:13px; color: var(--text2);">Session notes</span>
         </div>
         <textarea id="sess-notes" placeholder="e.g. 'Crimps & Fingers felt good, felt weak on powerful moves'"></textarea>
+      </div>
+    </div>
+  </div>
+
+  <!--
+    STRETCHING / MOBILITY SECTION — NEW, always visible
+    Sits between climbing and recovery so it's relevant on both
+    climbing days and rest days. Same yes/no toggle pattern as
+    the climbing card. Tapping "Yes" reveals the flexibility
+    rating slider using the same accordion CSS as session-details.
+  -->
+  <div class="section">
+    <div class="section-head">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M18 3a3 3 0 00-3 3v12a3 3 0 003 3 3 3 0 003-3 3 3 0 00-3-3H6a3 3 0 00-3 3 3 3 0 003 3 3 3 0 003-3V6a3 3 0 00-3-3 3 3 0 00-3 3 3 3 0 003 3h12a3 3 0 003-3 3 3 0 00-3-3z"/></svg>
+      Stretching / Mobility
+    </div>
+
+    <!-- Yes/No toggle — identical pattern to the climbing toggle -->
+    <div class="climb-btns">
+      <button class="cbtn" id="stretch-yes" onclick="setStretch('yes')">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+        Yes
+      </button>
+      <button class="cbtn" id="stretch-no" onclick="setStretch('no')">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        No
+      </button>
+    </div>
+
+    <!--
+      Flexibility rating — only shown when stretching = yes.
+      Uses the same session-details accordion CSS class and
+      the same updEnergy() function for colour-coded display.
+    -->
+    <div class="session-details" id="stretch-details">
+      <hr class="session-divider">
+      <div class="field">
+        <div class="field-top">
+          <span class="field-name">Flexibility rating</span>
+          <span class="field-val" id="flex-val">5</span>
+        </div>
+        <div class="energy-track" id="flex-track">
+          <input type="range" id="flex" min="1" max="10" step="1" value="5"
+                 oninput="updEnergy('flex', this.value)">
+        </div>
       </div>
     </div>
   </div>
@@ -648,6 +651,28 @@
     }
   }
 
+  /* ============================================================
+     setStretch(val)
+     Same pattern as setClimb() — updates button styles and
+     toggles the flexibility rating panel open/closed.
+     stretchVal is a new state variable alongside climbVal.
+  ============================================================ */
+  let stretchVal = null; // tracks yes/no for stretching
+
+  function setStretch(val) {
+    stretchVal = val;
+    document.getElementById('stretch-yes').className = 'cbtn' + (val === 'yes' ? ' sel-yes' : '');
+    document.getElementById('stretch-no').className  = 'cbtn' + (val === 'no'  ? ' sel-no'  : '');
+
+    // Show flexibility slider only when stretching was done
+    const details = document.getElementById('stretch-details');
+    if (val === 'yes') {
+      details.classList.add('open');
+    } else {
+      details.classList.remove('open');
+    }
+  }
+
   /* ── Slider updates ── */
   function updSleep(v) {
     document.getElementById('sleep-val').textContent =
@@ -692,12 +717,17 @@
     document.getElementById('cals').value  = '';
     document.getElementById('prot').value  = '';
     document.getElementById('notes').value = '';
-    document.getElementById('sess-notes').value = '';       // NEW
-    document.getElementById('mobility').checked = false;    // NEW
-    climbVal = null;
-    document.getElementById('btn-yes').className = 'cbtn';
-    document.getElementById('btn-no').className  = 'cbtn';
-    document.getElementById('session-details').classList.remove('open'); // NEW
+    document.getElementById('sess-notes').value = '';
+    climbVal   = null;
+    stretchVal = null;
+    document.getElementById('btn-yes').className    = 'cbtn';
+    document.getElementById('btn-no').className     = 'cbtn';
+    document.getElementById('stretch-yes').className = 'cbtn';
+    document.getElementById('stretch-no').className  = 'cbtn';
+    document.getElementById('session-details').classList.remove('open');
+    document.getElementById('stretch-details').classList.remove('open');
+    // Reset flexibility slider
+    document.getElementById('flex').value = 5; updEnergy('flex', 5);
 
     // Overwrite with saved values if an entry exists for this date
     if (prev) {
@@ -705,18 +735,23 @@
       document.getElementById('water').value = prev.water; updWater(prev.water);
       document.getElementById('phys').value  = prev.physical; updEnergy('phys', prev.physical);
       document.getElementById('ment').value  = prev.mental;   updEnergy('ment', prev.mental);
-      if (prev.calories)   document.getElementById('cals').value = prev.calories;
-      if (prev.protein)    document.getElementById('prot').value = prev.protein;
-      if (prev.notes)      document.getElementById('notes').value = prev.notes;
-      // NEW: restore session-specific fields
+      if (prev.calories)  document.getElementById('cals').value = prev.calories;
+      if (prev.protein)   document.getElementById('prot').value = prev.protein;
+      if (prev.notes)     document.getElementById('notes').value = prev.notes;
+      // Restore session fields
       if (prev.sess_rating) {
         document.getElementById('sess').value = prev.sess_rating;
         updEnergy('sess', prev.sess_rating);
       }
-      if (prev.sess_notes)  document.getElementById('sess-notes').value = prev.sess_notes;
-      if (prev.mobility)    document.getElementById('mobility').checked = true;
-      // Restore the climbing toggle (also triggers panel show/hide)
-      if (prev.climbing)    setClimb(prev.climbing);
+      if (prev.sess_notes) document.getElementById('sess-notes').value = prev.sess_notes;
+      // Restore climbing toggle (also opens/closes session panel)
+      if (prev.climbing) setClimb(prev.climbing);
+      // Restore stretching toggle (also opens/closes flex panel)
+      if (prev.stretching) setStretch(prev.stretching);
+      if (prev.flex_rating) {
+        document.getElementById('flex').value = prev.flex_rating;
+        updEnergy('flex', prev.flex_rating);
+      }
     }
   }
 
@@ -729,7 +764,8 @@
      These are only saved when climbing = 'yes', otherwise null.
   ============================================================ */
   function saveEntry() {
-    const isClimbing = climbVal === 'yes';
+    const isClimbing   = climbVal   === 'yes';
+    const isStretching = stretchVal === 'yes';
 
     const entry = {
       date:        selectedDate,
@@ -741,10 +777,12 @@
       calories:    document.getElementById('cals').value || null,
       protein:     document.getElementById('prot').value || null,
       notes:       document.getElementById('notes').value.trim() || null,
-      // NEW fields — only populated on climbing days
-      sess_rating: isClimbing ? parseInt(document.getElementById('sess').value) : null,
-      mobility:    isClimbing ? document.getElementById('mobility').checked : null,
-      sess_notes:  isClimbing ? (document.getElementById('sess-notes').value.trim() || null) : null
+      // Session fields — only populated on climbing days
+      sess_rating: isClimbing   ? parseInt(document.getElementById('sess').value) : null,
+      sess_notes:  isClimbing   ? (document.getElementById('sess-notes').value.trim() || null) : null,
+      // Stretching fields — populated on any day stretching was done
+      stretching:  stretchVal,
+      flex_rating: isStretching ? parseInt(document.getElementById('flex').value) : null
     };
 
     const arr = getEntries().filter(e => e.date !== selectedDate);
@@ -804,19 +842,19 @@
       return;
     }
     list.innerHTML = entries.slice(0, 30).map(e => {
-      const icon = e.climbing === 'yes' ? '🧗' : e.climbing === 'no' ? '💤' : '';
-      // mobility shown as a tick emoji if true
-      const mobStr = e.mobility === true ? ' · 🧘 mobility' : '';
+      const icon      = e.climbing  === 'yes' ? '🧗' : e.climbing === 'no' ? '💤' : '';
+      const stretchStr = e.stretching === 'yes' ? ' · 🧘 stretched' : '';
       return `<div class="entry-card">
-        <div class="entry-date">${icon} ${formatDisplayDate(e.date)}${mobStr}</div>
+        <div class="entry-date">${icon} ${formatDisplayDate(e.date)}${stretchStr}</div>
         <div class="entry-stats">
           <div class="estat">Sleep <b>${e.sleep}h</b></div>
           <div class="estat">Water <b>${e.water}L</b></div>
           <div class="estat">Physical <b>${e.physical}/10</b></div>
           <div class="estat">Mental <b>${e.mental}/10</b></div>
-          ${e.sess_rating ? `<div class="estat">Session <b>${e.sess_rating}/10</b></div>` : ''}
-          ${e.calories    ? `<div class="estat">Cals <b>${e.calories}</b></div>` : ''}
-          ${e.protein     ? `<div class="estat">Protein <b>${e.protein}g</b></div>` : ''}
+          ${e.sess_rating  ? `<div class="estat">Session <b>${e.sess_rating}/10</b></div>` : ''}
+          ${e.flex_rating  ? `<div class="estat">Flexibility <b>${e.flex_rating}/10</b></div>` : ''}
+          ${e.calories     ? `<div class="estat">Cals <b>${e.calories}</b></div>` : ''}
+          ${e.protein      ? `<div class="estat">Protein <b>${e.protein}g</b></div>` : ''}
         </div>
         ${e.sess_notes ? `<div class="entry-note">🧗 "${e.sess_notes}"</div>` : ''}
         ${e.notes      ? `<div class="entry-note">📋 "${e.notes}"</div>` : ''}
@@ -839,16 +877,16 @@
     const headers = [
       'date','climbing','sleep_h','water_L',
       'physical_energy','mental_energy',
-      'session_rating','mobility',        // NEW columns
-      'calories_kcal','protein_g',
-      'session_notes','general_notes'     // split into two note columns
+      'session_rating','session_notes',
+      'stretching','flexibility_rating',
+      'calories_kcal','protein_g','general_notes'
     ];
     const rows = entries.map(e => [
       e.date, e.climbing||'', e.sleep, e.water,
       e.physical, e.mental,
-      e.sess_rating||'', e.mobility === true ? 'TRUE' : e.mobility === false ? 'FALSE' : '',
+      e.sess_rating||'', '"' + (e.sess_notes||'').replace(/"/g,"'") + '"',
+      e.stretching||'', e.flex_rating||'',
       e.calories||'', e.protein||'',
-      '"' + (e.sess_notes||'').replace(/"/g,"'") + '"',
       '"' + (e.notes||'').replace(/"/g,"'") + '"'
     ]);
 
@@ -878,6 +916,7 @@
     updEnergy('phys', document.getElementById('phys').value);
     updEnergy('ment', document.getElementById('ment').value);
     updEnergy('sess', document.getElementById('sess').value);
+    updEnergy('flex', document.getElementById('flex').value);
   }
 
   init();
