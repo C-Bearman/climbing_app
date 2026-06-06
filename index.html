@@ -1026,6 +1026,14 @@
   function importCSV(input) {
     const file = input.files[0];
     if (!file) return;
+
+    // Extract filename without .csv extension and save it as the new default
+    const importedName = file.name.replace(/\.csv$/i, '').trim();
+    if (importedName) {
+      localStorage.setItem('csv_filename', importedName);
+      document.getElementById('csv-filename').value = importedName;
+    }
+
     const reader = new FileReader();
     reader.onload = function(e) {
       const lines = e.target.result.trim().split('\n');
