@@ -749,65 +749,34 @@
     </div>
 
     <!--
-      CHART 2: SLEEP + WATER + PHYSICAL ENERGY
-      Three datasets on dual y-axes.
-      Toggle pills below let you show/hide each dataset + its goal line.
-      Pill state saved to localStorage so preferences persist.
+      CHART 2: SLEEP, WATER & ENERGY TRENDS
+      All four datasets on one chart — sleep, water, physical, mental.
+      Four toggle pills to show/hide each independently.
+      Three y-axes: sleep (left, green), water (right, blue),
+      energy (hidden, 1-10 scale for physical + mental).
     -->
-    <div class="chart-section" id="cs-physical">
-      <div class="chart-section-head" onclick="toggleChart('cs-physical')">
+    <div class="chart-section" id="cs-trends">
+      <div class="chart-section-head" onclick="toggleChart('cs-trends')">
         <div class="chart-section-head-left">
           <div>
-            <div class="chart-section-title">Sleep, Water & Physical</div>
-            <div class="chart-section-sub">Recovery vs physical energy</div>
+            <div class="chart-section-title">Sleep, Water & Energy Trends</div>
+            <div class="chart-section-sub">All recovery & energy in one view</div>
           </div>
         </div>
         <svg class="chart-chevron" viewBox="0 0 24 24" fill="none" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
       </div>
       <div class="chart-body">
         <div class="chart-inner">
-          <canvas id="chart-physical" class="chart-canvas"></canvas>
-          <!--
-            Toggle pills — one per dataset.
-            Each pill calls toggleDataset('physical', index) on tap.
-            Active state (colour) is driven by the .pill-active class.
-          -->
-          <div class="pill-row" id="pills-physical">
+          <canvas id="chart-trends" class="chart-canvas"></canvas>
+          <div class="pill-row" id="pills-trends">
             <button class="pill pill-active" style="--pill-color:#1D9E75"
-                    onclick="toggleDataset('physical', 0)">Sleep</button>
+                    onclick="toggleDataset('trends', 0)">Sleep</button>
             <button class="pill pill-active" style="--pill-color:#6C9BD2"
-                    onclick="toggleDataset('physical', 1)">Water</button>
+                    onclick="toggleDataset('trends', 1)">Water</button>
             <button class="pill pill-active" style="--pill-color:#E8703A"
-                    onclick="toggleDataset('physical', 2)">Physical</button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!--
-      CHART 3: SLEEP + WATER + MENTAL ENERGY
-      Same structure as chart 2 but with mental energy instead.
-    -->
-    <div class="chart-section" id="cs-mental">
-      <div class="chart-section-head" onclick="toggleChart('cs-mental')">
-        <div class="chart-section-head-left">
-          <div>
-            <div class="chart-section-title">Sleep, Water & Mental</div>
-            <div class="chart-section-sub">Recovery vs mental energy</div>
-          </div>
-        </div>
-        <svg class="chart-chevron" viewBox="0 0 24 24" fill="none" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
-      </div>
-      <div class="chart-body">
-        <div class="chart-inner">
-          <canvas id="chart-mental" class="chart-canvas"></canvas>
-          <div class="pill-row" id="pills-mental">
-            <button class="pill pill-active" style="--pill-color:#1D9E75"
-                    onclick="toggleDataset('mental', 0)">Sleep</button>
-            <button class="pill pill-active" style="--pill-color:#6C9BD2"
-                    onclick="toggleDataset('mental', 1)">Water</button>
+                    onclick="toggleDataset('trends', 2)">Physical</button>
             <button class="pill pill-active" style="--pill-color:#9B59B6"
-                    onclick="toggleDataset('mental', 2)">Mental</button>
+                    onclick="toggleDataset('trends', 3)">Mental</button>
           </div>
         </div>
       </div>
@@ -1216,8 +1185,7 @@
     const entries = getFilteredEntries();
     updateSessionStatsCard();
     drawSessionChart(entries);
-    drawPhysicalChart(entries);
-    drawMentalChart(entries);
+    drawTrendsChart(entries);
     drawStretchChart(entries);
   }
 
@@ -1400,39 +1368,31 @@
 
   /* ============================================================
      DATASET VISIBILITY STATE
-     Stored in localStorage as an object keyed by chart+dataset index.
-     e.g. { 'physical-0': true, 'physical-1': false, 'mental-2': true }
+     Stored in localStorage keyed by chart+dataset index.
      Default is true (visible) for all datasets.
   ============================================================ */
   function getVisibility() {
     try { return JSON.parse(localStorage.getItem('chart_visibility') || '{}'); }
     catch(e) { return {}; }
   }
-
   function setVisibility(chartId, datasetIndex, visible) {
     const v = getVisibility();
     v[`${chartId}-${datasetIndex}`] = visible;
     localStorage.setItem('chart_visibility', JSON.stringify(v));
   }
-
   function isVisible(chartId, datasetIndex) {
-    const v = getVisibility();
+    const v   = getVisibility();
     const key = `${chartId}-${datasetIndex}`;
-    return key in v ? v[key] : true; // default to visible
+    return key in v ? v[key] : true;
   }
 
   /* ============================================================
      toggleDataset(chartId, datasetIndex)
-     Called when a pill is tapped.
-     1. Flips the visibility state in localStorage
-     2. Updates the pill's appearance (active/inactive)
-     3. Tells Chart.js to show/hide that dataset — no full redraw needed,
-        Chart.js animates the change smoothly via setDatasetVisibility + update()
-
-     Goal line datasets sit at index 3+ (after the 3 data datasets).
-     When toggling sleep (index 0) we also toggle its goal line (index 3).
-     When toggling water (index 1) we also toggle its goal line (index 4).
-     Energy (index 2) has no goal line so nothing extra to toggle.
+     Flips visibility, updates pill, and tells Chart.js to
+     animate the dataset in/out. Also syncs the matching goal line:
+       Sleep  (0) → goal line at index 4
+       Water  (1) → goal line at index 5
+       Physical/Mental (2,3) → no goal lines
   ============================================================ */
   function toggleDataset(chartId, datasetIndex) {
     const chart = chartInstances[chartId];
@@ -1440,20 +1400,16 @@
 
     const newVisible = !isVisible(chartId, datasetIndex);
     setVisibility(chartId, datasetIndex, newVisible);
-
-    // Toggle the data dataset
     chart.setDatasetVisibility(datasetIndex, newVisible);
 
-    // Also toggle the matching goal line if it exists
-    // Sleep (0) → goal line at index 3, Water (1) → goal line at index 4
-    const goalIndex = datasetIndex === 0 ? 3 : datasetIndex === 1 ? 4 : null;
+    // Sync goal line visibility
+    const goalIndex = datasetIndex === 0 ? 4 : datasetIndex === 1 ? 5 : null;
     if (goalIndex !== null && chart.data.datasets[goalIndex]) {
       chart.setDatasetVisibility(goalIndex, newVisible);
     }
 
     chart.update();
 
-    // Update pill appearance
     const pills = document.querySelectorAll(`#pills-${chartId} .pill`);
     if (pills[datasetIndex]) {
       pills[datasetIndex].classList.toggle('pill-active', newVisible);
@@ -1462,9 +1418,8 @@
 
   /* ============================================================
      restorePillStates(chartId)
-     After drawing a chart, applies saved visibility states to both
-     the chart datasets and the pill buttons — so if you had water
-     hidden last session, it's still hidden when you reopen.
+     Applies saved visibility to chart datasets and pill buttons
+     after every draw — so preferences survive page reloads.
   ============================================================ */
   function restorePillStates(chartId) {
     const chart = chartInstances[chartId];
@@ -1474,48 +1429,65 @@
       const visible = isVisible(chartId, i);
       chart.setDatasetVisibility(i, visible);
       pill.classList.toggle('pill-active', visible);
-      // Also apply to goal line
-      const goalIndex = i === 0 ? 3 : i === 1 ? 4 : null;
+      const goalIndex = i === 0 ? 4 : i === 1 ? 5 : null;
       if (goalIndex !== null && chart.data.datasets[goalIndex]) {
         chart.setDatasetVisibility(goalIndex, visible);
       }
     });
     chart.update();
   }
-
-  /* ============================================================
-     buildRecoveryDatasets(labels, data, energyField, energyColor, goals)
-     Shared helper for both physical and mental charts.
-     Builds the datasets array including goal lines if set.
-     energyField: 'physical' or 'mental'
-     energyColor: hex colour for the energy line
+     One chart with four datasets: sleep, water, physical, mental.
+     Three y-axes:
+       y  = sleep  (left,  0-12h,  green ticks)
+       y1 = water  (right, 0-5L,   blue ticks)
+       y2 = energy (hidden, 1-10 — physical + mental share this)
+     Goal lines for sleep (index 4) and water (index 5) appended
+     when goals are set, and follow their dataset's toggle state.
   ============================================================ */
-  function buildRecoveryDatasets(labels, data, energyField, energyColor, goals) {
+  function drawTrendsChart(entries) {
+    destroyChart('trends');
+    if (!entries.length) return;
+
+    const data   = [...entries].sort((a,b) => a.date.localeCompare(b.date));
+    const labels = data.map(e => formatDisplayDate(e.date));
+    const goals  = getGoals();
+
     const datasets = [
+      // 0: Sleep — left axis
       {
         label: 'Sleep',
         data: data.map(e => e.sleep),
-        borderColor: '#1D9E75', backgroundColor: 'rgba(29,158,117,0.08)',
+        borderColor: '#1D9E75', backgroundColor: 'rgba(29,158,117,0.06)',
         borderWidth: 2, tension: 0.3, fill: true,
         pointRadius: 3, clip: false, yAxisID: 'y'
       },
+      // 1: Water — right axis
       {
         label: 'Water',
         data: data.map(e => e.water),
-        borderColor: '#6C9BD2', backgroundColor: 'rgba(108,155,210,0.08)',
+        borderColor: '#6C9BD2', backgroundColor: 'rgba(108,155,210,0.06)',
         borderWidth: 2, tension: 0.3, fill: true,
         pointRadius: 3, clip: false, yAxisID: 'y1'
       },
+      // 2: Physical energy — hidden energy axis
       {
-        label: energyField === 'physical' ? 'Physical' : 'Mental',
-        data: data.map(e => e[energyField]),
-        borderColor: energyColor,
+        label: 'Physical',
+        data: data.map(e => e.physical),
+        borderColor: '#E8703A',
+        borderWidth: 2, tension: 0.3, fill: false,
+        pointRadius: 3, clip: false, yAxisID: 'y2'
+      },
+      // 3: Mental energy — hidden energy axis
+      {
+        label: 'Mental',
+        data: data.map(e => e.mental),
+        borderColor: '#9B59B6',
         borderWidth: 2, tension: 0.3, fill: false,
         pointRadius: 3, clip: false, yAxisID: 'y2'
       }
     ];
 
-    // Sleep goal line (index 3) — dashed, same colour as sleep
+    // 4: Sleep goal line — dashed green on left axis
     if (goals.sleep) {
       datasets.push({
         label: 'Sleep goal',
@@ -1526,7 +1498,7 @@
       });
     }
 
-    // Water goal line (index 4) — dashed, same colour as water
+    // 5: Water goal line — dashed blue on right axis
     if (goals.water) {
       datasets.push({
         label: 'Water goal',
@@ -1537,66 +1509,32 @@
       });
     }
 
-    return datasets;
-  }
-
-  /* ============================================================
-     buildRecoveryOptions()
-     Shared Chart.js options for both physical and mental charts.
-     Three y-axes:
-       y  = sleep  (left,  0-12h)
-       y1 = water  (right, 0-5L)
-       y2 = energy (hidden axis, 1-10, overlaid on left space)
-  ============================================================ */
-  function buildRecoveryOptions(energyColor) {
     const opts = baseOptions('', 0, 12);
+
+    // Left y-axis — sleep, green ticks to match the dataset
+    opts.scales.y.ticks.color = '#1D9E75';
+
+    // Right y-axis — water, blue ticks
     opts.scales.y1 = {
       position: 'right', min: 0, max: 5,
       ticks: { color: '#6C9BD2', font: { size: 10 } },
       grid: { drawOnChartArea: false },
       afterFit: (axis) => { axis.width = 28; }
     };
-    // Third axis for energy — hidden ticks, overlaid on the chart
-    // display:false hides the axis labels but still scales the data correctly
+
+    // Hidden energy axis — scales physical + mental (1-10) without showing labels
     opts.scales.y2 = {
       position: 'left', min: 1, max: 10,
-      display: false, // no axis labels — keeps chart clean
+      display: false,
       grid: { drawOnChartArea: false }
     };
-    return opts;
-  }
 
-  /* ============================================================
-     drawPhysicalChart(entries) / drawMentalChart(entries)
-     Both use the shared builder functions above.
-     After drawing, restorePillStates() applies saved visibility.
-  ============================================================ */
-  function drawPhysicalChart(entries) {
-    destroyChart('physical');
-    if (!entries.length) return;
-    const data    = [...entries].sort((a,b) => a.date.localeCompare(b.date));
-    const labels  = data.map(e => formatDisplayDate(e.date));
-    const goals   = getGoals();
-    const datasets = buildRecoveryDatasets(labels, data, 'physical', '#E8703A', goals);
-    chartInstances['physical'] = new Chart(
-      document.getElementById('chart-physical'),
-      { type: 'line', data: { labels, datasets }, options: buildRecoveryOptions('#E8703A') }
+    chartInstances['trends'] = new Chart(
+      document.getElementById('chart-trends'),
+      { type: 'line', data: { labels, datasets }, options: opts }
     );
-    restorePillStates('physical');
-  }
 
-  function drawMentalChart(entries) {
-    destroyChart('mental');
-    if (!entries.length) return;
-    const data    = [...entries].sort((a,b) => a.date.localeCompare(b.date));
-    const labels  = data.map(e => formatDisplayDate(e.date));
-    const goals   = getGoals();
-    const datasets = buildRecoveryDatasets(labels, data, 'mental', '#9B59B6', goals);
-    chartInstances['mental'] = new Chart(
-      document.getElementById('chart-mental'),
-      { type: 'line', data: { labels, datasets }, options: buildRecoveryOptions('#9B59B6') }
-    );
-    restorePillStates('mental');
+    restorePillStates('trends');
   }
 
   /* ============================================================
