@@ -6,8 +6,8 @@
   <meta name="theme-color" content="#1D9E75" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-  <meta name="apple-mobile-web-app-title" content="Climbing App" />
-  <title>Climbing App</title>
+  <meta name="apple-mobile-web-app-title" content="BearmanClimbs" />
+  <title>BearmanClimbs v0.1</title>
   <link rel="manifest" href="manifest.json" />
   <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png" />
   <link rel="apple-touch-icon" href="icons/icon-192.png" />
@@ -403,7 +403,7 @@
 
     <header class="header">
       <div class="header-top">
-        <div class="app-title">Climbing <em>App</em></div>
+        <div class="app-title">Bearman<em>Climbs</em></div>
         <div class="date-badge" id="date-badge" onclick="toggleDatePicker()">
           <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
           <span id="date-label"></span>
@@ -629,7 +629,7 @@
   <div class="tab-view" id="tab-charts">
 
     <header class="charts-header">
-      <div class="charts-title">Climbing <em>Charts</em></div>
+      <div class="charts-title">Bearman<em>Climbs</em></div>
       <div class="range-row">
         <span class="range-label">Show last:</span>
         <input type="range" id="range-slider" min="0" max="4" step="1" value="4"
@@ -1221,13 +1221,7 @@
     return false;
   }
 
-  function drawAllCharts() {
-    const entries = getFilteredEntries();
-    updateSessionStatsCard();
-    drawSessionChart(entries);
-    drawTrendsChart(entries);
-    drawStretchChart(entries);
-  }
+  
 
   /* ============================================================
      CLIMBING SESSION STATS CARD
@@ -1340,121 +1334,6 @@
      Only plots entries where climbing = 'yes' and sess_rating exists.
      Point colours reflect sleep quality — the correlation hint.
   ============================================================ */
-  function drawSessionChart(entries) {
-    destroyChart('session');
-
-    const MIN_ENTRIES = 7;
-    const canvas  = document.getElementById('chart-session');
-    const inner   = canvas.closest('.chart-inner');
-    const pillRow = document.getElementById('pills-session');
-    const existing = inner.querySelector('.chart-empty');
-    if (existing) existing.remove();
-
-    if (entries.length < MIN_ENTRIES) {
-      canvas.style.display = 'none';
-      if (pillRow) pillRow.style.display = 'none';
-      const msg = document.createElement('p');
-      msg.className = 'chart-empty';
-      msg.textContent = 'Keep logging — trends will appear once you have a bit more data.';
-      inner.appendChild(msg);
-      return;
-    }
-    canvas.style.display = '';
-    if (pillRow) pillRow.style.display = '';
-
-    const sleepColor = e => {
-      if (e.sleep >= 8) return '#1D9E75';
-      if (e.sleep >= 6) return '#BA7517';
-      return '#A32D2D';
-    };
-
-    /*
-      Each dataset uses its OWN filtered + sorted entries and labels.
-      Session line: only climbing days with a rating.
-      Flexibility line: only stretching days with a rating.
-      This means the line only connects real data points to each other —
-      no misleading bridges across rest days or non-stretch days.
-    */
-    const sessData  = entries
-      .filter(e => e.climbing === 'yes' && e.sess_rating)
-      .sort((a,b) => a.date.localeCompare(b.date));
-
-    const flexData  = entries
-      .filter(e => e.stretching === 'yes' && e.flex_rating)
-      .sort((a,b) => a.date.localeCompare(b.date));
-
-    chartInstances['session'] = new Chart(canvas, {
-      type: 'line',
-      data: {
-        /*
-          Ordinal x-axis — each dataset is just numbered 1, 2, 3...
-          Session: "Session 1", "Session 2"... (climbing days only)
-          Flexibility: "Stretch 1", "Stretch 2"... (stretching days only)
-          No shared date backbone needed — each line is completely
-          independent and unbroken. Tooltip shows the actual date.
-        */
-        datasets: [
-          {
-            label: 'Session',
-            data: sessData.map((e, i) => ({
-              x: i + 1,
-              y: e.sess_rating,
-              date: formatDisplayDate(e.date) // stored for tooltip
-            })),
-            borderColor: 'rgba(29,158,117,0.5)',
-            borderWidth: 2, tension: 0.3,
-            pointBackgroundColor: sessData.map(e => sleepColor(e)),
-            pointBorderColor:     sessData.map(e => sleepColor(e)),
-            pointRadius: 5, pointHoverRadius: 7,
-            fill: false, clip: false
-          },
-          {
-            label: 'Flexibility',
-            data: flexData.map((e, i) => ({
-              x: i + 1,
-              y: e.flex_rating,
-              date: formatDisplayDate(e.date)
-            })),
-            borderColor: 'rgba(155,89,182,0.5)',
-            borderWidth: 2, tension: 0.3,
-            pointBackgroundColor: flexData.map(e => sleepColor(e)),
-            pointBorderColor:     flexData.map(e => sleepColor(e)),
-            pointRadius: 5, pointHoverRadius: 7,
-            fill: false, clip: false
-          }
-        ]
-      },
-      options: {
-        ...baseOptions('', 1, 10),
-        parsing: { xAxisKey: 'x', yAxisKey: 'y' },
-        plugins: {
-          legend: { display: false },
-          tooltip: {
-            callbacks: {
-              // Show "Session 3 — Mon 17 Mar" in the tooltip
-              title: ctx => `${ctx[0].dataset.label} ${ctx[0].parsed.x}`,
-              label: ctx => `${ctx[0].raw.date} · Rating: ${ctx[0].parsed.y}`
-            }
-          }
-        },
-        scales: {
-          x: {
-            type: 'linear',
-            ticks: {
-              color: '#9B9B96', font: { size: 10 },
-              stepSize: 1,
-              // Show whole numbers only
-              callback: val => Number.isInteger(val) ? val : ''
-            },
-            grid: { color: 'rgba(0,0,0,0.04)' }
-          },
-          y: { ...baseOptions('', 1, 10).scales.y }
-        }
-      }
-    });
-    restorePillStates('session');
-  }
-
   
   /* ============================================================
      DATASET VISIBILITY STATE

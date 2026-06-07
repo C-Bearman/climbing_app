@@ -1,7 +1,7 @@
 {
-  "name": "Send It — Climbing Log",
-  "short_name": "Send It",
-  "description": "Daily training log for climbers",
+  "name": "BearmanClimbs",
+  "short_name": "BearmanClimbs",
+  "description": "Personal climbing training log — v0.1",
   "start_url": "/",
   "display": "standalone",
   "orientation": "portrait",
