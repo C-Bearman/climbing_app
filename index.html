@@ -27,6 +27,17 @@
     updEnergy('ment', document.getElementById('ment').value);
     updEnergy('sess', document.getElementById('sess').value);
     updEnergy('flex', document.getElementById('flex').value);
+
+    /*
+      Wire up the file input via addEventListener rather than inline onchange.
+      On Android PWAs, inline onchange on hidden file inputs can silently fail.
+      Using addEventListener is more reliable across all browsers and contexts.
+    */
+    document.getElementById('csv-file-input').addEventListener('change', function() {
+      if (this.files && this.files.length > 0) {
+        importCSV(this);
+      }
+    });
   }
 
   init();
@@ -614,7 +625,7 @@
           Save as new
         </button>
       </div>
-      <input type="file" id="csv-file-input" accept=".csv,text/csv,text/plain,*/*" style="display:none" onchange="importCSV(this)">
+      <input type="file" id="csv-file-input" accept=".csv,text/csv,text/plain,*/*" style="display:none">
       <button class="cbtn" style="width:100%;padding:11px;" onclick="document.getElementById('csv-file-input').click()">
         <svg viewBox="0 0 24 24" fill="none" stroke-width="2" style="width:15px;height:15px;stroke:currentColor;"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 10 12 5 7 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         Import CSV
