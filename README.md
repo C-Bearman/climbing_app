@@ -1,31 +1,61 @@
-# Climbing App
+# BearmanClimbs
 
-A personal daily training log PWA built.
+A personal climbing training log — built as a PWA (Progressive Web App) using vanilla HTML, CSS and JavaScript.
 
-Live at: **https://c-bearman.github.io/climbing_app/**
+**Live app:** https://c-bearman.github.io/climbing_app/
 
-## Customising your training start date
+---
 
-In `index.html`, find this line (around line 210):
+## What it does
 
-```js
-const START = new Date('2026-06-02');
-```
+Daily logging of training metrics, stored locally on your phone:
 
-Change `2026-06-02` to the Monday your 12-week cycle actually starts. The "Week X of 12" counter will calculate automatically from there.
+- Climbing day / Rest day toggle
+- Sleep hours and water intake
+- Physical and mental energy (1–10)
+- Session rating and session notes (climbing days)
+- Stretching / mobility toggle and flexibility rating (1–10)
+- Optional nutrition (calories and protein)
+- General notes
+
+**Charts tab** — visualise trends over time: session ratings, sleep, water, energy, flexibility and stretching consistency. Includes goal lines for sleep and water targets.
+
+**CSV export / import** — keeps a single master file you can hand to your coach or restore from at any time.
 
 ---
 
 ## Your data
 
-All entries are stored in **localStorage** on your phone — nothing is sent anywhere. To share with your coach, use the **Export CSV** button in the app, which downloads a `.csv` you can drop into Google Sheets or Excel.
+All entries live in **localStorage** on your phone — nothing is sent anywhere. To back up or share with your coach, tap **Export CSV** in the Data section. To restore on a new device or after clearing your browser, tap **Import CSV** and select your file.
+
+---
+
+## Installing on Android
+
+1. Open **Chrome** on your phone and go to the live URL above
+2. Tap the three-dot menu → **Add to Home screen**
+3. The app will appear on your home screen and open full-screen with no browser bar
+
+---
+
+## Updating the app
+
+Whenever a change is pushed to `master`, GitHub Pages redeploys within ~60 seconds. The service worker will pick up the new version automatically on the next load. If changes don't appear, go to Chrome → Settings → Privacy and security → Clear browsing data → Cached images and files.
 
 ---
 
 ## Roadmap
 
-- [ ] Water reminder notifications during sessions
-- [ ] "Are you climbing today?" morning prompt
+### Next up
+- [ ] Notes tooltips on chart dots — tap a dot to see what you wrote that day (toggleable)
+- [ ] History log UX — show 3 entries at a time, scrollable, rather than the full list
+- [ ] Customisable averages per metric — same stats card pattern extended to sleep, water and energy
+
+### Future branches
+- [ ] `feature/workout-tracker` — sets, reps, weight per exercise, completion button, session feel notes
+- [ ] Goal lines extended to more metrics beyond sleep and water
+- [ ] Water reminder notifications during climbing sessions
 - [ ] Auto-sync to Google Sheets via Google Apps Script
-- [ ] Charts showing energy/sleep trends over the 12 weeks
-- [ ] Wrap as native APK with Capacitor → Bearman Climbs
+
+### Eventual v1.0
+- [ ] Wrap as native APK with Capacitor → **Bearman Climbs** on the Play Store
