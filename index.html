@@ -12,36 +12,8 @@
   <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png" />
   <link rel="apple-touch-icon" href="icons/icon-192.png" />
   <!-- Chart.js — the charting library, loaded from CDN -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js">  /* ── init(): runs on page load ── */
-  function init() {
-    document.getElementById('date-label').textContent = formatDisplayDate(selectedDate);
-    document.getElementById('csv-filename').value = getFilename();
-    document.getElementById('range-val').textContent = RANGE_LABELS[4];
-    const goals = getGoals();
-    if (goals.sleep) document.getElementById('goal-sleep').value = goals.sleep;
-    if (goals.water) document.getElementById('goal-water').value = goals.water;
-    updateWeekCounter();
-    renderStreak();
-    prefillForm(selectedDate);
-    updEnergy('phys', document.getElementById('phys').value);
-    updEnergy('ment', document.getElementById('ment').value);
-    updEnergy('sess', document.getElementById('sess').value);
-    updEnergy('flex', document.getElementById('flex').value);
-
-    /*
-      Wire up the file input via addEventListener rather than inline onchange.
-      On Android PWAs, inline onchange on hidden file inputs can silently fail.
-      Using addEventListener is more reliable across all browsers and contexts.
-    */
-    document.getElementById('csv-file-input').addEventListener('change', function() {
-      if (this.files && this.files.length > 0) {
-        importCSV(this);
-      }
-    });
-  }
-
-  init();
-</script>  <style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
@@ -1644,4 +1616,30 @@
     });
   }
 
-  >
+  /* ── init(): runs on page load, wires up all UI ── */
+  function init() {
+    document.getElementById('date-label').textContent = formatDisplayDate(selectedDate);
+    document.getElementById('csv-filename').value = getFilename();
+    document.getElementById('range-val').textContent = RANGE_LABELS[4];
+    const goals = getGoals();
+    if (goals.sleep) document.getElementById('goal-sleep').value = goals.sleep;
+    if (goals.water) document.getElementById('goal-water').value = goals.water;
+    updateWeekCounter();
+    renderStreak();
+    prefillForm(selectedDate);
+    updEnergy('phys', document.getElementById('phys').value);
+    updEnergy('ment', document.getElementById('ment').value);
+    updEnergy('sess', document.getElementById('sess').value);
+    updEnergy('flex', document.getElementById('flex').value);
+
+    // Wire up file input — addEventListener is reliable on Android PWAs; inline onchange is not
+    document.getElementById('csv-file-input').addEventListener('change', function() {
+      if (this.files && this.files.length > 0) importCSV(this);
+    });
+  }
+
+  init();
+</script>
+</div>
+</body>
+</html>
