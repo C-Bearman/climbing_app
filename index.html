@@ -12,7 +12,25 @@
   <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png" />
   <link rel="apple-touch-icon" href="icons/icon-192.png" />
   <!-- Chart.js — the charting library, loaded from CDN -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js">  /* ── init(): runs on page load ── */
+  function init() {
+    document.getElementById('date-label').textContent = formatDisplayDate(selectedDate);
+    document.getElementById('csv-filename').value = getFilename();
+    document.getElementById('range-val').textContent = RANGE_LABELS[4];
+    const goals = getGoals();
+    if (goals.sleep) document.getElementById('goal-sleep').value = goals.sleep;
+    if (goals.water) document.getElementById('goal-water').value = goals.water;
+    updateWeekCounter();
+    renderStreak();
+    prefillForm(selectedDate);
+    updEnergy('phys', document.getElementById('phys').value);
+    updEnergy('ment', document.getElementById('ment').value);
+    updEnergy('sess', document.getElementById('sess').value);
+    updEnergy('flex', document.getElementById('flex').value);
+  }
+
+  init();
+</script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -1315,6 +1333,34 @@
     restorePillStates('trends');
   }
 
+  /* ── drawStretchChart ── */
+  function drawStretchChart(entries) {
+    destroyChart('stretch');
+    if (checkMinData(entries, 'chart-stretch', null)) return;
+    const weekMap = {};
+    entries.forEach(e => {
+      const d = new Date(e.date + 'T12:00:00');
+      const day = d.getDay();
+      const diff = (day === 0) ? -6 : 1 - day;
+      const monday = new Date(d);
+      monday.setDate(d.getDate() + diff);
+      const weekKey = monday.toISOString().split('T')[0];
+      if (!weekMap[weekKey]) weekMap[weekKey] = 0;
+      if (e.stretching === 'yes') weekMap[weekKey]++;
+    });
+    const weeks     = Object.keys(weekMap).sort();
+    const labels    = weeks.map(w => { const d = new Date(w+'T12:00:00'); return d.toLocaleDateString('en-GB',{day:'numeric',month:'short'}); });
+    const values    = weeks.map(w => weekMap[w]);
+    const barColors = values.map(v => v >= 4 ? '#1D9E75' : v >= 2 ? '#BA7517' : '#A32D2D');
+    const opts = baseOptions('', 0, 7);
+    opts.scales.y.ticks.stepSize = 1;
+    chartInstances['stretch'] = new Chart(document.getElementById('chart-stretch'), {
+      type: 'bar',
+      data: { labels, datasets: [{ data: values, backgroundColor: barColors, borderRadius: 4, borderSkipped: false }] },
+      options: opts
+    });
+  }
+
   function drawAllCharts() {
     const entries = getFilteredEntries();
     updateSessionStatsCard();
@@ -1437,7 +1483,6 @@
   ============================================================ */
   function drawSessionChart(entries) {
     destroyChart('session');
-
     const canvas = document.getElementById('chart-session');
     const inner  = canvas.closest('.chart-inner');
     const existing = inner.querySelector('.chart-empty');
@@ -1457,34 +1502,62 @@
     }
     canvas.style.display = '';
 
-    // Colour dot by sleep quality that night
+    /*
+      Ordinal x-axis: each climbing session is numbered 1, 2, 3...
+      No shared date backbone — no nulls, no gaps, clean unbroken line.
+      Tooltip shows the actual date and session notes on tap.
+    */
     const sleepColor = e => e.sleep >= 8 ? '#1D9E75' : e.sleep >= 6 ? '#BA7517' : '#A32D2D';
 
-    // Full date range as labels — null on non-climbing days
-    const allDates = entries.sort((a,b) => a.date.localeCompare(b.date));
-    const labels   = allDates.map(e => formatDisplayDate(e.date));
-    const sessMap  = Object.fromEntries(sessData.map(e => [e.date, e]));
+    const opts = baseOptions('', 1, 10);
+    opts.plugins.tooltip = {
+      callbacks: {
+        title: ctx => `Session ${ctx[0].parsed.x} — ${ctx[0].raw.date}`,
+        label: ctx => {
+          const lines = [`Rating: ${ctx[0].parsed.y}`];
+          if (ctx[0].raw.notes) lines.push(`"${ctx[0].raw.notes}"`);
+          return lines;
+        }
+      }
+    };
+    opts.scales.x = {
+      type: 'linear',
+      ticks: {
+        color: '#9B9B96', font: { size: 10 },
+        stepSize: 1,
+        callback: val => Number.isInteger(val) ? val : ''
+      },
+      grid: { color: 'rgba(0,0,0,0.04)' }
+    };
 
     chartInstances['session'] = new Chart(canvas, {
       type: 'line',
       data: {
-        labels,
         datasets: [{
           label: 'Session',
-          data:               allDates.map(e => sessMap[e.date] ? sessMap[e.date].sess_rating : null),
-          pointBackgroundColor: allDates.map(e => sessMap[e.date] ? sleepColor(sessMap[e.date]) : 'transparent'),
-          pointBorderColor:     allDates.map(e => sessMap[e.date] ? sleepColor(sessMap[e.date]) : 'transparent'),
-          pointRadius:          allDates.map(e => sessMap[e.date] ? 5 : 0),
-          pointHoverRadius: 7,
+          data: sessData.map((e, i) => ({
+            x:     i + 1,
+            y:     e.sess_rating,
+            date:  formatDisplayDate(e.date),
+            notes: e.sess_notes || e.notes || null
+          })),
           borderColor: 'rgba(29,158,117,0.4)',
           borderWidth: 2, tension: 0.3,
-          fill: false, clip: false, spanGaps: false
+          pointBackgroundColor: sessData.map(e => sleepColor(e)),
+          pointBorderColor:     sessData.map(e => sleepColor(e)),
+          pointRadius: 5, pointHoverRadius: 8,
+          fill: false, clip: false
         }]
       },
-      options: baseOptions('', 1, 10)
+      options: { ...opts, parsing: { xAxisKey: 'x', yAxisKey: 'y' } }
     });
   }
 
+  /* ============================================================
+     drawFlexChart(entries)
+     Flexibility rating — stretching days only.
+  ============================================================ */
+  
   /* ============================================================
      drawFlexChart(entries)
      Flexibility rating — stretching days only.
@@ -1492,7 +1565,6 @@
   ============================================================ */
   function drawFlexChart(entries) {
     destroyChart('flex');
-
     const canvas = document.getElementById('chart-flex');
     const inner  = canvas.closest('.chart-inner');
     const existing = inner.querySelector('.chart-empty');
@@ -1512,97 +1584,54 @@
     }
     canvas.style.display = '';
 
+    /*
+      Ordinal x-axis: each stretching session is numbered 1, 2, 3...
+      Tooltip shows date and general notes on tap.
+    */
     const sleepColor = e => e.sleep >= 8 ? '#1D9E75' : e.sleep >= 6 ? '#BA7517' : '#A32D2D';
 
-    const allDates = entries.sort((a,b) => a.date.localeCompare(b.date));
-    const labels   = allDates.map(e => formatDisplayDate(e.date));
-    const flexMap  = Object.fromEntries(flexData.map(e => [e.date, e]));
+    const opts = baseOptions('', 1, 10);
+    opts.plugins.tooltip = {
+      callbacks: {
+        title: ctx => `Stretch ${ctx[0].parsed.x} — ${ctx[0].raw.date}`,
+        label: ctx => {
+          const lines = [`Flexibility: ${ctx[0].parsed.y}`];
+          if (ctx[0].raw.notes) lines.push(`"${ctx[0].raw.notes}"`);
+          return lines;
+        }
+      }
+    };
+    opts.scales.x = {
+      type: 'linear',
+      ticks: {
+        color: '#9B9B96', font: { size: 10 },
+        stepSize: 1,
+        callback: val => Number.isInteger(val) ? val : ''
+      },
+      grid: { color: 'rgba(0,0,0,0.04)' }
+    };
 
     chartInstances['flex'] = new Chart(canvas, {
       type: 'line',
       data: {
-        labels,
         datasets: [{
           label: 'Flexibility',
-          data:               allDates.map(e => flexMap[e.date] ? flexMap[e.date].flex_rating : null),
-          pointBackgroundColor: allDates.map(e => flexMap[e.date] ? sleepColor(flexMap[e.date]) : 'transparent'),
-          pointBorderColor:     allDates.map(e => flexMap[e.date] ? sleepColor(flexMap[e.date]) : 'transparent'),
-          pointRadius:          allDates.map(e => flexMap[e.date] ? 5 : 0),
-          pointHoverRadius: 7,
+          data: flexData.map((e, i) => ({
+            x:     i + 1,
+            y:     e.flex_rating,
+            date:  formatDisplayDate(e.date),
+            notes: e.notes || null
+          })),
           borderColor: 'rgba(155,89,182,0.4)',
           borderWidth: 2, tension: 0.3,
-          fill: false, clip: false, spanGaps: false
+          pointBackgroundColor: flexData.map(e => sleepColor(e)),
+          pointBorderColor:     flexData.map(e => sleepColor(e)),
+          pointRadius: 5, pointHoverRadius: 8,
+          fill: false, clip: false
         }]
       },
-      options: baseOptions('', 1, 10)
+      options: { ...opts, parsing: { xAxisKey: 'x', yAxisKey: 'y' } }
     });
   }
 
-  
-
-  /* ============================================================
-     CHART 4: Weekly stretching consistency — TIDIED
-     Y-axis title removed to fix label/tick overlap on mobile.
-     Colour key moved to HTML legend below the chart.
-  ============================================================ */
-  function drawStretchChart(entries) {
-    destroyChart('stretch');
-    if (checkMinData(entries, 'chart-stretch', null)) return;
-
-    const weekMap = {};
-    entries.forEach(e => {
-      const d    = new Date(e.date + 'T12:00:00');
-      const day  = d.getDay();
-      const diff = (day === 0) ? -6 : 1 - day;
-      const monday = new Date(d);
-      monday.setDate(d.getDate() + diff);
-      const weekKey = monday.toISOString().split('T')[0];
-      if (!weekMap[weekKey]) weekMap[weekKey] = 0;
-      if (e.stretching === 'yes') weekMap[weekKey]++;
-    });
-
-    const weeks     = Object.keys(weekMap).sort();
-    const labels    = weeks.map(w => {
-      const d = new Date(w + 'T12:00:00');
-      return d.toLocaleDateString('en-GB', { day:'numeric', month:'short' });
-    });
-    const values    = weeks.map(w => weekMap[w]);
-    const barColors = values.map(v => v >= 4 ? '#1D9E75' : v >= 2 ? '#BA7517' : '#A32D2D');
-
-    // No y-axis title — avoids overlapping with tick numbers on mobile
-    const opts = baseOptions('', 0, 7);
-    opts.scales.y.ticks.stepSize = 1;
-
-    chartInstances['stretch'] = new Chart(
-      document.getElementById('chart-stretch'),
-      {
-        type: 'bar',
-        data: { labels, datasets: [{ data: values, backgroundColor: barColors, borderRadius: 4, borderSkipped: false }] },
-        options: opts
-      }
-    );
-  }
-
-  /* ── init ── */
-  function init() {
-    document.getElementById('date-label').textContent = formatDisplayDate(selectedDate);
-    document.getElementById('csv-filename').value = getFilename();
-    document.getElementById('range-val').textContent = RANGE_LABELS[4];
-
-    // Restore saved goals into input fields
-    const goals = getGoals();
-    if (goals.sleep) document.getElementById('goal-sleep').value = goals.sleep;
-    if (goals.water) document.getElementById('goal-water').value = goals.water;
-    updateWeekCounter();
-    renderStreak();
-    prefillForm(selectedDate);
-    updEnergy('phys', document.getElementById('phys').value);
-    updEnergy('ment', document.getElementById('ment').value);
-    updEnergy('sess', document.getElementById('sess').value);
-    updEnergy('flex', document.getElementById('flex').value);
-  }
-
-  init();
-</script>
-</body>
-</html>
+  >
