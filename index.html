@@ -218,6 +218,7 @@
       outline: none; font-family: inherit;
     }
     textarea:focus { border-color: var(--green); box-shadow: 0 0 0 2px rgba(29,158,117,0.15); }
+    .char-counter { display: block; text-align: right; font-size: 11px; color: var(--text3); margin-top: 4px; }
     textarea::placeholder { color: var(--text3); }
 
     .opt-tag {
@@ -455,7 +456,8 @@
           <div class="field-top" style="margin-bottom:8px;">
             <span class="field-name" style="font-size:13px;color:var(--text2);">Session notes</span>
           </div>
-          <textarea id="sess-notes" placeholder="e.g. 'Crimps & Fingers felt good, felt weak on powerful moves'"></textarea>
+          <textarea id="sess-notes" maxlength="40" placeholder="e.g. 'Crimps felt good, weak on power'" oninput="updCounter('sess-notes','sess-notes-count')"></textarea>
+          <small class="char-counter" id="sess-notes-count">40 left</small>
         </div>
       </div>
     </div>
@@ -556,7 +558,8 @@
         <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
         General notes
       </div>
-      <textarea id="notes" placeholder="e.g. 'slept awfully, work stress' or 'feeling good this week'"></textarea>
+      <textarea id="notes" maxlength="40" placeholder="e.g. 'slept awfully, work stress'" oninput="updCounter('notes','notes-count')"></textarea>
+      <small class="char-counter" id="notes-count">40 left</small>
     </div>
 
     <!-- Save -->
@@ -952,6 +955,12 @@
   function updWater(v) {
     document.getElementById('water-val').textContent = parseFloat(v).toFixed(2).replace(/0$/,'').replace(/\.$/,'') + 'L';
   }
+  /* Updates the character counter beneath a notes textarea */
+  function updCounter(inputId, counterId) {
+    const remaining = 40 - document.getElementById(inputId).value.length;
+    document.getElementById(counterId).textContent = remaining + ' left';
+  }
+
   function updEnergy(id, v) {
     const n = parseInt(v);
     const col = n >= 7 ? 'var(--green)' : n >= 4 ? 'var(--amber)' : 'var(--red)';
@@ -973,8 +982,8 @@
     document.getElementById('flex').value  = 5; updEnergy('flex',5);
     document.getElementById('cals').value  = '';
     document.getElementById('prot').value  = '';
-    document.getElementById('notes').value = '';
-    document.getElementById('sess-notes').value = '';
+    document.getElementById('notes').value = '';     updCounter('notes','notes-count');
+    document.getElementById('sess-notes').value = ''; updCounter('sess-notes','sess-notes-count');
     climbVal = null; stretchVal = null;
     ['btn-yes','btn-no','stretch-yes','stretch-no'].forEach(id => document.getElementById(id).className = 'cbtn');
     document.getElementById('session-details').classList.remove('open');
@@ -986,9 +995,9 @@
       document.getElementById('ment').value  = prev.mental;   updEnergy('ment',prev.mental);
       if (prev.calories) document.getElementById('cals').value = prev.calories;
       if (prev.protein)  document.getElementById('prot').value = prev.protein;
-      if (prev.notes)    document.getElementById('notes').value = prev.notes;
+      if (prev.notes)    { document.getElementById('notes').value = prev.notes; updCounter('notes','notes-count'); }
       if (prev.sess_rating) { document.getElementById('sess').value = prev.sess_rating; updEnergy('sess',prev.sess_rating); }
-      if (prev.sess_notes)  document.getElementById('sess-notes').value = prev.sess_notes;
+      if (prev.sess_notes)  { document.getElementById('sess-notes').value = prev.sess_notes; updCounter('sess-notes','sess-notes-count'); }
       if (prev.climbing)  setClimb(prev.climbing);
       if (prev.stretching) setStretch(prev.stretching);
       if (prev.flex_rating) { document.getElementById('flex').value = prev.flex_rating; updEnergy('flex',prev.flex_rating); }
@@ -1493,13 +1502,10 @@
 
     const opts = baseOptions('', 1, 10);
     opts.plugins.tooltip = {
+      displayColors: false,
       callbacks: {
-        title: ctx => `Session ${ctx[0].parsed.x} — ${ctx[0].raw.date}`,
-        label: ctx => {
-          const lines = [`Rating: ${ctx[0].parsed.y}`];
-          if (ctx[0].raw.notes) lines.push(`"${ctx[0].raw.notes}"`);
-          return lines;
-        }
+        title: ctx => ctx[0].raw.date,
+        label: ctx => ctx[0].raw.notes || null
       }
     };
     opts.scales.x = {
