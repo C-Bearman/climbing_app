@@ -1504,8 +1504,8 @@
     opts.plugins.tooltip = {
       displayColors: false,
       callbacks: {
-        title: ctx => ctx[0].raw.date,
-        label: ctx => ctx[0].raw.notes || null
+        title: ctx => ctx[0].raw.date,  // title receives an array — ctx[0] is correct
+        label: ctx => ctx.raw.notes || null  // label receives a single item — ctx.raw directly
       }
     };
     opts.scales.x = {
@@ -1580,13 +1580,10 @@
 
     const opts = baseOptions('', 1, 10);
     opts.plugins.tooltip = {
+      displayColors: false,
       callbacks: {
-        title: ctx => `Stretch ${ctx[0].parsed.x} — ${ctx[0].raw.date}`,
-        label: ctx => {
-          const lines = [`Flexibility: ${ctx[0].parsed.y}`];
-          if (ctx[0].raw.notes) lines.push(`"${ctx[0].raw.notes}"`);
-          return lines;
-        }
+        title: ctx => ctx[0].raw.date,
+        label: ctx => ctx.raw.notes || null
       }
     };
     opts.scales.x = {
