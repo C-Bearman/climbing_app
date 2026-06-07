@@ -1430,6 +1430,9 @@
       responsive: true,
       maintainAspectRatio: false,
       layout: { padding: { top: 10, right: 10 } }, // top padding prevents clipping of max-value points
+      // nearest + intersect:false means tapping anywhere near a point shows its tooltip,
+      // rather than requiring a precise tap directly on the dot — essential for mobile usability
+      interaction: { mode: 'nearest', intersect: false },
       plugins: {
         legend: { display: false },
         tooltip: { callbacks: {
@@ -1504,8 +1507,9 @@
     opts.plugins.tooltip = {
       displayColors: false,
       callbacks: {
-        title: ctx => ctx[0].raw.date,  // title receives an array — ctx[0] is correct
-        label: ctx => ctx.raw.notes || null  // label receives a single item — ctx.raw directly
+        title:      ctx => ctx[0].raw.date,  // title receives array — ctx[0] correct
+        label:      ()  => '',               // suppress default "y value" line
+        afterLabel: ctx => ctx.raw.notes || ''  // notes on second line if they exist
       }
     };
     opts.scales.x = {
@@ -1582,8 +1586,9 @@
     opts.plugins.tooltip = {
       displayColors: false,
       callbacks: {
-        title: ctx => ctx[0].raw.date,
-        label: ctx => ctx.raw.notes || null
+        title:      ctx => ctx[0].raw.date,
+        label:      ()  => '',
+        afterLabel: ctx => ctx.raw.notes || ''
       }
     };
     opts.scales.x = {
