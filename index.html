@@ -13,8 +13,6 @@
   <link rel="apple-touch-icon" href="icons/icon-192.png" />
   <!-- Chart.js — the charting library, loaded from CDN -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-  <!-- Date adapter required for time axis -->
-  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -720,19 +718,15 @@
     </div>
 
     <!--
-      CHART 1: SESSION RATING & FLEXIBILITY
-      Line chart with two datasets — session rating (climbing days)
-      and flexibility rating (stretching days).
-      Both sets of dots are coloured by sleep quality that night:
-        green  = 8h+  amber = 6-8h  red = <6h
-      Toggle pills show/hide each dataset independently.
+      CHART 1: SESSION RATING
+      Climbing days only. Dots coloured by sleep quality.
     -->
     <div class="chart-section open" id="cs-session">
       <div class="chart-section-head" onclick="toggleChart('cs-session')">
         <div class="chart-section-head-left">
           <div>
-            <div class="chart-section-title">Session & Flexibility</div>
-            <div class="chart-section-sub">Tap a dot to see the date · coloured by sleep</div>
+            <div class="chart-section-title">Session Rating</div>
+            <div class="chart-section-sub">Climbing sessions · dots coloured by sleep</div>
           </div>
         </div>
         <svg class="chart-chevron" viewBox="0 0 24 24" fill="none" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
@@ -740,12 +734,32 @@
       <div class="chart-body">
         <div class="chart-inner">
           <canvas id="chart-session" class="chart-canvas"></canvas>
-          <div class="pill-row" id="pills-session">
-            <button class="pill pill-active" style="--pill-color:#1D9E75"
-                    onclick="toggleDataset('session', 0)">Session</button>
-            <button class="pill pill-active" style="--pill-color:#9B59B6"
-                    onclick="toggleDataset('session', 1)">Flexibility</button>
+          <div class="sleep-legend">
+            <div class="sleep-legend-item"><div class="sleep-legend-dot" style="background:#1D9E75"></div> 8h+ sleep</div>
+            <div class="sleep-legend-item"><div class="sleep-legend-dot" style="background:#BA7517"></div> 6–8h sleep</div>
+            <div class="sleep-legend-item"><div class="sleep-legend-dot" style="background:#A32D2D"></div> &lt;6h sleep</div>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!--
+      CHART 2: FLEXIBILITY RATING
+      Stretching days only. Dots coloured by sleep quality.
+    -->
+    <div class="chart-section" id="cs-flex">
+      <div class="chart-section-head" onclick="toggleChart('cs-flex')">
+        <div class="chart-section-head-left">
+          <div>
+            <div class="chart-section-title">Flexibility Rating</div>
+            <div class="chart-section-sub">Stretching sessions · dots coloured by sleep</div>
+          </div>
+        </div>
+        <svg class="chart-chevron" viewBox="0 0 24 24" fill="none" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div class="chart-body">
+        <div class="chart-inner">
+          <canvas id="chart-flex" class="chart-canvas"></canvas>
           <div class="sleep-legend">
             <div class="sleep-legend-item"><div class="sleep-legend-dot" style="background:#1D9E75"></div> 8h+ sleep</div>
             <div class="sleep-legend-item"><div class="sleep-legend-dot" style="background:#BA7517"></div> 6–8h sleep</div>
@@ -1221,7 +1235,94 @@
     return false;
   }
 
-  
+  /* ── Goal management ── */
+  function getGoals() {
+    try { return JSON.parse(localStorage.getItem('climbing_goals') || '{}'); } catch(e) { return {}; }
+  }
+  function saveGoals() {
+    const goals = {
+      sleep: parseFloat(document.getElementById('goal-sleep').value) || null,
+      water: parseFloat(document.getElementById('goal-water').value) || null,
+    };
+    localStorage.setItem('climbing_goals', JSON.stringify(goals));
+  }
+  function onGoalChange() { saveGoals(); drawAllCharts(); }
+
+  /* ── Dataset visibility ── */
+  function getVisibility() {
+    try { return JSON.parse(localStorage.getItem('chart_visibility') || '{}'); } catch(e) { return {}; }
+  }
+  function setVisibility(chartId, datasetIndex, visible) {
+    const v = getVisibility();
+    v[`${chartId}-${datasetIndex}`] = visible;
+    localStorage.setItem('chart_visibility', JSON.stringify(v));
+  }
+  function isVisible(chartId, datasetIndex) {
+    const v = getVisibility();
+    const key = `${chartId}-${datasetIndex}`;
+    return key in v ? v[key] : true;
+  }
+  function toggleDataset(chartId, datasetIndex) {
+    const chart = chartInstances[chartId];
+    if (!chart) return;
+    const newVisible = !isVisible(chartId, datasetIndex);
+    setVisibility(chartId, datasetIndex, newVisible);
+    chart.setDatasetVisibility(datasetIndex, newVisible);
+    const goalIndex = datasetIndex === 0 ? 4 : datasetIndex === 1 ? 5 : null;
+    if (goalIndex !== null && chart.data.datasets[goalIndex]) {
+      chart.setDatasetVisibility(goalIndex, newVisible);
+    }
+    chart.update();
+    const pills = document.querySelectorAll(`#pills-${chartId} .pill`);
+    if (pills[datasetIndex]) pills[datasetIndex].classList.toggle('pill-active', newVisible);
+  }
+  function restorePillStates(chartId) {
+    const chart = chartInstances[chartId];
+    if (!chart) return;
+    const pills = document.querySelectorAll(`#pills-${chartId} .pill`);
+    pills.forEach((pill, i) => {
+      const visible = isVisible(chartId, i);
+      chart.setDatasetVisibility(i, visible);
+      pill.classList.toggle('pill-active', visible);
+      const goalIndex = i === 0 ? 4 : i === 1 ? 5 : null;
+      if (goalIndex !== null && chart.data.datasets[goalIndex]) {
+        chart.setDatasetVisibility(goalIndex, visible);
+      }
+    });
+    chart.update();
+  }
+
+  /* ── drawTrendsChart ── */
+  function drawTrendsChart(entries) {
+    destroyChart('trends');
+    if (checkMinData(entries, 'chart-trends', 'pills-trends')) return;
+    const data   = [...entries].sort((a,b) => a.date.localeCompare(b.date));
+    const labels = data.map(e => formatDisplayDate(e.date));
+    const goals  = getGoals();
+    const datasets = [
+      { label:'Sleep',    data:data.map(e=>e.sleep),    borderColor:'#1D9E75', backgroundColor:'rgba(29,158,117,0.06)', borderWidth:2, tension:0.3, fill:true,  pointRadius:3, clip:false, yAxisID:'y'  },
+      { label:'Water',    data:data.map(e=>e.water),    borderColor:'#6C9BD2', backgroundColor:'rgba(108,155,210,0.06)',borderWidth:2, tension:0.3, fill:true,  pointRadius:3, clip:false, yAxisID:'y1' },
+      { label:'Physical', data:data.map(e=>e.physical), borderColor:'#E8703A', borderWidth:2, tension:0.3, fill:false, pointRadius:3, clip:false, yAxisID:'y2' },
+      { label:'Mental',   data:data.map(e=>e.mental),   borderColor:'#9B59B6', borderWidth:2, tension:0.3, fill:false, pointRadius:3, clip:false, yAxisID:'y2' }
+    ];
+    if (goals.sleep) datasets.push({ label:'Sleep goal', data:Array(labels.length).fill(goals.sleep), borderColor:'#1D9E75', borderWidth:1.5, borderDash:[6,4], pointRadius:0, fill:false, tension:0, yAxisID:'y' });
+    if (goals.water) datasets.push({ label:'Water goal', data:Array(labels.length).fill(goals.water), borderColor:'#6C9BD2', borderWidth:1.5, borderDash:[6,4], pointRadius:0, fill:false, tension:0, yAxisID:'y1' });
+    const opts = baseOptions('', 0, 12);
+    opts.scales.y.ticks.color = '#1D9E75';
+    opts.scales.y1 = { position:'right', min:0, max:5, ticks:{color:'#6C9BD2',font:{size:10}}, grid:{drawOnChartArea:false}, afterFit:(axis)=>{axis.width=28;} };
+    opts.scales.y2 = { position:'left', min:1, max:10, display:false, grid:{drawOnChartArea:false} };
+    chartInstances['trends'] = new Chart(document.getElementById('chart-trends'), { type:'line', data:{labels,datasets}, options:opts });
+    restorePillStates('trends');
+  }
+
+  function drawAllCharts() {
+    const entries = getFilteredEntries();
+    updateSessionStatsCard();
+    drawSessionChart(entries);
+    drawFlexChart(entries);
+    drawTrendsChart(entries);
+    drawStretchChart(entries);
+  }
 
   /* ============================================================
      CLIMBING SESSION STATS CARD
@@ -1334,197 +1435,20 @@
      Only plots entries where climbing = 'yes' and sess_rating exists.
      Point colours reflect sleep quality — the correlation hint.
   ============================================================ */
-  
-  /* ============================================================
-     DATASET VISIBILITY STATE
-  ============================================================ */
-  function getVisibility() {
-    try { return JSON.parse(localStorage.getItem('chart_visibility') || '{}'); }
-    catch(e) { return {}; }
-  }
-  function setVisibility(chartId, datasetIndex, visible) {
-    const v = getVisibility();
-    v[`${chartId}-${datasetIndex}`] = visible;
-    localStorage.setItem('chart_visibility', JSON.stringify(v));
-  }
-  function isVisible(chartId, datasetIndex) {
-    const v = getVisibility();
-    const key = `${chartId}-${datasetIndex}`;
-    return key in v ? v[key] : true;
-  }
-  function toggleDataset(chartId, datasetIndex) {
-    const chart = chartInstances[chartId];
-    if (!chart) return;
-    const newVisible = !isVisible(chartId, datasetIndex);
-    setVisibility(chartId, datasetIndex, newVisible);
-    chart.setDatasetVisibility(datasetIndex, newVisible);
-    const goalIndex = datasetIndex === 0 ? 4 : datasetIndex === 1 ? 5 : null;
-    if (goalIndex !== null && chart.data.datasets[goalIndex]) {
-      chart.setDatasetVisibility(goalIndex, newVisible);
-    }
-    chart.update();
-    const pills = document.querySelectorAll(`#pills-${chartId} .pill`);
-    if (pills[datasetIndex]) pills[datasetIndex].classList.toggle('pill-active', newVisible);
-  }
-  function restorePillStates(chartId) {
-    const chart = chartInstances[chartId];
-    if (!chart) return;
-    const pills = document.querySelectorAll(`#pills-${chartId} .pill`);
-    pills.forEach((pill, i) => {
-      const visible = isVisible(chartId, i);
-      chart.setDatasetVisibility(i, visible);
-      pill.classList.toggle('pill-active', visible);
-      const goalIndex = i === 0 ? 4 : i === 1 ? 5 : null;
-      if (goalIndex !== null && chart.data.datasets[goalIndex]) {
-        chart.setDatasetVisibility(goalIndex, visible);
-      }
-    });
-    chart.update();
-  }
-
-    /* ============================================================
-     GOAL MANAGEMENT
-     Goals stored in localStorage as { sleep, water }.
-     onGoalChange() saves and immediately redraws charts.
-  ============================================================ */
-  function getGoals() {
-    try { return JSON.parse(localStorage.getItem('climbing_goals') || '{}'); }
-    catch(e) { return {}; }
-  }
-
-  function saveGoals() {
-    const goals = {
-      sleep: parseFloat(document.getElementById('goal-sleep').value) || null,
-      water: parseFloat(document.getElementById('goal-water').value) || null,
-    };
-    localStorage.setItem('climbing_goals', JSON.stringify(goals));
-  }
-
-  function onGoalChange() {
-    saveGoals();
-    drawAllCharts();
-  }
-
-  /* ============================================================
-     drawTrendsChart(entries)
-     Sleep + Water + Physical + Mental on one chart.
-     Three y-axes: sleep (left, green), water (right, blue),
-     energy (hidden 1-10 for physical + mental).
-     Goal lines for sleep (index 4) and water (index 5).
-  ============================================================ */
-  function drawTrendsChart(entries) {
-    destroyChart('trends');
-    if (checkMinData(entries, 'chart-trends', 'pills-trends')) return;
-
-    const data   = [...entries].sort((a,b) => a.date.localeCompare(b.date));
-    const labels = data.map(e => formatDisplayDate(e.date));
-    const goals  = getGoals();
-
-    const datasets = [
-      {
-        label: 'Sleep',
-        data: data.map(e => e.sleep),
-        borderColor: '#1D9E75', backgroundColor: 'rgba(29,158,117,0.06)',
-        borderWidth: 2, tension: 0.3, fill: true,
-        pointRadius: 3, clip: false, yAxisID: 'y'
-      },
-      {
-        label: 'Water',
-        data: data.map(e => e.water),
-        borderColor: '#6C9BD2', backgroundColor: 'rgba(108,155,210,0.06)',
-        borderWidth: 2, tension: 0.3, fill: true,
-        pointRadius: 3, clip: false, yAxisID: 'y1'
-      },
-      {
-        label: 'Physical',
-        data: data.map(e => e.physical),
-        borderColor: '#E8703A',
-        borderWidth: 2, tension: 0.3, fill: false,
-        pointRadius: 3, clip: false, yAxisID: 'y2'
-      },
-      {
-        label: 'Mental',
-        data: data.map(e => e.mental),
-        borderColor: '#9B59B6',
-        borderWidth: 2, tension: 0.3, fill: false,
-        pointRadius: 3, clip: false, yAxisID: 'y2'
-      }
-    ];
-
-    if (goals.sleep) {
-      datasets.push({
-        label: 'Sleep goal',
-        data: Array(labels.length).fill(goals.sleep),
-        borderColor: '#1D9E75', borderWidth: 1.5,
-        borderDash: [6, 4], pointRadius: 0,
-        fill: false, tension: 0, yAxisID: 'y'
-      });
-    }
-
-    if (goals.water) {
-      datasets.push({
-        label: 'Water goal',
-        data: Array(labels.length).fill(goals.water),
-        borderColor: '#6C9BD2', borderWidth: 1.5,
-        borderDash: [6, 4], pointRadius: 0,
-        fill: false, tension: 0, yAxisID: 'y1'
-      });
-    }
-
-    const opts = baseOptions('', 0, 12);
-    opts.scales.y.ticks.color = '#1D9E75';
-    opts.scales.y1 = {
-      position: 'right', min: 0, max: 5,
-      ticks: { color: '#6C9BD2', font: { size: 10 } },
-      grid: { drawOnChartArea: false },
-      afterFit: (axis) => { axis.width = 28; }
-    };
-    opts.scales.y2 = {
-      position: 'left', min: 1, max: 10,
-      display: false,
-      grid: { drawOnChartArea: false }
-    };
-
-    chartInstances['trends'] = new Chart(
-      document.getElementById('chart-trends'),
-      { type: 'line', data: { labels, datasets }, options: opts }
-    );
-    restorePillStates('trends');
-  }
-
-  /* ============================================================
-     drawAllCharts() — master function, redraws everything
-  ============================================================ */
-  function drawAllCharts() {
-    const entries = getFilteredEntries();
-    updateSessionStatsCard();
-    drawSessionChart(entries);
-    drawTrendsChart(entries);
-    drawStretchChart(entries);
-  }
-
-  /* ============================================================
-     drawSessionChart(entries)
-     Session rating + flexibility rating on one chart.
-     Each dataset uses its OWN filtered entries as the x-axis —
-     session line only connects climbing days to climbing days,
-     flexibility line only connects stretching days to stretching days.
-     Dots are sleep-coloured (green/amber/red).
-     Two toggle pills: Session and Flexibility.
-  ============================================================ */
   function drawSessionChart(entries) {
     destroyChart('session');
 
-    const MIN_ENTRIES = 7;
-    const canvas  = document.getElementById('chart-session');
-    const inner   = canvas.closest('.chart-inner');
-    const pillRow = document.getElementById('pills-session');
+    const canvas = document.getElementById('chart-session');
+    const inner  = canvas.closest('.chart-inner');
     const existing = inner.querySelector('.chart-empty');
     if (existing) existing.remove();
 
-    if (entries.length < MIN_ENTRIES) {
+    const sessData = entries
+      .filter(e => e.climbing === 'yes' && e.sess_rating)
+      .sort((a,b) => a.date.localeCompare(b.date));
+
+    if (sessData.length < 3) {
       canvas.style.display = 'none';
-      if (pillRow) pillRow.style.display = 'none';
       const msg = document.createElement('p');
       msg.className = 'chart-empty';
       msg.textContent = 'Keep logging — trends will appear once you have a bit more data.';
@@ -1532,68 +1456,89 @@
       return;
     }
     canvas.style.display = '';
-    if (pillRow) pillRow.style.display = '';
 
-    // Colour each dot by sleep quality on that night
-    const sleepColor = e => {
-      if (e.sleep >= 8) return '#1D9E75';
-      if (e.sleep >= 6) return '#BA7517';
-      return '#A32D2D';
-    };
+    // Colour dot by sleep quality that night
+    const sleepColor = e => e.sleep >= 8 ? '#1D9E75' : e.sleep >= 6 ? '#BA7517' : '#A32D2D';
 
-    // Each dataset filtered and sorted independently
-    const sessData = entries
-      .filter(e => e.climbing === 'yes' && e.sess_rating)
-      .sort((a,b) => a.date.localeCompare(b.date));
+    // Full date range as labels — null on non-climbing days
+    const allDates = entries.sort((a,b) => a.date.localeCompare(b.date));
+    const labels   = allDates.map(e => formatDisplayDate(e.date));
+    const sessMap  = Object.fromEntries(sessData.map(e => [e.date, e]));
+
+    chartInstances['session'] = new Chart(canvas, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          label: 'Session',
+          data:               allDates.map(e => sessMap[e.date] ? sessMap[e.date].sess_rating : null),
+          pointBackgroundColor: allDates.map(e => sessMap[e.date] ? sleepColor(sessMap[e.date]) : 'transparent'),
+          pointBorderColor:     allDates.map(e => sessMap[e.date] ? sleepColor(sessMap[e.date]) : 'transparent'),
+          pointRadius:          allDates.map(e => sessMap[e.date] ? 5 : 0),
+          pointHoverRadius: 7,
+          borderColor: 'rgba(29,158,117,0.4)',
+          borderWidth: 2, tension: 0.3,
+          fill: false, clip: false, spanGaps: false
+        }]
+      },
+      options: baseOptions('', 1, 10)
+    });
+  }
+
+  /* ============================================================
+     drawFlexChart(entries)
+     Flexibility rating — stretching days only.
+     Same pattern as drawSessionChart but for flex data.
+  ============================================================ */
+  function drawFlexChart(entries) {
+    destroyChart('flex');
+
+    const canvas = document.getElementById('chart-flex');
+    const inner  = canvas.closest('.chart-inner');
+    const existing = inner.querySelector('.chart-empty');
+    if (existing) existing.remove();
 
     const flexData = entries
       .filter(e => e.stretching === 'yes' && e.flex_rating)
       .sort((a,b) => a.date.localeCompare(b.date));
 
-    const opts = baseOptions('', 1, 10);
+    if (flexData.length < 3) {
+      canvas.style.display = 'none';
+      const msg = document.createElement('p');
+      msg.className = 'chart-empty';
+      msg.textContent = 'Keep logging — trends will appear once you have a bit more data.';
+      inner.appendChild(msg);
+      return;
+    }
+    canvas.style.display = '';
 
-    chartInstances['session'] = new Chart(canvas, {
+    const sleepColor = e => e.sleep >= 8 ? '#1D9E75' : e.sleep >= 6 ? '#BA7517' : '#A32D2D';
+
+    const allDates = entries.sort((a,b) => a.date.localeCompare(b.date));
+    const labels   = allDates.map(e => formatDisplayDate(e.date));
+    const flexMap  = Object.fromEntries(flexData.map(e => [e.date, e]));
+
+    chartInstances['flex'] = new Chart(canvas, {
       type: 'line',
       data: {
-        datasets: [
-          {
-            label: 'Session',
-            data: sessData.map(e => ({ x: e.date, y: e.sess_rating })),
-            borderColor: 'rgba(29,158,117,0.5)',
-            borderWidth: 2, tension: 0.3,
-            pointBackgroundColor: sessData.map(e => sleepColor(e)),
-            pointBorderColor:     sessData.map(e => sleepColor(e)),
-            pointRadius: 5, pointHoverRadius: 7,
-            fill: false, clip: false
-          },
-          {
-            label: 'Flexibility',
-            data: flexData.map(e => ({ x: e.date, y: e.flex_rating })),
-            borderColor: 'rgba(155,89,182,0.5)',
-            borderWidth: 2, tension: 0.3,
-            pointBackgroundColor: flexData.map(e => sleepColor(e)),
-            pointBorderColor:     flexData.map(e => sleepColor(e)),
-            pointRadius: 5, pointHoverRadius: 7,
-            fill: false, clip: false
-          }
-        ]
+        labels,
+        datasets: [{
+          label: 'Flexibility',
+          data:               allDates.map(e => flexMap[e.date] ? flexMap[e.date].flex_rating : null),
+          pointBackgroundColor: allDates.map(e => flexMap[e.date] ? sleepColor(flexMap[e.date]) : 'transparent'),
+          pointBorderColor:     allDates.map(e => flexMap[e.date] ? sleepColor(flexMap[e.date]) : 'transparent'),
+          pointRadius:          allDates.map(e => flexMap[e.date] ? 5 : 0),
+          pointHoverRadius: 7,
+          borderColor: 'rgba(155,89,182,0.4)',
+          borderWidth: 2, tension: 0.3,
+          fill: false, clip: false, spanGaps: false
+        }]
       },
-      options: {
-        ...opts,
-        parsing: false,
-        scales: {
-          x: {
-            type: 'time',
-            time: { unit: 'day', tooltipFormat: 'dd MMM', displayFormats: { day: 'd MMM' } },
-            ticks: { color: '#9B9B96', font: { size: 10 }, maxRotation: 45, minRotation: 45, maxTicksLimit: 8 },
-            grid: { color: 'rgba(0,0,0,0.04)' }
-          },
-          y: { ...opts.scales.y }
-        }
-      }
+      options: baseOptions('', 1, 10)
     });
-    restorePillStates('session');
   }
+
+  
 
   /* ============================================================
      CHART 4: Weekly stretching consistency — TIDIED

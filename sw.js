@@ -1,4 +1,4 @@
-const CACHE = 'sendit-v3';
+const CACHE = 'bearmanclimbs-v0.1';
 const ASSETS = ['/', '/index.html', '/manifest.json'];
 
 self.addEventListener('install', e => {
