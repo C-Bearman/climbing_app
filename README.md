@@ -46,13 +46,16 @@ Whenever a change is pushed to `master`, GitHub Pages redeploys within ~60 secon
 
 ## Roadmap
 
+### Recently shipped
+- [x] `feature/notes-tooltips` — 40-char notes fields with live counter; two-line tooltips on Session Rating and Flexibility charts
+- [x] `feature/workout-tracker` — third Workout tab; exercises with flexible field tracking (Reps / Weight / Duration); PB chips; sets with copy/hold-to-delete; full-screen save confirmation; CSV export & import
+
 ### Next up
-- [ ] Notes tooltips on chart dots — tap a dot to see what you wrote that day (toggleable)
 - [ ] History log UX — show 3 entries at a time, scrollable, rather than the full list
-- [ ] Customisable averages per metric — same stats card pattern extended to sleep, water and energy
+- [ ] Workout data visualisations in Charts tab — progress lines per exercise, PB milestones
+- [ ] Onboarding / tutorial overlay — first-launch walkthrough of Log, Workout and Charts tabs
 
 ### Future branches
-- [ ] `feature/workout-tracker` — sets, reps, weight per exercise, completion button, session feel notes
 - [ ] Goal lines extended to more metrics beyond sleep and water
 - [ ] Water reminder notifications during climbing sessions
 - [ ] Auto-sync to Google Sheets via Google Apps Script

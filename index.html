@@ -428,38 +428,51 @@
       transition: max-height 0.3s ease, padding 0.3s ease;
       padding: 0 16px;
     }
-    .exercise-body.open { max-height: 900px; padding: 0 16px 16px; }
+    .exercise-body.open { max-height: 1400px; padding: 0 16px 16px; }
 
-    /* Name + type selector row */
-    .ex-name-row { display: flex; gap: 8px; margin-bottom: 10px; align-items: stretch; }
+    /* Name row — full width, no type dropdown */
+    .ex-name-row { margin-bottom: 10px; }
     .ex-name-input {
-      flex: 1; padding: 9px 12px; font-size: 14px; font-family: inherit;
+      width: 100%; box-sizing: border-box;
+      padding: 9px 12px; font-size: 14px; font-family: inherit;
       color: var(--text); background: var(--surface2);
       border: 0.5px solid var(--border-med); border-radius: var(--radius-sm); outline: none;
-      min-width: 0;
     }
     .ex-name-input:focus { border-color: var(--green); }
-    .type-select {
-      padding: 9px 8px; font-size: 12px; font-family: inherit;
-      color: var(--text); background: var(--surface2);
-      border: 0.5px solid var(--border-med); border-radius: var(--radius-sm);
-      outline: none; cursor: pointer; flex-shrink: 0;
-    }
 
-    /* Personal best chip */
+    /* Field tick boxes + PB radio */
+    .field-row { margin-bottom: 10px; }
+    .pb-row    { margin-top: 6px; }
+    .field-row-label {
+      font-size: 11px; font-weight: 700; color: var(--text3);
+      text-transform: uppercase; letter-spacing: 0.5px; margin-right: 6px;
+    }
+    .field-check-label {
+      display: inline-flex; align-items: center; gap: 4px;
+      font-size: 13px; color: var(--text2); cursor: pointer; margin-right: 10px;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .field-check-label input[type="checkbox"],
+    .field-check-label input[type="radio"] { accent-color: var(--green); cursor: pointer; }
+
+    /* Personal best chip — only shown when a real PB exists */
     .pb-chip {
       font-size: 12px; font-weight: 600; color: var(--green);
       background: var(--green-light); border-radius: 8px;
-      padding: 5px 10px; margin-bottom: 12px;
+      padding: 5px 10px; margin-bottom: 12px; display: none;
     }
-    .pb-chip.no-pb { color: var(--text3); background: var(--surface2); font-weight: 400; }
+
+    /* "Sets" subheading above set rows */
+    .sets-label {
+      font-size: 11px; font-weight: 700; color: var(--text3);
+      text-transform: uppercase; letter-spacing: 0.5px;
+      margin: 0 0 6px; display: none;
+    }
 
     /* Individual set row */
-    .set-row {
-      display: flex; align-items: center; gap: 8px; margin-bottom: 8px;
-    }
-    .set-num { font-size: 12px; color: var(--text3); font-weight: 600; width: 16px; flex-shrink: 0; text-align: right; }
-    .set-sep { font-size: 13px; color: var(--text3); flex-shrink: 0; }
+    .set-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+    .set-num  { font-size: 12px; color: var(--text3); font-weight: 600; width: 16px; flex-shrink: 0; text-align: right; }
+    .set-sep  { font-size: 13px; color: var(--text3); flex-shrink: 0; }
     .set-unit { font-size: 12px; color: var(--text2); flex-shrink: 0; }
     /* Number inputs inside set rows */
     .set-input {
@@ -472,17 +485,28 @@
     .set-input::-webkit-outer-spin-button,
     .set-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
     .set-input:focus { border-color: var(--green); }
+
+    /* Hold-to-delete × button: hold 1.5 s to remove */
     .remove-set-btn {
       background: none; border: none; cursor: pointer; color: var(--text3);
-      font-size: 18px; padding: 2px 4px; line-height: 1; flex-shrink: 0;
+      font-size: 18px; padding: 2px 6px; line-height: 1; flex-shrink: 0;
+      border-radius: var(--radius-sm);
+      transition: background 1.5s linear, color 0.05s;
       -webkit-tap-highlight-color: transparent;
     }
+    .remove-set-btn.holding { background: #e05252; color: white; }
 
     /* Footer row inside exercise body */
-    .ex-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 12px; }
+    .ex-footer { display: flex; align-items: center; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
     .add-set-btn {
       font-size: 13px; font-weight: 600; color: var(--green);
       background: var(--green-light); border: none;
+      border-radius: var(--radius-sm); padding: 8px 14px;
+      cursor: pointer; -webkit-tap-highlight-color: transparent;
+    }
+    .copy-set-btn {
+      font-size: 13px; font-weight: 600; color: var(--text2);
+      background: var(--surface2); border: 0.5px solid var(--border-med);
       border-radius: var(--radius-sm); padding: 8px 14px;
       cursor: pointer; -webkit-tap-highlight-color: transparent;
     }
@@ -490,6 +514,7 @@
       font-size: 12px; color: var(--text3); background: none;
       border: 0.5px solid var(--border-med); border-radius: var(--radius-sm);
       padding: 7px 12px; cursor: pointer; -webkit-tap-highlight-color: transparent;
+      margin-left: auto; /* push to right */
     }
 
     /* "Add Exercise" dashed button */
@@ -507,6 +532,34 @@
       cursor: pointer; -webkit-tap-highlight-color: transparent;
     }
     .save-workout-btn:active { background: var(--green-dark); }
+
+    /* Full-screen "Workout Saved" overlay */
+    .workout-overlay {
+      position: fixed; inset: 0; z-index: 9999;
+      background: rgba(0,0,0,0.45);
+      display: flex; align-items: center; justify-content: center;
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.18s ease;
+    }
+    .workout-overlay.show { opacity: 1; pointer-events: auto; }
+    .workout-overlay-card {
+      background: var(--surface); border-radius: var(--radius);
+      padding: 36px 44px; text-align: center; max-width: 280px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+      transform: scale(0.9); transition: transform 0.18s ease;
+    }
+    .workout-overlay.show .workout-overlay-card { transform: scale(1); }
+    .workout-overlay-icon  { font-size: 52px; line-height: 1; margin-bottom: 12px; }
+    .workout-overlay-title { font-size: 20px; font-weight: 700; color: var(--text); margin: 0 0 6px; }
+    .workout-overlay-sub   { font-size: 13px; color: var(--text2); margin: 0; line-height: 1.5; }
+
+    /* Inline validation error on exercise blocks */
+    .exercise-block.ex-error { border-color: #e05252; }
+    .ex-error-msg {
+      font-size: 12px; color: #e05252; font-weight: 600;
+      margin: 4px 0 8px; display: none;
+    }
+    .exercise-block.ex-error .ex-error-msg { display: block; }
   </style>
 </head>
 <body>
@@ -1830,37 +1883,49 @@
   function getExerciseLib()     { try { return JSON.parse(localStorage.getItem(EXERCISE_LIB_KEY) || '[]'); } catch(e) { return []; } }
   function saveExerciseLib(arr) { localStorage.setItem(EXERCISE_LIB_KEY, JSON.stringify(arr)); }
 
-  /* Returns the best-ever value for a given exercise and type */
-  function getPersonalBest(name, type) {
+  /* Convert old 'type' string to fields array — keeps old imported data working */
+  function typeToFields(type) {
+    if (type === 'weighted')   return ['reps', 'weight'];
+    if (type === 'unweighted') return ['reps'];
+    if (type === 'timed')      return ['duration'];
+    return [];
+  }
+
+  /* Returns the best-ever value for a given exercise, keyed on which field is the PB metric */
+  function getPersonalBest(name, pb_field) {
     const sets = getWorkouts().filter(s => s.exercise.toLowerCase() === name.toLowerCase());
-    if (!sets.length) return null;
-    if (type === 'weighted') {
-      const max = Math.max(...sets.map(s => s.weight_kg || 0));
-      return max > 0 ? max + ' kg' : null;
+    if (!sets.length || !pb_field) return null;
+    if (pb_field === 'weight') {
+      const max = Math.max(...sets.map(s => s.weight_kg  || 0));
+      return max > 0 ? max + ' kg'   : null;
     }
-    if (type === 'unweighted') {
-      const max = Math.max(...sets.map(s => s.reps || 0));
+    if (pb_field === 'reps') {
+      const max = Math.max(...sets.map(s => s.reps       || 0));
       return max > 0 ? max + ' reps' : null;
     }
-    if (type === 'timed') {
+    if (pb_field === 'duration') {
       const max = Math.max(...sets.map(s => s.duration_s || 0));
-      return max > 0 ? max + ' s' : null;
+      return max > 0 ? max + ' s'    : null;
     }
     return null;
   }
 
   /* Add a new exercise block to the workout tab */
   function addExerciseBlock() {
-    const list = document.getElementById('exercise-list');
+    const list  = document.getElementById('exercise-list');
     const block = document.createElement('div');
-    block.className = 'exercise-block';
-    block.dataset.type = 'weighted';
+    block.className      = 'exercise-block';
+    block.dataset.fields  = '';   // comma-separated e.g. 'reps,weight'
+    block.dataset.pbField = '';   // which field is the PB metric
+
+    // Unique ID so PB radio buttons don't bleed between blocks
+    const bid = 'b' + Date.now();
 
     block.innerHTML = `
       <div class="exercise-header" onclick="toggleExerciseBlock(this)">
         <div class="ex-summary">
           <span class="ex-name-display" style="display:none"></span>
-          <span class="ex-type-badge" style="display:none"></span>
+          <span class="ex-type-badge"   style="display:none"></span>
           <span class="ex-session-summary" style="display:none"></span>
         </div>
         <div class="ex-toggle">
@@ -1870,27 +1935,66 @@
         </div>
       </div>
       <div class="exercise-body open">
+
         <div class="ex-name-row">
           <input list="exercise-datalist" class="ex-name-input"
-                 placeholder="Exercise name (e.g. Pull-ups)" maxlength="40"
+                 placeholder="Exercise name — tap or type to search" maxlength="40"
                  autocomplete="off" oninput="onExerciseNameInput(this)" />
-          <select class="type-select" onchange="onTypeChange(this)">
-            <option value="weighted">Weighted</option>
-            <option value="unweighted">Bodyweight</option>
-            <option value="timed">Timed</option>
-          </select>
         </div>
-        <div class="pb-chip" style="display:none"></div>
+        <p class="ex-error-msg"></p>
+
+        <div class="field-row">
+          <div class="field-checks">
+            <span class="field-row-label">Track:</span>
+            <label class="field-check-label">
+              <input type="checkbox" class="field-cb" value="reps"
+                     onchange="onFieldChange(this.closest('.exercise-block'))">
+              <span>Reps</span>
+            </label>
+            <label class="field-check-label">
+              <input type="checkbox" class="field-cb" value="weight"
+                     onchange="onFieldChange(this.closest('.exercise-block'))">
+              <span>Weight</span>
+            </label>
+            <label class="field-check-label">
+              <input type="checkbox" class="field-cb" value="duration"
+                     onchange="onFieldChange(this.closest('.exercise-block'))">
+              <span>Duration</span>
+            </label>
+          </div>
+          <div class="pb-row" style="display:none">
+            <span class="field-row-label">PB by:</span>
+            <label class="field-check-label pb-opt" data-field="reps" style="display:none">
+              <input type="radio" class="pb-radio" name="pb-${bid}" value="reps"
+                     onchange="onPBChange(this.closest('.exercise-block'))">
+              <span>Reps</span>
+            </label>
+            <label class="field-check-label pb-opt" data-field="weight" style="display:none">
+              <input type="radio" class="pb-radio" name="pb-${bid}" value="weight"
+                     onchange="onPBChange(this.closest('.exercise-block'))">
+              <span>Weight</span>
+            </label>
+            <label class="field-check-label pb-opt" data-field="duration" style="display:none">
+              <input type="radio" class="pb-radio" name="pb-${bid}" value="duration"
+                     onchange="onPBChange(this.closest('.exercise-block'))">
+              <span>Duration</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="pb-chip"></div>
+        <p class="sets-label">Sets</p>
         <div class="sets-list"></div>
+
         <div class="ex-footer">
-          <button class="add-set-btn" onclick="addSet(this.closest('.exercise-block'))">+ Add Set</button>
-          <button class="remove-ex-btn" onclick="this.closest('.exercise-block').remove()">Remove</button>
+          <button class="add-set-btn"  onclick="addSet(this.closest('.exercise-block'))">+ Add Set</button>
+          <button class="copy-set-btn" onclick="addSetCopy(this.closest('.exercise-block'))">Copy Last</button>
+          <button class="remove-ex-btn" onclick="removeExerciseWithConfirm(this.closest('.exercise-block'))">Remove</button>
         </div>
       </div>
     `;
 
     list.appendChild(block);
-    addSet(block); // auto-add first set so the block isn't empty
   }
 
   /* Toggle collapse/expand of an exercise block */
@@ -1904,9 +2008,8 @@
       updateExerciseSummary(block); // populate the collapsed summary line
       body.classList.remove('open');
       poly.setAttribute('points', '6 9 12 15 18 9'); // chevron points down
-      // Show summary elements
-      block.querySelector('.ex-name-display').style.display   = '';
-      block.querySelector('.ex-type-badge').style.display     = '';
+      block.querySelector('.ex-name-display').style.display    = '';
+      block.querySelector('.ex-type-badge').style.display      = '';
       block.querySelector('.ex-session-summary').style.display = '';
     } else {
       body.classList.add('open');
@@ -1916,113 +2019,189 @@
 
   /* Populate the one-line summary shown when an exercise block is collapsed */
   function updateExerciseSummary(block) {
-    const name = block.querySelector('.ex-name-input').value.trim();
-    const type = block.dataset.type;
-    const rows = block.querySelectorAll('.set-row');
+    const name    = block.querySelector('.ex-name-input').value.trim();
+    const fields  = (block.dataset.fields || '').split(',').filter(Boolean);
+    const pbField = block.dataset.pbField;
+    const rows    = block.querySelectorAll('.set-row');
 
     block.querySelector('.ex-name-display').textContent = name || 'Unnamed';
-    block.querySelector('.ex-type-badge').textContent   = type;
 
-    // Find the session's top value (best of the current session, not all-time PB)
+    const fieldLabels = { reps: 'Reps', weight: 'Weight', duration: 'Duration' };
+    block.querySelector('.ex-type-badge').textContent =
+      fields.length ? fields.map(f => fieldLabels[f] || f).join(' + ') : '—';
+
+    // Best value in this session for the PB field
     let topVal = null;
     rows.forEach(row => {
       let v;
-      if (type === 'weighted')    v = parseFloat(row.querySelector('.set-weight')?.value);
-      else if (type === 'timed')  v = parseInt(row.querySelector('.set-duration')?.value);
-      else                        v = parseInt(row.querySelector('.set-reps')?.value);
+      if (pbField === 'weight')        v = parseFloat(row.querySelector('.set-weight')?.value);
+      else if (pbField === 'duration') v = parseInt(row.querySelector('.set-duration')?.value);
+      else                             v = parseInt(row.querySelector('.set-reps')?.value);
       if (!isNaN(v) && v > 0) topVal = topVal === null ? v : Math.max(topVal, v);
     });
 
-    const unit = type === 'weighted' ? ' kg' : type === 'timed' ? ' s' : ' reps';
-    const count = rows.length;
+    const unitMap = { weight: ' kg', duration: ' s', reps: ' reps' };
+    const count   = rows.length;
     block.querySelector('.ex-session-summary').textContent =
-      count + (count === 1 ? ' set' : ' sets') + (topVal !== null ? ' · top: ' + topVal + unit : '');
+      count + (count === 1 ? ' set' : ' sets') +
+      (topVal !== null ? ' · top: ' + topVal + (unitMap[pbField] || '') : '');
   }
 
-  /* Add a set row (fields depend on exercise type) */
+  /* Rebuild set rows when field checkboxes change */
+  function onFieldChange(block) {
+    clearExError(block);
+    const checked  = [...block.querySelectorAll('.field-cb:checked')].map(c => c.value);
+    block.dataset.fields = checked.join(',');
+
+    // Show/hide the PB row and individual radio options to match checked fields
+    const pbRow = block.querySelector('.pb-row');
+    pbRow.style.display = checked.length ? '' : 'none';
+
+    block.querySelectorAll('.pb-opt').forEach(opt => {
+      const f = opt.dataset.field;
+      opt.style.display = checked.includes(f) ? '' : 'none';
+      if (!checked.includes(f)) opt.querySelector('.pb-radio').checked = false;
+    });
+
+    // Auto-select the PB radio when exactly one field is checked
+    if (checked.length === 1) {
+      const r = block.querySelector(`.pb-radio[value="${checked[0]}"]`);
+      if (r) r.checked = true;
+    }
+    // Sync dataset
+    const selPB = block.querySelector('.pb-radio:checked');
+    block.dataset.pbField = selPB ? selPB.value : '';
+
+    // Show/hide the "Sets" subheading
+    block.querySelector('.sets-label').style.display = checked.length ? '' : 'none';
+
+    // Rebuild set rows preserving row count (min 1)
+    const setsList = block.querySelector('.sets-list');
+    const count    = Math.max(setsList.children.length, 1);
+    setsList.innerHTML = '';
+    if (checked.length) for (let i = 0; i < count; i++) addSet(block);
+
+    updatePBChip(block, block.querySelector('.ex-name-input').value.trim(), block.dataset.pbField);
+  }
+
+  /* Called when the PB radio changes — update chip */
+  function onPBChange(block) {
+    const sel = block.querySelector('.pb-radio:checked');
+    block.dataset.pbField = sel ? sel.value : '';
+    updatePBChip(block, block.querySelector('.ex-name-input').value.trim(), block.dataset.pbField);
+  }
+
+  /* Clear the red error state from a block (called on any interaction) */
+  function clearExError(block) {
+    block.classList.remove('ex-error');
+  }
+
+  /* When the user types/picks an exercise name, auto-apply saved fields from library */
+  function onExerciseNameInput(input) {
+    const block = input.closest('.exercise-block');
+    clearExError(block);
+    const name  = input.value.trim();
+    const lib   = getExerciseLib();
+    const known = lib.find(e => e.name.toLowerCase() === name.toLowerCase());
+
+    if (known) {
+      // Support both new {fields:[]} and old {type:''} library entries
+      const fields   = known.fields  || typeToFields(known.type || '');
+      const pb_field = known.pb_field || fields[0] || '';
+
+      // Tick the right checkboxes
+      block.querySelectorAll('.field-cb').forEach(cb => {
+        cb.checked = fields.includes(cb.value);
+      });
+      onFieldChange(block); // rebuilds rows + PB row visibility
+
+      // Apply the saved PB radio
+      if (pb_field) {
+        const radio = block.querySelector(`.pb-radio[value="${pb_field}"]`);
+        if (radio) { radio.checked = true; block.dataset.pbField = pb_field; }
+      }
+    }
+
+    updatePBChip(block, name, block.dataset.pbField);
+  }
+
+  /* Show the PB chip only when a real best exists; hide it silently otherwise */
+  function updatePBChip(block, name, pb_field) {
+    const chip = block.querySelector('.pb-chip');
+    if (!name || !pb_field) { chip.style.display = 'none'; return; }
+    const pb = getPersonalBest(name, pb_field);
+    if (pb) {
+      chip.textContent   = '🏆 PB: ' + pb;
+      chip.style.display = 'block'; // must be explicit — CSS default is none
+    } else {
+      chip.style.display = 'none'; // no "no previous entries" clutter
+    }
+  }
+
+  /* Add a set row — inputs built from the block's checked fields */
   function addSet(block) {
-    const type     = block.dataset.type;
+    const fields   = (block.dataset.fields || '').split(',').filter(Boolean);
     const setsList = block.querySelector('.sets-list');
     const num      = setsList.children.length + 1;
     const row      = document.createElement('div');
     row.className  = 'set-row';
 
-    if (type === 'weighted') {
-      row.innerHTML = `
-        <span class="set-num">${num}</span>
-        <input type="number" class="set-input set-reps" placeholder="reps" min="1" step="1" />
-        <span class="set-sep">×</span>
-        <input type="number" class="set-input set-weight" placeholder="kg" min="0" step="0.5" />
-        <span class="set-unit">kg</span>
-        <button class="remove-set-btn" onclick="removeSet(this)">×</button>`;
-    } else if (type === 'unweighted') {
-      row.innerHTML = `
-        <span class="set-num">${num}</span>
-        <input type="number" class="set-input set-reps" placeholder="reps" min="1" step="1" />
-        <span class="set-unit">reps</span>
-        <button class="remove-set-btn" onclick="removeSet(this)">×</button>`;
-    } else {
-      row.innerHTML = `
-        <span class="set-num">${num}</span>
-        <input type="number" class="set-input set-duration" placeholder="secs" min="1" step="1" />
-        <span class="set-unit">s</span>
-        <button class="remove-set-btn" onclick="removeSet(this)">×</button>`;
+    let html = `<span class="set-num">${num}</span>`;
+    if (fields.includes('reps')) {
+      html += `<input type="number" class="set-input set-reps" placeholder="reps" min="1" step="1" />`;
     }
+    if (fields.includes('weight')) {
+      if (fields.includes('reps')) html += `<span class="set-sep">×</span>`;
+      html += `<input type="number" class="set-input set-weight" placeholder="kg" min="0" step="0.5" />`;
+      html += `<span class="set-unit">kg</span>`;
+    }
+    if (fields.includes('duration')) {
+      html += `<input type="number" class="set-input set-duration" placeholder="secs" min="1" step="1" />`;
+      html += `<span class="set-unit">s</span>`;
+    }
+    // Hold for 1.5 s to delete (see startHoldDelete / cancelHoldDelete)
+    html += `<button class="remove-set-btn"
+      onmousedown="startHoldDelete(this)"   onmouseup="cancelHoldDelete(this)"   onmouseleave="cancelHoldDelete(this)"
+      ontouchstart="startHoldDelete(this)"  ontouchend="cancelHoldDelete(this)"  ontouchcancel="cancelHoldDelete(this)">×</button>`;
 
+    row.innerHTML = html;
     setsList.appendChild(row);
   }
 
-  /* Remove a set row and renumber the remaining ones */
-  function removeSet(btn) {
-    const setsList = btn.closest('.sets-list');
-    btn.closest('.set-row').remove();
-    setsList.querySelectorAll('.set-num').forEach((el, i) => el.textContent = i + 1);
+  /* Copy the last set's values into a brand-new set row */
+  function addSetCopy(block) {
+    const setsList = block.querySelector('.sets-list');
+    const rows     = setsList.querySelectorAll('.set-row');
+    if (!rows.length) { addSet(block); return; }
+
+    const srcRow = rows[rows.length - 1];
+    addSet(block); // adds an empty row at the end
+
+    const srcInputs = srcRow.querySelectorAll('.set-input');
+    const dstInputs = setsList.lastElementChild.querySelectorAll('.set-input');
+    srcInputs.forEach((src, i) => { if (dstInputs[i]) dstInputs[i].value = src.value; });
   }
 
-  /* Rebuild set rows when the type dropdown changes */
-  function onTypeChange(select) {
-    const block   = select.closest('.exercise-block');
-    const newType = select.value;
-    const count   = block.querySelector('.sets-list').children.length || 1;
-    block.dataset.type = newType;
-    block.querySelector('.sets-list').innerHTML = '';
-    for (let i = 0; i < count; i++) addSet(block);
-    const name = block.querySelector('.ex-name-input').value.trim();
-    updatePBChip(block, name, newType);
+  /* Hold-to-delete timer — clears after 1.5 s and removes the set row */
+  let _holdTimer = null;
+  function startHoldDelete(btn) {
+    btn.classList.add('holding');
+    _holdTimer = setTimeout(() => {
+      btn.classList.remove('holding');
+      const setsList = btn.closest('.sets-list');
+      btn.closest('.set-row').remove();
+      setsList.querySelectorAll('.set-num').forEach((el, i) => el.textContent = i + 1);
+    }, 1500);
+  }
+  function cancelHoldDelete(btn) {
+    clearTimeout(_holdTimer);
+    btn.classList.remove('holding');
   }
 
-  /* When the user types/selects an exercise name:
-     - auto-set the type if this exercise is in the library
-     - show the PB chip */
-  function onExerciseNameInput(input) {
-    const block = input.closest('.exercise-block');
-    const name  = input.value.trim();
-    const lib   = getExerciseLib();
-    const known = lib.find(e => e.name.toLowerCase() === name.toLowerCase());
-
-    if (known && known.type !== block.dataset.type) {
-      block.dataset.type = known.type;
-      block.querySelector('.type-select').value = known.type;
-      const count = block.querySelector('.sets-list').children.length || 1;
-      block.querySelector('.sets-list').innerHTML = '';
-      for (let i = 0; i < count; i++) addSet(block);
-    }
-    updatePBChip(block, name, block.dataset.type);
-  }
-
-  /* Show or hide the PB chip for an exercise block */
-  function updatePBChip(block, name, type) {
-    const chip = block.querySelector('.pb-chip');
-    if (!name) { chip.style.display = 'none'; return; }
-    const pb = getPersonalBest(name, type);
-    chip.style.display = '';
-    if (pb) {
-      chip.textContent = '🏆 PB: ' + pb;
-      chip.className   = 'pb-chip';
-    } else {
-      chip.textContent = 'No previous entries for this exercise';
-      chip.className   = 'pb-chip no-pb';
-    }
+  /* Confirm before removing an exercise block */
+  function removeExerciseWithConfirm(block) {
+    const name = block.querySelector('.ex-name-input').value.trim() || 'this exercise';
+    if (confirm(`Remove "${name}" from this workout?`)) block.remove();
   }
 
   /* Refresh the datalist that powers exercise name autocomplete */
@@ -2039,33 +2218,50 @@
 
     const newSets = [];
     const lib     = getExerciseLib();
+    let hasError  = false;
 
     blocks.forEach(block => {
-      const name = block.querySelector('.ex-name-input').value.trim();
-      const type = block.dataset.type;
-      if (!name) return;
+      const name    = block.querySelector('.ex-name-input').value.trim();
+      const fields  = (block.dataset.fields  || '').split(',').filter(Boolean);
+      const pbField = block.dataset.pbField  || '';
+      const errMsg  = block.querySelector('.ex-error-msg');
 
-      // Add to exercise library if new
-      if (!lib.find(e => e.name.toLowerCase() === name.toLowerCase())) lib.push({ name, type });
+      // Validate: needs a name
+      if (!name) {
+        block.classList.add('ex-error');
+        errMsg.textContent = 'Enter an exercise name above.';
+        hasError = true; return;
+      }
+      // Validate: needs at least one field ticked
+      if (!fields.length) {
+        block.classList.add('ex-error');
+        errMsg.textContent = 'Tick at least one field to track (Reps, Weight or Duration).';
+        hasError = true; return;
+      }
+
+      // Update exercise library (overwrite fields/pb_field if it already exists)
+      const existing = lib.find(e => e.name.toLowerCase() === name.toLowerCase());
+      if (existing) { existing.fields = fields; existing.pb_field = pbField; }
+      else lib.push({ name, fields, pb_field: pbField });
 
       block.querySelectorAll('.set-row').forEach((row, i) => {
-        const set = { date: workoutDate, exercise: name, type, set_number: i + 1,
-                      reps: null, weight_kg: null, duration_s: null };
-        if (type === 'weighted') {
-          set.reps      = parseInt(row.querySelector('.set-reps')?.value)   || null;
-          set.weight_kg = parseFloat(row.querySelector('.set-weight')?.value) || null;
-        } else if (type === 'unweighted') {
-          set.reps      = parseInt(row.querySelector('.set-reps')?.value)   || null;
-        } else {
-          set.duration_s = parseInt(row.querySelector('.set-duration')?.value) || null;
-        }
+        const set = {
+          date: workoutDate, exercise: name,
+          fields: fields.join('|'), pb_field: pbField,
+          set_number: i + 1,
+          reps: null, weight_kg: null, duration_s: null
+        };
+        if (fields.includes('reps'))     set.reps       = parseInt(row.querySelector('.set-reps')?.value)     || null;
+        if (fields.includes('weight'))   set.weight_kg  = parseFloat(row.querySelector('.set-weight')?.value) || null;
+        if (fields.includes('duration')) set.duration_s = parseInt(row.querySelector('.set-duration')?.value)  || null;
         if (set.reps || set.weight_kg || set.duration_s) newSets.push(set);
       });
     });
 
-    if (!newSets.length) { showWorkoutToast('Fill in at least one set before saving.'); return; }
+    if (hasError)        { showWorkoutOverlay('⚠️', 'One of your exercises has no name!', 'Check the highlighted block above.'); return; }
+    if (!newSets.length) { showWorkoutOverlay('⚠️', 'Nothing to save', 'Fill in at least one set value first.'); return; }
 
-    // Remove any existing sets for this date + these exercises, then add the new ones
+    // Replace any existing sets for this date + these exercises
     const exerciseNames = [...new Set(newSets.map(s => s.exercise.toLowerCase()))];
     const kept = getWorkouts().filter(s =>
       !(s.date === workoutDate && exerciseNames.includes(s.exercise.toLowerCase()))
@@ -2073,7 +2269,7 @@
     saveWorkouts([...kept, ...newSets].sort((a,b) => a.date.localeCompare(b.date)));
     saveExerciseLib(lib);
     updateExerciseDatalist();
-    showWorkoutToast(`Saved ${newSets.length} set${newSets.length !== 1 ? 's' : ''}! 💪`);
+    showWorkoutOverlay('💪', 'Workout saved!', 'You can keep adding exercises today — just save again.');
   }
 
   /* Export workout data as a separate CSV */
@@ -2081,9 +2277,12 @@
     const workouts = getWorkouts();
     if (!workouts.length) { showWorkoutToast('No workout data to export yet.'); return; }
 
-    const headers = ['date','exercise','type','set_number','reps','weight_kg','duration_s'];
+    const headers = ['date','exercise','fields','pb_field','set_number','reps','weight_kg','duration_s'];
     const rows    = workouts.map(s =>
-      [s.date, `"${s.exercise}"`, s.type, s.set_number,
+      [s.date, `"${s.exercise}"`,
+       s.fields   || '',
+       s.pb_field || '',
+       s.set_number,
        s.reps ?? '', s.weight_kg ?? '', s.duration_s ?? ''].join(',')
     );
     const csv = [headers.join(','), ...rows].join('\n');
@@ -2127,17 +2326,34 @@
         const name = get(cols, 'exercise');
         const date = get(cols, 'date');
         if (!name || !date) continue;
-        const type = get(cols, 'type') || 'weighted';
+
+        // Handle both new format (fields/pb_field) and old format (type)
+        const fieldsRaw = get(cols, 'fields');
+        let   fields, pb_field;
+        if (fieldsRaw) {
+          // New CSV format
+          fields   = fieldsRaw.split('|').filter(Boolean);
+          pb_field = get(cols, 'pb_field') || fields[0] || '';
+        } else {
+          // Old CSV format — convert type to fields/pb_field
+          const type = get(cols, 'type') || 'weighted';
+          fields     = typeToFields(type);
+          pb_field   = type === 'weighted' ? 'weight' : type === 'timed' ? 'duration' : 'reps';
+        }
 
         imported.push({
-          date, exercise: name, type,
+          date, exercise: name,
+          fields:   fields.join('|'),
+          pb_field,
           set_number: parseInt(get(cols, 'set_number')) || 1,
           reps:       parseInt(get(cols, 'reps'))       || null,
           weight_kg:  parseFloat(get(cols, 'weight_kg'))|| null,
           duration_s: parseInt(get(cols, 'duration_s')) || null
         });
 
-        if (!lib.find(ex => ex.name.toLowerCase() === name.toLowerCase())) lib.push({ name, type });
+        if (!lib.find(ex => ex.name.toLowerCase() === name.toLowerCase())) {
+          lib.push({ name, fields, pb_field });
+        }
       }
 
       saveWorkouts(imported);
@@ -2180,16 +2396,27 @@
     } else { banner.classList.remove('show'); }
   }
 
-  /* Toast for workout tab (reuses existing .toast CSS) */
-  function showWorkoutToast(msg) {
-    let t = document.getElementById('workout-toast');
-    if (!t) {
-      t = document.createElement('div');
-      t.id = 'workout-toast'; t.className = 'toast';
-      document.body.appendChild(t);
+  /* Full-screen workout feedback overlay — auto-dismisses after 1.5 s */
+  function showWorkoutOverlay(icon, title, subtitle) {
+    let overlay = document.getElementById('workout-overlay');
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.id        = 'workout-overlay';
+      overlay.className = 'workout-overlay';
+      overlay.innerHTML = `
+        <div class="workout-overlay-card">
+          <div class="workout-overlay-icon"  id="wo-icon"></div>
+          <p   class="workout-overlay-title" id="wo-title"></p>
+          <p   class="workout-overlay-sub"   id="wo-sub"></p>
+        </div>`;
+      document.body.appendChild(overlay);
     }
-    t.textContent = msg; t.classList.add('show');
-    setTimeout(() => t.classList.remove('show'), 2500);
+    document.getElementById('wo-icon').textContent  = icon;
+    document.getElementById('wo-title').textContent = title;
+    document.getElementById('wo-sub').textContent   = subtitle;
+
+    overlay.classList.add('show');
+    setTimeout(() => overlay.classList.remove('show'), 1600);
   }
 
   /* Initialise the workout tab */
