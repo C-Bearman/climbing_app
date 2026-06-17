@@ -81,7 +81,7 @@
       padding-bottom: var(--safe-bottom);
       background: var(--surface);
       border-top: 0.5px solid var(--border);
-      display: grid; grid-template-columns: 1fr 1fr;
+      display: grid; grid-template-columns: 1fr 1fr 1fr;
       z-index: 100;
     }
     .nav-btn {
@@ -390,6 +390,123 @@
     .pill:active { transform: scale(0.95); }
 
     /* ── Stats summary row (kept for potential future use) ── */
+
+    /* ============================================================
+       WORKOUT TAB
+       Exercise blocks, set rows, PB chips, collapse accordion.
+    ============================================================ */
+
+    /* Outer card for each exercise */
+    .exercise-block {
+      background: var(--surface); border: 0.5px solid var(--border);
+      border-radius: var(--radius); margin-bottom: 12px; overflow: hidden;
+    }
+    /* Header row — always visible, tapping toggles collapse */
+    .exercise-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 13px 16px; cursor: pointer;
+    }
+    .ex-summary { flex: 1; min-width: 0; }
+    .ex-name-display { font-weight: 600; font-size: 14px; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .ex-type-badge {
+      display: inline-block; font-size: 10px; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.5px;
+      background: var(--green-light); color: var(--green);
+      border-radius: 6px; padding: 2px 7px; margin: 4px 0 2px;
+    }
+    .ex-session-summary { font-size: 12px; color: var(--text2); display: block; }
+    /* Chevron toggle button */
+    .ex-toggle {
+      background: none; border: none; cursor: pointer; color: var(--text3);
+      padding: 4px; flex-shrink: 0; -webkit-tap-highlight-color: transparent;
+    }
+    .ex-toggle svg { width: 18px; height: 18px; stroke: currentColor; display: block; }
+
+    /* Body — accordion, same max-height trick as chart sections */
+    .exercise-body {
+      max-height: 0; overflow: hidden;
+      transition: max-height 0.3s ease, padding 0.3s ease;
+      padding: 0 16px;
+    }
+    .exercise-body.open { max-height: 900px; padding: 0 16px 16px; }
+
+    /* Name + type selector row */
+    .ex-name-row { display: flex; gap: 8px; margin-bottom: 10px; align-items: stretch; }
+    .ex-name-input {
+      flex: 1; padding: 9px 12px; font-size: 14px; font-family: inherit;
+      color: var(--text); background: var(--surface2);
+      border: 0.5px solid var(--border-med); border-radius: var(--radius-sm); outline: none;
+      min-width: 0;
+    }
+    .ex-name-input:focus { border-color: var(--green); }
+    .type-select {
+      padding: 9px 8px; font-size: 12px; font-family: inherit;
+      color: var(--text); background: var(--surface2);
+      border: 0.5px solid var(--border-med); border-radius: var(--radius-sm);
+      outline: none; cursor: pointer; flex-shrink: 0;
+    }
+
+    /* Personal best chip */
+    .pb-chip {
+      font-size: 12px; font-weight: 600; color: var(--green);
+      background: var(--green-light); border-radius: 8px;
+      padding: 5px 10px; margin-bottom: 12px;
+    }
+    .pb-chip.no-pb { color: var(--text3); background: var(--surface2); font-weight: 400; }
+
+    /* Individual set row */
+    .set-row {
+      display: flex; align-items: center; gap: 8px; margin-bottom: 8px;
+    }
+    .set-num { font-size: 12px; color: var(--text3); font-weight: 600; width: 16px; flex-shrink: 0; text-align: right; }
+    .set-sep { font-size: 13px; color: var(--text3); flex-shrink: 0; }
+    .set-unit { font-size: 12px; color: var(--text2); flex-shrink: 0; }
+    /* Number inputs inside set rows */
+    .set-input {
+      flex: 1; padding: 8px 6px; font-size: 15px; font-family: inherit;
+      text-align: center; color: var(--text); background: var(--surface2);
+      border: 0.5px solid var(--border-med); border-radius: var(--radius-sm);
+      outline: none; min-width: 0;
+      -moz-appearance: textfield;
+    }
+    .set-input::-webkit-outer-spin-button,
+    .set-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    .set-input:focus { border-color: var(--green); }
+    .remove-set-btn {
+      background: none; border: none; cursor: pointer; color: var(--text3);
+      font-size: 18px; padding: 2px 4px; line-height: 1; flex-shrink: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* Footer row inside exercise body */
+    .ex-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 12px; }
+    .add-set-btn {
+      font-size: 13px; font-weight: 600; color: var(--green);
+      background: var(--green-light); border: none;
+      border-radius: var(--radius-sm); padding: 8px 14px;
+      cursor: pointer; -webkit-tap-highlight-color: transparent;
+    }
+    .remove-ex-btn {
+      font-size: 12px; color: var(--text3); background: none;
+      border: 0.5px solid var(--border-med); border-radius: var(--radius-sm);
+      padding: 7px 12px; cursor: pointer; -webkit-tap-highlight-color: transparent;
+    }
+
+    /* "Add Exercise" dashed button */
+    .add-exercise-btn {
+      width: 100%; padding: 13px; font-size: 14px; font-weight: 600;
+      font-family: inherit; color: var(--green); background: var(--surface);
+      border: 1.5px dashed rgba(29,158,117,0.4); border-radius: var(--radius);
+      cursor: pointer; margin-bottom: 12px; -webkit-tap-highlight-color: transparent;
+    }
+    /* "Save Workout" primary button */
+    .save-workout-btn {
+      width: 100%; padding: 14px; font-size: 15px; font-weight: 700;
+      font-family: inherit; color: white; background: var(--green);
+      border: none; border-radius: var(--radius);
+      cursor: pointer; -webkit-tap-highlight-color: transparent;
+    }
+    .save-workout-btn:active { background: var(--green-dark); }
   </style>
 </head>
 <body>
@@ -623,6 +740,74 @@
 
   </div><!-- end #tab-log -->
 
+  <!-- ═══════════════════════════════════════════
+       WORKOUT TAB
+  ═══════════════════════════════════════════ -->
+  <div class="tab-view" id="tab-workout">
+
+    <!-- Header — same pattern as log tab, own date state -->
+    <header class="header">
+      <div class="header-top">
+        <div class="app-title">Bearman<em>Climbs</em></div>
+        <div class="date-badge" id="workout-date-badge" onclick="toggleWorkoutDatePicker()">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          <span id="workout-date-label"></span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Date picker panel -->
+    <div class="date-picker-panel" id="workout-date-picker-panel">
+      <label for="workout-date-input">Logging for:</label>
+      <input type="date" id="workout-date-input" onchange="previewWorkoutDate(this.value)" />
+      <button class="date-confirm-btn" onclick="confirmWorkoutDate()">Set date</button>
+    </div>
+
+    <!-- Past date banner -->
+    <div class="past-date-banner" id="workout-past-banner">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <span id="workout-past-banner-text"></span>
+    </div>
+
+    <div style="padding: 16px 16px 0;">
+
+      <!-- Exercise blocks are injected here by addExerciseBlock() -->
+      <div id="exercise-list"></div>
+
+      <!-- Datalist provides autocomplete from saved exercises -->
+      <datalist id="exercise-datalist"></datalist>
+
+      <button class="add-exercise-btn" onclick="addExerciseBlock()">
+        + Add Exercise
+      </button>
+
+      <button class="save-workout-btn" onclick="saveWorkout()">
+        Save Workout
+      </button>
+
+    </div>
+
+    <!-- Data section — separate workout CSV file -->
+    <div class="section" style="margin-top: 16px;">
+      <div class="section-head">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Workout Data
+      </div>
+      <div class="filename-row" style="margin-bottom: 10px;">
+        <input type="text" id="workout-filename" class="filename-input"
+               placeholder="workout_data"
+               oninput="onWorkoutFilenameChange(this.value)" />
+        <span class="unit">.csv</span>
+      </div>
+      <div class="data-btns">
+        <button class="data-btn" onclick="exportWorkoutCSV(false)">Export CSV</button>
+        <button class="data-btn" onclick="exportWorkoutCSV(true)">Save as new</button>
+        <button class="data-btn" onclick="document.getElementById('workout-file-input').click()">Import CSV</button>
+      </div>
+      <input type="file" id="workout-file-input" accept=".csv,text/csv,text/plain,*/*" style="display:none" />
+    </div>
+
+  </div><!-- end #tab-workout -->
 
   <!-- ═══════════════════════════════════════════
        CHARTS TAB
@@ -851,6 +1036,10 @@
     <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
     Log
   </button>
+  <button class="nav-btn" id="nav-workout" onclick="switchTab('workout')">
+    <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M6 4v16M18 4v16M2 8h4M18 8h4M2 16h4M18 16h4"/></svg>
+    Workout
+  </button>
   <button class="nav-btn" id="nav-charts" onclick="switchTab('charts')">
     <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
     Charts
@@ -887,10 +1076,12 @@
      When switching to charts, draws them fresh so data is current.
   ============================================================ */
   function switchTab(tab) {
-    document.getElementById('tab-log').classList.toggle('active', tab === 'log');
-    document.getElementById('tab-charts').classList.toggle('active', tab === 'charts');
-    document.getElementById('nav-log').classList.toggle('active', tab === 'log');
-    document.getElementById('nav-charts').classList.toggle('active', tab === 'charts');
+    document.getElementById('tab-log').classList.toggle('active',     tab === 'log');
+    document.getElementById('tab-workout').classList.toggle('active', tab === 'workout');
+    document.getElementById('tab-charts').classList.toggle('active',  tab === 'charts');
+    document.getElementById('nav-log').classList.toggle('active',     tab === 'log');
+    document.getElementById('nav-workout').classList.toggle('active', tab === 'workout');
+    document.getElementById('nav-charts').classList.toggle('active',  tab === 'charts');
     if (tab === 'charts') drawAllCharts();
   }
 
@@ -1624,6 +1815,393 @@
     });
   }
 
+  /* ============================================================
+     WORKOUT TRACKER
+     Separate localStorage keys from the daily log.
+     One row per set in the exported CSV.
+  ============================================================ */
+
+  const WORKOUT_KEY      = 'bearmanclimbs_workouts_v1';
+  const EXERCISE_LIB_KEY = 'bearmanclimbs_exercises_v1';
+  let workoutDate        = todayStr();
+
+  function getWorkouts()     { try { return JSON.parse(localStorage.getItem(WORKOUT_KEY) || '[]'); }     catch(e) { return []; } }
+  function saveWorkouts(arr) { localStorage.setItem(WORKOUT_KEY, JSON.stringify(arr)); }
+  function getExerciseLib()     { try { return JSON.parse(localStorage.getItem(EXERCISE_LIB_KEY) || '[]'); } catch(e) { return []; } }
+  function saveExerciseLib(arr) { localStorage.setItem(EXERCISE_LIB_KEY, JSON.stringify(arr)); }
+
+  /* Returns the best-ever value for a given exercise and type */
+  function getPersonalBest(name, type) {
+    const sets = getWorkouts().filter(s => s.exercise.toLowerCase() === name.toLowerCase());
+    if (!sets.length) return null;
+    if (type === 'weighted') {
+      const max = Math.max(...sets.map(s => s.weight_kg || 0));
+      return max > 0 ? max + ' kg' : null;
+    }
+    if (type === 'unweighted') {
+      const max = Math.max(...sets.map(s => s.reps || 0));
+      return max > 0 ? max + ' reps' : null;
+    }
+    if (type === 'timed') {
+      const max = Math.max(...sets.map(s => s.duration_s || 0));
+      return max > 0 ? max + ' s' : null;
+    }
+    return null;
+  }
+
+  /* Add a new exercise block to the workout tab */
+  function addExerciseBlock() {
+    const list = document.getElementById('exercise-list');
+    const block = document.createElement('div');
+    block.className = 'exercise-block';
+    block.dataset.type = 'weighted';
+
+    block.innerHTML = `
+      <div class="exercise-header" onclick="toggleExerciseBlock(this)">
+        <div class="ex-summary">
+          <span class="ex-name-display" style="display:none"></span>
+          <span class="ex-type-badge" style="display:none"></span>
+          <span class="ex-session-summary" style="display:none"></span>
+        </div>
+        <div class="ex-toggle">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5">
+            <polyline points="18 15 12 9 6 15"/>
+          </svg>
+        </div>
+      </div>
+      <div class="exercise-body open">
+        <div class="ex-name-row">
+          <input list="exercise-datalist" class="ex-name-input"
+                 placeholder="Exercise name (e.g. Pull-ups)" maxlength="40"
+                 autocomplete="off" oninput="onExerciseNameInput(this)" />
+          <select class="type-select" onchange="onTypeChange(this)">
+            <option value="weighted">Weighted</option>
+            <option value="unweighted">Bodyweight</option>
+            <option value="timed">Timed</option>
+          </select>
+        </div>
+        <div class="pb-chip" style="display:none"></div>
+        <div class="sets-list"></div>
+        <div class="ex-footer">
+          <button class="add-set-btn" onclick="addSet(this.closest('.exercise-block'))">+ Add Set</button>
+          <button class="remove-ex-btn" onclick="this.closest('.exercise-block').remove()">Remove</button>
+        </div>
+      </div>
+    `;
+
+    list.appendChild(block);
+    addSet(block); // auto-add first set so the block isn't empty
+  }
+
+  /* Toggle collapse/expand of an exercise block */
+  function toggleExerciseBlock(header) {
+    const block  = header.closest('.exercise-block');
+    const body   = block.querySelector('.exercise-body');
+    const poly   = header.querySelector('polyline');
+    const isOpen = body.classList.contains('open');
+
+    if (isOpen) {
+      updateExerciseSummary(block); // populate the collapsed summary line
+      body.classList.remove('open');
+      poly.setAttribute('points', '6 9 12 15 18 9'); // chevron points down
+      // Show summary elements
+      block.querySelector('.ex-name-display').style.display   = '';
+      block.querySelector('.ex-type-badge').style.display     = '';
+      block.querySelector('.ex-session-summary').style.display = '';
+    } else {
+      body.classList.add('open');
+      poly.setAttribute('points', '18 15 12 9 6 15'); // chevron points up
+    }
+  }
+
+  /* Populate the one-line summary shown when an exercise block is collapsed */
+  function updateExerciseSummary(block) {
+    const name = block.querySelector('.ex-name-input').value.trim();
+    const type = block.dataset.type;
+    const rows = block.querySelectorAll('.set-row');
+
+    block.querySelector('.ex-name-display').textContent = name || 'Unnamed';
+    block.querySelector('.ex-type-badge').textContent   = type;
+
+    // Find the session's top value (best of the current session, not all-time PB)
+    let topVal = null;
+    rows.forEach(row => {
+      let v;
+      if (type === 'weighted')    v = parseFloat(row.querySelector('.set-weight')?.value);
+      else if (type === 'timed')  v = parseInt(row.querySelector('.set-duration')?.value);
+      else                        v = parseInt(row.querySelector('.set-reps')?.value);
+      if (!isNaN(v) && v > 0) topVal = topVal === null ? v : Math.max(topVal, v);
+    });
+
+    const unit = type === 'weighted' ? ' kg' : type === 'timed' ? ' s' : ' reps';
+    const count = rows.length;
+    block.querySelector('.ex-session-summary').textContent =
+      count + (count === 1 ? ' set' : ' sets') + (topVal !== null ? ' · top: ' + topVal + unit : '');
+  }
+
+  /* Add a set row (fields depend on exercise type) */
+  function addSet(block) {
+    const type     = block.dataset.type;
+    const setsList = block.querySelector('.sets-list');
+    const num      = setsList.children.length + 1;
+    const row      = document.createElement('div');
+    row.className  = 'set-row';
+
+    if (type === 'weighted') {
+      row.innerHTML = `
+        <span class="set-num">${num}</span>
+        <input type="number" class="set-input set-reps" placeholder="reps" min="1" step="1" />
+        <span class="set-sep">×</span>
+        <input type="number" class="set-input set-weight" placeholder="kg" min="0" step="0.5" />
+        <span class="set-unit">kg</span>
+        <button class="remove-set-btn" onclick="removeSet(this)">×</button>`;
+    } else if (type === 'unweighted') {
+      row.innerHTML = `
+        <span class="set-num">${num}</span>
+        <input type="number" class="set-input set-reps" placeholder="reps" min="1" step="1" />
+        <span class="set-unit">reps</span>
+        <button class="remove-set-btn" onclick="removeSet(this)">×</button>`;
+    } else {
+      row.innerHTML = `
+        <span class="set-num">${num}</span>
+        <input type="number" class="set-input set-duration" placeholder="secs" min="1" step="1" />
+        <span class="set-unit">s</span>
+        <button class="remove-set-btn" onclick="removeSet(this)">×</button>`;
+    }
+
+    setsList.appendChild(row);
+  }
+
+  /* Remove a set row and renumber the remaining ones */
+  function removeSet(btn) {
+    const setsList = btn.closest('.sets-list');
+    btn.closest('.set-row').remove();
+    setsList.querySelectorAll('.set-num').forEach((el, i) => el.textContent = i + 1);
+  }
+
+  /* Rebuild set rows when the type dropdown changes */
+  function onTypeChange(select) {
+    const block   = select.closest('.exercise-block');
+    const newType = select.value;
+    const count   = block.querySelector('.sets-list').children.length || 1;
+    block.dataset.type = newType;
+    block.querySelector('.sets-list').innerHTML = '';
+    for (let i = 0; i < count; i++) addSet(block);
+    const name = block.querySelector('.ex-name-input').value.trim();
+    updatePBChip(block, name, newType);
+  }
+
+  /* When the user types/selects an exercise name:
+     - auto-set the type if this exercise is in the library
+     - show the PB chip */
+  function onExerciseNameInput(input) {
+    const block = input.closest('.exercise-block');
+    const name  = input.value.trim();
+    const lib   = getExerciseLib();
+    const known = lib.find(e => e.name.toLowerCase() === name.toLowerCase());
+
+    if (known && known.type !== block.dataset.type) {
+      block.dataset.type = known.type;
+      block.querySelector('.type-select').value = known.type;
+      const count = block.querySelector('.sets-list').children.length || 1;
+      block.querySelector('.sets-list').innerHTML = '';
+      for (let i = 0; i < count; i++) addSet(block);
+    }
+    updatePBChip(block, name, block.dataset.type);
+  }
+
+  /* Show or hide the PB chip for an exercise block */
+  function updatePBChip(block, name, type) {
+    const chip = block.querySelector('.pb-chip');
+    if (!name) { chip.style.display = 'none'; return; }
+    const pb = getPersonalBest(name, type);
+    chip.style.display = '';
+    if (pb) {
+      chip.textContent = '🏆 PB: ' + pb;
+      chip.className   = 'pb-chip';
+    } else {
+      chip.textContent = 'No previous entries for this exercise';
+      chip.className   = 'pb-chip no-pb';
+    }
+  }
+
+  /* Refresh the datalist that powers exercise name autocomplete */
+  function updateExerciseDatalist() {
+    const dl = document.getElementById('exercise-datalist');
+    if (!dl) return;
+    dl.innerHTML = getExerciseLib().map(e => `<option value="${e.name}">`).join('');
+  }
+
+  /* Save all exercise blocks to localStorage */
+  function saveWorkout() {
+    const blocks = document.querySelectorAll('#exercise-list .exercise-block');
+    if (!blocks.length) { showWorkoutToast('Add at least one exercise first.'); return; }
+
+    const newSets = [];
+    const lib     = getExerciseLib();
+
+    blocks.forEach(block => {
+      const name = block.querySelector('.ex-name-input').value.trim();
+      const type = block.dataset.type;
+      if (!name) return;
+
+      // Add to exercise library if new
+      if (!lib.find(e => e.name.toLowerCase() === name.toLowerCase())) lib.push({ name, type });
+
+      block.querySelectorAll('.set-row').forEach((row, i) => {
+        const set = { date: workoutDate, exercise: name, type, set_number: i + 1,
+                      reps: null, weight_kg: null, duration_s: null };
+        if (type === 'weighted') {
+          set.reps      = parseInt(row.querySelector('.set-reps')?.value)   || null;
+          set.weight_kg = parseFloat(row.querySelector('.set-weight')?.value) || null;
+        } else if (type === 'unweighted') {
+          set.reps      = parseInt(row.querySelector('.set-reps')?.value)   || null;
+        } else {
+          set.duration_s = parseInt(row.querySelector('.set-duration')?.value) || null;
+        }
+        if (set.reps || set.weight_kg || set.duration_s) newSets.push(set);
+      });
+    });
+
+    if (!newSets.length) { showWorkoutToast('Fill in at least one set before saving.'); return; }
+
+    // Remove any existing sets for this date + these exercises, then add the new ones
+    const exerciseNames = [...new Set(newSets.map(s => s.exercise.toLowerCase()))];
+    const kept = getWorkouts().filter(s =>
+      !(s.date === workoutDate && exerciseNames.includes(s.exercise.toLowerCase()))
+    );
+    saveWorkouts([...kept, ...newSets].sort((a,b) => a.date.localeCompare(b.date)));
+    saveExerciseLib(lib);
+    updateExerciseDatalist();
+    showWorkoutToast(`Saved ${newSets.length} set${newSets.length !== 1 ? 's' : ''}! 💪`);
+  }
+
+  /* Export workout data as a separate CSV */
+  function exportWorkoutCSV(saveAs) {
+    const workouts = getWorkouts();
+    if (!workouts.length) { showWorkoutToast('No workout data to export yet.'); return; }
+
+    const headers = ['date','exercise','type','set_number','reps','weight_kg','duration_s'];
+    const rows    = workouts.map(s =>
+      [s.date, `"${s.exercise}"`, s.type, s.set_number,
+       s.reps ?? '', s.weight_kg ?? '', s.duration_s ?? ''].join(',')
+    );
+    const csv = [headers.join(','), ...rows].join('\n');
+
+    let filename = getWorkoutFilename();
+    if (saveAs) filename = prompt('Save workout data as:', filename) || filename;
+    saveWorkoutFilename(filename);
+    document.getElementById('workout-filename').value = filename.replace(/\.csv$/i,'');
+
+    const a = document.createElement('a');
+    a.href     = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+    a.download = filename.replace(/\.csv$/i,'') + '.csv';
+    a.click();
+  }
+
+  /* Import a workout CSV back into localStorage */
+  function importWorkoutCSV(input) {
+    const file = input.files[0];
+    if (!file) return;
+
+    // Adopt the imported file's name as the default filename
+    saveWorkoutFilename(file.name.replace(/\.csv$/i,'').trim());
+    document.getElementById('workout-filename').value = getWorkoutFilename();
+
+    const reader  = new FileReader();
+    reader.onload = e => {
+      const lines = e.target.result.split('\n').filter(l => l.trim());
+      if (lines.length < 2) { showWorkoutToast('File appears empty.'); return; }
+
+      const headers = lines[0].split(',').map(h => h.trim());
+      const get = (cols, key) => {
+        const i = headers.indexOf(key);
+        return i >= 0 ? (cols[i] || '').trim().replace(/^"|"$/g,'') : '';
+      };
+
+      const imported = [];
+      const lib      = getExerciseLib();
+
+      for (let i = 1; i < lines.length; i++) {
+        const cols = lines[i].split(',');
+        const name = get(cols, 'exercise');
+        const date = get(cols, 'date');
+        if (!name || !date) continue;
+        const type = get(cols, 'type') || 'weighted';
+
+        imported.push({
+          date, exercise: name, type,
+          set_number: parseInt(get(cols, 'set_number')) || 1,
+          reps:       parseInt(get(cols, 'reps'))       || null,
+          weight_kg:  parseFloat(get(cols, 'weight_kg'))|| null,
+          duration_s: parseInt(get(cols, 'duration_s')) || null
+        });
+
+        if (!lib.find(ex => ex.name.toLowerCase() === name.toLowerCase())) lib.push({ name, type });
+      }
+
+      saveWorkouts(imported);
+      saveExerciseLib(lib);
+      updateExerciseDatalist();
+      showWorkoutToast(`Imported ${imported.length} set${imported.length !== 1 ? 's' : ''}`);
+    };
+    reader.readAsText(file);
+  }
+
+  /* Workout filename helpers */
+  const WORKOUT_FNAME_KEY = 'workout_filename';
+  function getWorkoutFilename()    { return localStorage.getItem(WORKOUT_FNAME_KEY) || 'workout_data'; }
+  function saveWorkoutFilename(v)  { localStorage.setItem(WORKOUT_FNAME_KEY, (v || 'workout_data').replace(/\.csv$/i,'').trim()); }
+  function onWorkoutFilenameChange(v) { saveWorkoutFilename(v); }
+
+  /* Workout date picker — mirrors the log tab date picker exactly */
+  function toggleWorkoutDatePicker() {
+    const panel = document.getElementById('workout-date-picker-panel');
+    if (panel.classList.contains('open')) { panel.classList.remove('open'); }
+    else { document.getElementById('workout-date-input').value = workoutDate; panel.classList.add('open'); }
+  }
+  function previewWorkoutDate(val) {
+    if (val) document.getElementById('workout-date-label').textContent = formatDisplayDate(val);
+  }
+  function confirmWorkoutDate() {
+    const val = document.getElementById('workout-date-input').value;
+    if (!val) return;
+    workoutDate = val;
+    document.getElementById('workout-date-picker-panel').classList.remove('open');
+    updateWorkoutDateUI();
+  }
+  function updateWorkoutDateUI() {
+    document.getElementById('workout-date-label').textContent = formatDisplayDate(workoutDate);
+    const banner = document.getElementById('workout-past-banner');
+    if (workoutDate < todayStr()) {
+      document.getElementById('workout-past-banner-text').textContent =
+        `Logging for ${formatDisplayDate(workoutDate)} — existing entries will be updated`;
+      banner.classList.add('show');
+    } else { banner.classList.remove('show'); }
+  }
+
+  /* Toast for workout tab (reuses existing .toast CSS) */
+  function showWorkoutToast(msg) {
+    let t = document.getElementById('workout-toast');
+    if (!t) {
+      t = document.createElement('div');
+      t.id = 'workout-toast'; t.className = 'toast';
+      document.body.appendChild(t);
+    }
+    t.textContent = msg; t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2500);
+  }
+
+  /* Initialise the workout tab */
+  function initWorkout() {
+    updateWorkoutDateUI();
+    document.getElementById('workout-filename').value = getWorkoutFilename();
+    updateExerciseDatalist();
+    document.getElementById('workout-file-input').addEventListener('change', function() {
+      if (this.files && this.files.length > 0) importWorkoutCSV(this);
+    });
+  }
+
   /* ── init(): runs on page load, wires up all UI ── */
   function init() {
     document.getElementById('date-label').textContent = formatDisplayDate(selectedDate);
@@ -1644,6 +2222,8 @@
     document.getElementById('csv-file-input').addEventListener('change', function() {
       if (this.files && this.files.length > 0) importCSV(this);
     });
+
+    initWorkout(); // set up the workout tab
   }
 
   init();
