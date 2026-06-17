@@ -2136,9 +2136,24 @@
     }
   }
 
+  /* Show a soft inline prompt on a block and auto-clear it after 2 s */
+  function showBlockHint(block, msg) {
+    const err = block.querySelector('.ex-error-msg');
+    err.textContent = msg;
+    block.classList.add('ex-error');
+    clearTimeout(block._hintTimer);
+    block._hintTimer = setTimeout(() => clearExError(block), 2000);
+  }
+
   /* Add a set row — inputs built from the block's checked fields */
   function addSet(block) {
-    const fields   = (block.dataset.fields || '').split(',').filter(Boolean);
+    const name   = block.querySelector('.ex-name-input').value.trim();
+    const fields = (block.dataset.fields || '').split(',').filter(Boolean);
+
+    if (!name || !fields.length) {
+      showBlockHint(block, 'Enter a name and tick what you\'ll be tracking first.');
+      return;
+    }
     const setsList = block.querySelector('.sets-list');
     const num      = setsList.children.length + 1;
     const row      = document.createElement('div');
@@ -2165,6 +2180,14 @@
 
   /* Copy the last set's values into a brand-new set row */
   function addSetCopy(block) {
+    const name   = block.querySelector('.ex-name-input').value.trim();
+    const fields = (block.dataset.fields || '').split(',').filter(Boolean);
+
+    if (!name || !fields.length) {
+      showBlockHint(block, 'Enter a name and tick what you\'ll be tracking first.');
+      return;
+    }
+
     const setsList = block.querySelector('.sets-list');
     const rows     = setsList.querySelectorAll('.set-row');
     if (!rows.length) { addSet(block); return; }
