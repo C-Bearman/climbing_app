@@ -2192,15 +2192,28 @@
     if (confirm(`Remove "${name}" from this workout?`)) block.remove();
   }
 
-  /* Refresh the datalist — only shows exercises that have at least one saved entry,
-     so "ghost" library names with no data never appear as suggestions */
+  /* Refresh the datalist — only exercises with real entries, sorted by most recent use.
+     Most-used exercises naturally bubble to the top since you train them most recently. */
   function updateExerciseDatalist() {
     const dl = document.getElementById('exercise-datalist');
     if (!dl) return;
     const workouts = getWorkouts();
-    const withData = getExerciseLib().filter(e =>
-      workouts.some(s => s.exercise.toLowerCase() === e.name.toLowerCase())
-    );
+
+    // Find the most recent date each exercise was used
+    const lastUsed = {};
+    workouts.forEach(s => {
+      const key = s.exercise.toLowerCase();
+      if (!lastUsed[key] || s.date > lastUsed[key]) lastUsed[key] = s.date;
+    });
+
+    const withData = getExerciseLib()
+      .filter(e => lastUsed[e.name.toLowerCase()])          // must have entries
+      .sort((a, b) => {                                      // most recently used first
+        const da = lastUsed[a.name.toLowerCase()] || '';
+        const db = lastUsed[b.name.toLowerCase()] || '';
+        return db.localeCompare(da);
+      });
+
     dl.innerHTML = withData.map(e => `<option value="${e.name}">`).join('');
   }
 
@@ -2406,6 +2419,69 @@
     workoutDate = val;
     document.getElementById('workout-date-picker-panel').classList.remove('open');
     updateWorkoutDateUI();
+    loadWorkoutForDate(workoutDate); // populate blocks if entries exist for this date
+  }
+
+  /* Reconstruct exercise blocks from saved data for a given date.
+     Called whenever the date changes — lets the user review and edit past sessions. */
+  function loadWorkoutForDate(date) {
+    const sets = getWorkouts().filter(s => s.date === date);
+    const list = document.getElementById('exercise-list');
+
+    // If no data for this date, clear the board so it feels fresh
+    if (!sets.length) {
+      list.innerHTML = '';
+      return;
+    }
+
+    // Group sets by exercise, preserving order of first appearance
+    const order     = [];
+    const byExercise = {};
+    sets.forEach(s => {
+      const key = s.exercise.toLowerCase();
+      if (!byExercise[key]) { order.push(s.exercise); byExercise[key] = { name: s.exercise, fields: s.fields, pb_field: s.pb_field, sets: [] }; }
+      byExercise[key].sets.push(s);
+    });
+
+    list.innerHTML = ''; // clear any in-progress blocks
+
+    order.forEach(name => {
+      const data   = byExercise[name.toLowerCase()];
+      const fields = (data.fields || '').split('|').filter(Boolean);
+
+      addExerciseBlock(); // creates a fresh block
+      const block = list.lastElementChild;
+
+      // Fill name
+      block.querySelector('.ex-name-input').value = name;
+
+      // Tick the right fields and rebuild rows (onFieldChange also shows/hides PB row)
+      block.querySelectorAll('.field-cb').forEach(cb => { cb.checked = fields.includes(cb.value); });
+      onFieldChange(block);
+
+      // Set the PB radio
+      if (data.pb_field) {
+        const radio = block.querySelector(`.pb-radio[value="${data.pb_field}"]`);
+        if (radio) { radio.checked = true; block.dataset.pbField = data.pb_field; }
+      }
+
+      // Replace the auto-added empty set row with saved values
+      const setsList = block.querySelector('.sets-list');
+      setsList.innerHTML = '';
+      data.sets
+        .sort((a, b) => a.set_number - b.set_number)
+        .forEach((s, i) => {
+          addSet(block);
+          const row = setsList.children[i];
+          if (s.reps       != null) { const inp = row.querySelector('.set-reps');     if (inp) inp.value = s.reps; }
+          if (s.weight_kg  != null) { const inp = row.querySelector('.set-weight');   if (inp) inp.value = s.weight_kg; }
+          if (s.duration_s != null) { const inp = row.querySelector('.set-duration'); if (inp) inp.value = s.duration_s; }
+        });
+
+      updatePBChip(block, name, data.pb_field);
+    });
+
+    showWorkoutOverlay('📋', `Workout loaded — ${formatDisplayDate(date)}`, 'Edit your sets below and save to update.');
   }
   function updateWorkoutDateUI() {
     document.getElementById('workout-date-label').textContent = formatDisplayDate(workoutDate);
