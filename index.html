@@ -486,15 +486,13 @@
     .set-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
     .set-input:focus { border-color: var(--green); }
 
-    /* Hold-to-delete × button: hold 1.5 s to remove */
+    /* × button on set rows — tap to confirm-delete */
     .remove-set-btn {
       background: none; border: none; cursor: pointer; color: var(--text3);
       font-size: 18px; padding: 2px 6px; line-height: 1; flex-shrink: 0;
       border-radius: var(--radius-sm);
-      transition: background 1.5s linear, color 0.05s;
       -webkit-tap-highlight-color: transparent;
     }
-    .remove-set-btn.holding { background: #e05252; color: white; }
 
     /* Footer row inside exercise body */
     .ex-footer { display: flex; align-items: center; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
@@ -2159,10 +2157,7 @@
       html += `<input type="number" class="set-input set-duration" placeholder="secs" min="1" step="1" />`;
       html += `<span class="set-unit">s</span>`;
     }
-    // Hold for 1.5 s to delete (see startHoldDelete / cancelHoldDelete)
-    html += `<button class="remove-set-btn"
-      onmousedown="startHoldDelete(this)"   onmouseup="cancelHoldDelete(this)"   onmouseleave="cancelHoldDelete(this)"
-      ontouchstart="startHoldDelete(this)"  ontouchend="cancelHoldDelete(this)"  ontouchcancel="cancelHoldDelete(this)">×</button>`;
+    html += `<button class="remove-set-btn" onclick="confirmRemoveSet(this)">×</button>`;
 
     row.innerHTML = html;
     setsList.appendChild(row);
@@ -2182,20 +2177,13 @@
     srcInputs.forEach((src, i) => { if (dstInputs[i]) dstInputs[i].value = src.value; });
   }
 
-  /* Hold-to-delete timer — clears after 1.5 s and removes the set row */
-  let _holdTimer = null;
-  function startHoldDelete(btn) {
-    btn.classList.add('holding');
-    _holdTimer = setTimeout(() => {
-      btn.classList.remove('holding');
+  /* Confirm before removing a single set row */
+  function confirmRemoveSet(btn) {
+    if (confirm('Remove this set?')) {
       const setsList = btn.closest('.sets-list');
       btn.closest('.set-row').remove();
       setsList.querySelectorAll('.set-num').forEach((el, i) => el.textContent = i + 1);
-    }, 1500);
-  }
-  function cancelHoldDelete(btn) {
-    clearTimeout(_holdTimer);
-    btn.classList.remove('holding');
+    }
   }
 
   /* Confirm before removing an exercise block */
@@ -2204,17 +2192,22 @@
     if (confirm(`Remove "${name}" from this workout?`)) block.remove();
   }
 
-  /* Refresh the datalist that powers exercise name autocomplete */
+  /* Refresh the datalist — only shows exercises that have at least one saved entry,
+     so "ghost" library names with no data never appear as suggestions */
   function updateExerciseDatalist() {
     const dl = document.getElementById('exercise-datalist');
     if (!dl) return;
-    dl.innerHTML = getExerciseLib().map(e => `<option value="${e.name}">`).join('');
+    const workouts = getWorkouts();
+    const withData = getExerciseLib().filter(e =>
+      workouts.some(s => s.exercise.toLowerCase() === e.name.toLowerCase())
+    );
+    dl.innerHTML = withData.map(e => `<option value="${e.name}">`).join('');
   }
 
   /* Save all exercise blocks to localStorage */
   function saveWorkout() {
     const blocks = document.querySelectorAll('#exercise-list .exercise-block');
-    if (!blocks.length) { showWorkoutToast('Add at least one exercise first.'); return; }
+    if (!blocks.length) { showWorkoutOverlay('⚠️', 'No exercises yet', 'Tap + Add Exercise to get started.'); return; }
 
     const newSets = [];
     const lib     = getExerciseLib();
@@ -2261,6 +2254,14 @@
     if (hasError)        { showWorkoutOverlay('⚠️', 'One of your exercises has no name!', 'Check the highlighted block above.'); return; }
     if (!newSets.length) { showWorkoutOverlay('⚠️', 'Nothing to save', 'Fill in at least one set value first.'); return; }
 
+    // Snapshot PBs BEFORE saving so we can detect improvements
+    const oldPBs = {};
+    blocks.forEach(block => {
+      const name    = block.querySelector('.ex-name-input').value.trim();
+      const pbField = block.dataset.pbField;
+      if (name && pbField) oldPBs[name.toLowerCase()] = getPersonalBest(name, pbField);
+    });
+
     // Replace any existing sets for this date + these exercises
     const exerciseNames = [...new Set(newSets.map(s => s.exercise.toLowerCase()))];
     const kept = getWorkouts().filter(s =>
@@ -2269,13 +2270,33 @@
     saveWorkouts([...kept, ...newSets].sort((a,b) => a.date.localeCompare(b.date)));
     saveExerciseLib(lib);
     updateExerciseDatalist();
-    showWorkoutOverlay('💪', 'Workout saved!', 'You can keep adding exercises today — just save again.');
+
+    // Check for new PBs after saving — compare fresh PBs against the snapshot
+    let newPBName = null, newPBValue = null;
+    blocks.forEach(block => {
+      const name    = block.querySelector('.ex-name-input').value.trim();
+      const pbField = block.dataset.pbField;
+      if (!name || !pbField) return;
+      const freshPB = getPersonalBest(name, pbField);
+      if (freshPB && freshPB !== oldPBs[name.toLowerCase()]) {
+        newPBName  = name;
+        newPBValue = freshPB;
+        // Update the chip in the block so it reflects the new PB immediately
+        updatePBChip(block, name, pbField);
+      }
+    });
+
+    if (newPBName) {
+      showWorkoutOverlay('🎉', 'New personal best!', `${newPBName} — ${newPBValue}`);
+    } else {
+      showWorkoutOverlay('💪', 'Workout saved!', 'You can keep adding exercises today — just save again.');
+    }
   }
 
   /* Export workout data as a separate CSV */
   function exportWorkoutCSV(saveAs) {
     const workouts = getWorkouts();
-    if (!workouts.length) { showWorkoutToast('No workout data to export yet.'); return; }
+    if (!workouts.length) { showWorkoutOverlay('⚠️', 'Nothing to export', 'Save a workout first.'); return; }
 
     const headers = ['date','exercise','fields','pb_field','set_number','reps','weight_kg','duration_s'];
     const rows    = workouts.map(s =>
@@ -2310,7 +2331,7 @@
     const reader  = new FileReader();
     reader.onload = e => {
       const lines = e.target.result.split('\n').filter(l => l.trim());
-      if (lines.length < 2) { showWorkoutToast('File appears empty.'); return; }
+      if (lines.length < 2) { showWorkoutOverlay('⚠️', 'File appears empty', 'Check you selected the right CSV.'); return; }
 
       const headers = lines[0].split(',').map(h => h.trim());
       const get = (cols, key) => {
@@ -2359,7 +2380,7 @@
       saveWorkouts(imported);
       saveExerciseLib(lib);
       updateExerciseDatalist();
-      showWorkoutToast(`Imported ${imported.length} set${imported.length !== 1 ? 's' : ''}`);
+      showWorkoutOverlay('✅', `Imported ${imported.length} set${imported.length !== 1 ? 's' : ''}`, 'Your workout history is ready.');
     };
     reader.readAsText(file);
   }
