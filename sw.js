@@ -1,4 +1,4 @@
-const CACHE = 'bearmanclimbs-v0.5';
+const CACHE = 'bearmanclimbs-v0.6';
 const ASSETS = ['/', '/index.html', '/manifest.json'];
 
 self.addEventListener('install', e => {

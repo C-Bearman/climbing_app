@@ -331,6 +331,30 @@
       transition: max-height 0.35s ease;
     }
     .chart-section.open .chart-body { max-height: 400px; }
+    /* Workout section stacks many exercises — needs much more room */
+    #cs-workout.open .chart-body { max-height: 6000px; }
+
+    /* Exercise picker dropdown inside workout charts */
+    .wo-picker-row { margin-bottom: 16px; }
+    #wo-exercise-picker {
+      width: 100%; padding: 10px 12px; font-size: 14px; font-family: inherit;
+      color: var(--text); background: var(--surface2);
+      border: 0.5px solid var(--border-med); border-radius: var(--radius-sm);
+      outline: none; cursor: pointer;
+    }
+    #wo-exercise-picker:focus { border-color: var(--green); }
+
+    /* Per-exercise block inside the workout charts container */
+    .wo-exercise-title {
+      font-size: 14px; font-weight: 700; color: var(--text);
+      padding: 4px 0 2px; margin-bottom: 4px;
+      border-bottom: 1px solid var(--border); margin-top: 8px;
+    }
+    .wo-exercise-title:first-child { margin-top: 0; }
+    .wo-chart-label {
+      font-size: 11px; font-weight: 600; color: var(--text3);
+      text-transform: uppercase; letter-spacing: 0.4px; margin: 8px 0 4px;
+    }
 
     .chart-inner { padding: 0 16px 16px; }
 
@@ -1071,6 +1095,26 @@
       </div>
     </div>
 
+    <div class="chart-section" id="cs-workout">
+      <div class="chart-section-head" onclick="toggleChart('cs-workout')">
+        <div class="chart-section-head-left">
+          <div>
+            <div class="chart-section-title">Workout Progress</div>
+            <div class="chart-section-sub">Select an exercise to see your progress</div>
+          </div>
+        </div>
+        <svg class="chart-chevron" viewBox="0 0 24 24" fill="none" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div class="chart-body">
+        <div class="wo-picker-row">
+          <select id="wo-exercise-picker" onchange="onWorkoutPickerChange(this.value)">
+            <option value="">— choose an exercise —</option>
+          </select>
+        </div>
+        <div id="workout-charts-container"></div>
+      </div>
+    </div>
+
     <div style="height:10px;"></div>
 
   </div><!-- end #tab-charts -->
@@ -1594,6 +1638,168 @@
     });
   }
 
+  /* ============================================================
+     WORKOUT CHARTS
+     drawWorkoutCharts() — populates the exercise picker only.
+     onWorkoutPickerChange() — draws charts for the selected exercise.
+     drawExerciseCharts() — the actual rendering logic.
+  ============================================================ */
+
+  /* Called by drawAllCharts — just refreshes the picker options */
+  function drawWorkoutCharts() {
+    const picker   = document.getElementById('wo-exercise-picker');
+    const workouts = getWorkouts();
+    if (!picker) return;
+
+    // Exercises with real entries, sorted by most recent use
+    const lastUsed = {};
+    workouts.forEach(s => {
+      const key = s.exercise.toLowerCase();
+      if (!lastUsed[key] || s.date > lastUsed[key]) lastUsed[key] = s.date;
+    });
+    const lib = getExerciseLib()
+      .filter(e => lastUsed[e.name.toLowerCase()])
+      .sort((a, b) => (lastUsed[b.name.toLowerCase()] || '').localeCompare(lastUsed[a.name.toLowerCase()] || ''));
+
+    // Preserve current selection across redraws
+    const current = picker.value;
+    picker.innerHTML = '<option value="">— choose an exercise —</option>';
+    lib.forEach(e => {
+      const opt = document.createElement('option');
+      opt.value       = e.name;
+      opt.textContent = e.name;
+      if (e.name === current) opt.selected = true;
+      picker.appendChild(opt);
+    });
+
+    if (!lib.length) {
+      document.getElementById('workout-charts-container').innerHTML =
+        '<p class="chart-empty" style="padding:12px 0 4px;">Save a workout first to see progress charts.</p>';
+      return;
+    }
+
+    // Re-draw whichever exercise was already selected
+    if (current && lib.find(e => e.name === current)) {
+      drawExerciseCharts(current);
+    } else {
+      // Clear stale charts if the selection is no longer valid
+      Object.keys(chartInstances).filter(k => k.startsWith('wo-')).forEach(k => destroyChart(k));
+      document.getElementById('workout-charts-container').innerHTML = '';
+    }
+  }
+
+  /* Called when the user picks an exercise from the dropdown */
+  function onWorkoutPickerChange(name) {
+    Object.keys(chartInstances).filter(k => k.startsWith('wo-')).forEach(k => destroyChart(k));
+    const container = document.getElementById('workout-charts-container');
+    container.innerHTML = '';
+    if (!name) return;
+    drawExerciseCharts(name);
+  }
+
+  /* Renders the progress line + volume bar for one exercise */
+  function drawExerciseCharts(name) {
+    const container = document.getElementById('workout-charts-container');
+    const workouts  = getWorkouts();
+    const lib       = getExerciseLib();
+    const ex        = lib.find(e => e.name.toLowerCase() === name.toLowerCase());
+    if (!ex) return;
+
+    const fields  = ex.fields  || typeToFields(ex.type || '');
+    const pbField = ex.pb_field || fields[0] || '';
+
+    // All sets for this exercise, grouped by date
+    const sets = workouts
+      .filter(s => s.exercise.toLowerCase() === name.toLowerCase())
+      .sort((a, b) => a.date.localeCompare(b.date));
+    if (!sets.length) return;
+
+    const byDate = {};
+    sets.forEach(s => {
+      if (!byDate[s.date]) byDate[s.date] = [];
+      byDate[s.date].push(s);
+    });
+    const dates  = Object.keys(byDate).sort();
+    const labels = dates.map(d => formatDisplayDate(d));
+
+    // ── Progress: best value per session for the PB field ──
+    const progressData = dates.map(d => {
+      const day = byDate[d];
+      if (pbField === 'weight')   return Math.max(...day.map(s => s.weight_kg  || 0)) || null;
+      if (pbField === 'reps')     return Math.max(...day.map(s => s.reps       || 0)) || null;
+      if (pbField === 'duration') return Math.max(...day.map(s => s.duration_s || 0)) || null;
+      return null;
+    });
+
+    // ── Volume: adapts to the exercise type ──
+    // weight-tracked → set count | reps-tracked → total reps | duration → total secs
+    let volumeData, volumeLabel;
+    if (pbField === 'weight') {
+      volumeData  = dates.map(d => byDate[d].filter(s => s.reps || s.weight_kg).length);
+      volumeLabel = 'Sets';
+    } else if (pbField === 'reps') {
+      volumeData  = dates.map(d => byDate[d].reduce((sum, s) => sum + (s.reps || 0), 0));
+      volumeLabel = 'Total reps';
+    } else {
+      volumeData  = dates.map(d => byDate[d].reduce((sum, s) => sum + (s.duration_s || 0), 0));
+      volumeLabel = 'Total secs';
+    }
+
+    const unitMap = { weight: 'kg', reps: 'reps', duration: 's' };
+    const unit    = unitMap[pbField] || '';
+    const safeId  = name.toLowerCase().replace(/[^a-z0-9]/g, '-');
+    const progId  = `wo-prog-${safeId}`;
+    const volId   = `wo-vol-${safeId}`;
+
+    container.innerHTML = `
+      <div class="wo-chart-label">Top ${unit} per session</div>
+      <div class="chart-inner" style="height:180px; margin-bottom:20px;">
+        <canvas id="${progId}" class="chart-canvas"></canvas>
+      </div>
+      <div class="wo-chart-label">${volumeLabel} per session</div>
+      <div class="chart-inner" style="height:130px;">
+        <canvas id="${volId}" class="chart-canvas"></canvas>
+      </div>`;
+
+    // Progress line
+    const progMax  = Math.max(...progressData.filter(Boolean)) * 1.15 || 10;
+    const progOpts = baseOptions('', 0, progMax);
+    progOpts.plugins.tooltip.callbacks = {
+      title: ctx => labels[ctx[0].dataIndex],
+      label: ctx => ` ${ctx.parsed.y} ${unit}`
+    };
+    chartInstances[progId] = new Chart(document.getElementById(progId), {
+      type: 'line',
+      data: { labels, datasets: [{
+        data: progressData,
+        borderColor: '#1D9E75', backgroundColor: 'rgba(29,158,117,0.08)',
+        borderWidth: 2, tension: 0.3, fill: true,
+        pointRadius: 4, pointBackgroundColor: '#1D9E75',
+        spanGaps: true
+      }]},
+      options: progOpts
+    });
+
+    // Volume bars
+    const volMax  = Math.max(...volumeData) * 1.2 || 10;
+    const volOpts = baseOptions('', 0, volMax);
+    volOpts.scales.y.ticks.stepSize = 1;
+    volOpts.plugins.tooltip.callbacks = {
+      title: ctx => labels[ctx[0].dataIndex],
+      label: ctx => ` ${ctx.parsed.y} ${volumeLabel.toLowerCase()}`
+    };
+    chartInstances[volId] = new Chart(document.getElementById(volId), {
+      type: 'bar',
+      data: { labels, datasets: [{
+        data: volumeData,
+        backgroundColor: 'rgba(29,158,117,0.45)',
+        borderColor: '#1D9E75',
+        borderWidth: 1, borderRadius: 4, borderSkipped: false
+      }]},
+      options: volOpts
+    });
+  }
+
   function drawAllCharts() {
     const entries = getFilteredEntries();
     updateSessionStatsCard();
@@ -1601,6 +1807,7 @@
     drawFlexChart(entries);
     drawTrendsChart(entries);
     drawStretchChart(entries);
+    drawWorkoutCharts();
   }
 
   /* ============================================================
