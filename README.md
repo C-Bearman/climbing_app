@@ -51,11 +51,14 @@ Whenever a change is pushed to `master`, GitHub Pages redeploys within ~60 secon
 - [x] `feature/workout-tracker` — third Workout tab; exercises with flexible field tracking (Reps / Weight / Duration); PB chips; sets with copy/hold-to-delete; full-screen save confirmation; CSV export & import
 
 ### Next up
-- [ ] History log UX — show 3 entries at a time, scrollable, rather than the full list
 - [ ] Workout data visualisations in Charts tab — progress lines per exercise, PB milestones
+- [ ] Body weight tracking + strength-to-weight ratio — optional daily body weight entry; show weighted exercises as % of bodyweight (e.g. Pull-ups +60 kg at 90 kg = 167% BW). Climbing is a power-to-weight sport so this puts raw numbers in context
+- [ ] History log UX — show 3 entries at a time, scrollable, rather than the full list
 - [ ] Onboarding / tutorial overlay — first-launch walkthrough of Log, Workout and Charts tabs
 
 ### Future branches
+- [ ] Daily log: optional nutrition quality slider (1–10, self-rated — how well did you eat today?) alongside the existing calorie/protein fields
+- [ ] Daily log: optional supplement tracker (creatine, protein, vitamins etc.) — free-text or checklist, user-configurable
 - [ ] Goal lines extended to more metrics beyond sleep and water
 - [ ] Water reminder notifications during climbing sessions
 - [ ] Auto-sync to Google Sheets via Google Apps Script
