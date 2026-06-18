@@ -58,7 +58,7 @@ Whenever a change is pushed to `master`, GitHub Pages redeploys within ~60 secon
 - [ ] Workout plan import — allow importing a saved workout template (e.g. "Pulling session: 5×pull-ups, 3×ring rows") that pre-populates the exercise list so the user doesn't have to build it from scratch each time
 - [ ] Rest day data — decide how rest days interact with the workout tracker; currently the workout tab is always available regardless of the daily log climbing toggle. Consider whether rest day entries should be blocked, flagged, or used to show recovery context on workout charts
 - [ ] History log UX — show 3 entries at a time, scrollable, rather than the full list
-- [ ] Onboarding / tutorial overlay — first-launch walkthrough of Log, Workout and Charts tabs; must include how to rename or delete a misspelled exercise name (e.g. if a user saves "Jumpinh" they currently have no way to correct it)
+- [ ] Onboarding / tutorial overlay — first-launch walkthrough of Log, Workout and Charts tabs; must include how to rename or delete a misspelled exercise name (e.g. if a user saves "Jumpinh" they currently have no way to correct it); should also ask on first launch whether the user has existing data to import (supports the coach use-case where athletes export their CSV and hand it to a coach who can import and view their data)
 - [ ] UX review: audit all info (ℹ︎) buttons across the app — check the text shown is accurate, helpful, and consistent in tone
 - [ ] User-configurable dot colour thresholds — Session Rating, Flexibility, and Workout Progress charts all let users choose which metric colours the dots (sleep / mental / physical energy); extend this so users can set their own green/amber/red thresholds per metric (e.g. "for me, 7h+ sleep is good, not 8h+")
 
@@ -91,6 +91,7 @@ Whenever a change is pushed to `master`, GitHub Pages redeploys within ~60 secon
 - [ ] **CSV import validation** — currently both CSVs are imported with minimal checking; a bad file silently corrupts data or produces confusing results. Add a validation pass on import that checks: (1) headers match the expected columns exactly; (2) date format is YYYY-MM-DD; (3) constrained fields are within expected values (`climbing` is yes/no, ratings are 1–10, sleep is 0–24, water is 0–15); (4) for the workout CSV, the `fields` column contains only valid pipe-separated values (`reps`, `weight`, `duration`) and `pb_field` is one of them; (5) numeric columns are actually numeric. On failure, show a clear error overlay listing the problems found with the option to cancel or proceed anyway
 
 ### Future branches
+- [ ] **Desktop / responsive layout** *(optional — Play Store is the primary target)* — the app is designed for a mobile viewport and works on phone screens. On a laptop or monitor the layout is narrow and centred. A responsive pass could widen the layout at larger breakpoints, reflow the tab navigation, and make charts larger — useful if coaches want to review athlete data on a desktop. This is lower priority than the Play Store APK build (see Eventual v1.0 below), but could be a lightweight CSS-only change if the scope is kept narrow.
 - [ ] Goal lines extended to more metrics beyond sleep and water
 - [ ] Water reminder notifications during climbing sessions
 - [ ] Auto-sync to Google Sheets via Google Apps Script

@@ -816,7 +816,7 @@
           Save as new
         </button>
       </div>
-      <input type="file" id="csv-file-input" accept=".csv,text/csv,text/plain,*/*" style="display:none">
+      <input type="file" id="csv-file-input" accept=".csv,text/csv" style="display:none">
       <button class="cbtn" style="width:100%;padding:11px;" onclick="document.getElementById('csv-file-input').click()">
         <svg viewBox="0 0 24 24" fill="none" stroke-width="2" style="width:15px;height:15px;stroke:currentColor;"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 10 12 5 7 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         Import CSV
@@ -912,7 +912,7 @@
           Save as new
         </button>
       </div>
-      <input type="file" id="workout-file-input" accept=".csv,text/csv,text/plain,*/*" style="display:none">
+      <input type="file" id="workout-file-input" accept=".csv,text/csv" style="display:none">
       <button class="cbtn" style="width:100%;padding:11px;" onclick="document.getElementById('workout-file-input').click()">
         <svg viewBox="0 0 24 24" fill="none" stroke-width="2" style="width:15px;height:15px;stroke:currentColor;"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 10 12 5 7 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         Import CSV
@@ -1452,43 +1452,58 @@
 
   function importCSV(input) {
     const file = input.files[0]; if (!file) return;
+    if (!file.name.match(/\.csv$/i)) { alert('Please select a .csv file.'); input.value=''; return; }
     const importedName = file.name.replace(/\.csv$/i,'').trim();
-    if (importedName) { localStorage.setItem('csv_filename',importedName); document.getElementById('csv-filename').value=importedName; }
     const reader = new FileReader();
     reader.onload = function(e) {
+      input.value = '';
+      if (importedName) { localStorage.setItem('csv_filename',importedName); document.getElementById('csv-filename').value=importedName; }
       const lines = e.target.result.trim().split('\n');
       if (lines.length < 2) { alert('CSV appears to be empty.'); return; }
-      const headers = lines[0].split(',').map(h=>h.trim());
-      const imported = [];
-      for (let i=1; i<lines.length; i++) {
-        const cols = parseCSVLine(lines[i]);
-        if (cols.length < 2) continue;
-        const get = col => { const idx=headers.indexOf(col); return idx>=0?(cols[idx]||'').replace(/^"|"$/g,'').trim():''; };
-        const entry = {
-          date:get('date'), climbing:get('climbing')||null,
-          sleep:parseFloat(get('sleep_h'))||7, water:parseFloat(get('water_L'))||2,
-          physical:parseInt(get('physical_energy'))||5, mental:parseInt(get('mental_energy'))||5,
-          sess_rating:parseInt(get('session_rating'))||null, sess_notes:get('session_notes')||null,
-          stretching:get('stretching')||null, flex_rating:parseInt(get('flexibility_rating'))||null,
-          calories:get('calories_kcal')||null, protein:get('protein_g')||null, notes:get('general_notes')||null
-        };
-        if (isNaN(entry.sess_rating)) entry.sess_rating=null;
-        if (isNaN(entry.flex_rating)) entry.flex_rating=null;
-        if (entry.date) imported.push(entry);
-      }
-      if (!imported.length) { alert('No valid entries found in CSV.'); return; }
-      const existing = getEntries();
-      const importedDates = new Set(imported.map(e=>e.date));
-      const merged = [...existing.filter(e=>!importedDates.has(e.date)),...imported];
-      merged.sort((a,b)=>b.date.localeCompare(a.date));
-      saveEntries(merged); input.value='';
-      const msg=document.getElementById('import-msg'), toast=document.getElementById('import-toast');
-      msg.textContent=`Imported ${imported.length} entries — ${merged.length} total`;
-      toast.classList.add('show'); setTimeout(()=>toast.classList.remove('show'),3000);
-      renderStreak(); updateWeekCounter();
-      if (document.getElementById('hist-panel').style.display==='block') renderHist();
+      const errors = validateLogCSV(lines);
+      showValidationOverlay(errors, (mode) => doImportLog(importedName, lines, input, mode), 'log');
     };
     reader.readAsText(file);
+  }
+
+  function doImportLog(importedName, lines, input, mode = 'merge') {
+    const headers = lines[0].split(',').map(h=>h.trim());
+    const imported = [];
+    for (let i=1; i<lines.length; i++) {
+      const cols = parseCSVLine(lines[i]);
+      if (cols.length < 2) continue;
+      const get = col => { const idx=headers.indexOf(col); return idx>=0?(cols[idx]||'').replace(/^"|"$/g,'').trim():''; };
+      const entry = {
+        date:get('date'), climbing:get('climbing')||null,
+        sleep:parseFloat(get('sleep_h'))||7, water:parseFloat(get('water_L'))||2,
+        physical:parseInt(get('physical_energy'))||5, mental:parseInt(get('mental_energy'))||5,
+        sess_rating:parseInt(get('session_rating'))||null, sess_notes:get('session_notes')||null,
+        stretching:get('stretching')||null, flex_rating:parseInt(get('flexibility_rating'))||null,
+        calories:get('calories_kcal')||null, protein:get('protein_g')||null, notes:get('general_notes')||null
+      };
+      if (isNaN(entry.sess_rating)) entry.sess_rating=null;
+      if (isNaN(entry.flex_rating)) entry.flex_rating=null;
+      if (entry.date) imported.push(entry);
+    }
+    if (!imported.length) { alert('No valid entries found in CSV.'); return; }
+    let final;
+    if (mode === 'replace') {
+      imported.sort((a,b)=>b.date.localeCompare(a.date));
+      final = imported;
+    } else {
+      const existing = getEntries();
+      const importedDates = new Set(imported.map(e=>e.date));
+      final = [...existing.filter(e=>!importedDates.has(e.date)),...imported];
+      final.sort((a,b)=>b.date.localeCompare(a.date));
+    }
+    saveEntries(final); input.value='';
+    const msg=document.getElementById('import-msg'), toast=document.getElementById('import-toast');
+    msg.textContent = mode === 'replace'
+      ? `Replaced all data — ${final.length} entries loaded`
+      : `Merged ${imported.length} entries — ${final.length} total`;
+    toast.classList.add('show'); setTimeout(()=>toast.classList.remove('show'),3000);
+    renderStreak(); updateWeekCounter();
+    if (document.getElementById('hist-panel').style.display==='block') renderHist();
   }
 
   function parseCSVLine(line) {
@@ -1500,6 +1515,170 @@
       else { current+=ch; }
     }
     result.push(current); return result;
+  }
+
+  function validateLogCSV(lines) {
+    const errors  = [];
+    const headers = lines[0].split(',').map(h => h.trim());
+    const required = ['date','climbing','sleep_h','water_L','physical_energy','mental_energy',
+                      'session_rating','session_notes','stretching','flexibility_rating',
+                      'calories_kcal','protein_g','general_notes'];
+    const missing = required.filter(h => !headers.includes(h));
+    if (missing.length) errors.push(`Missing columns: ${missing.join(', ')}`);
+
+    const dateIdx = headers.indexOf('date');
+    if (dateIdx >= 0) {
+      const bad = [];
+      for (let i = 1; i < lines.length; i++) {
+        const d = (parseCSVLine(lines[i])[dateIdx] || '').trim();
+        if (d && !/^\d{4}-\d{2}-\d{2}$/.test(d)) bad.push(d);
+      }
+      if (bad.length) errors.push(`Dates not in YYYY-MM-DD format${bad.length > 3 ? ` (${bad.length} rows)` : ''}: ${bad.slice(0,3).join(', ')}`);
+    }
+    return errors;
+  }
+
+  function validateWorkoutCSV(lines) {
+    const errors  = [];
+    const headers = lines[0].split(',').map(h => h.trim());
+    const required = ['date','exercise','fields','pb_field','set_number','reps','weight_kg','duration_s'];
+    const missing = required.filter(h => !headers.includes(h));
+    if (missing.length) errors.push(`Missing columns: ${missing.join(', ')}`);
+
+    const dateIdx   = headers.indexOf('date');
+    const fieldsIdx = headers.indexOf('fields');
+    const pbIdx     = headers.indexOf('pb_field');
+    const validF    = new Set(['reps','weight','duration']);
+    const badDates  = [];
+    const badFields = [];
+
+    for (let i = 1; i < lines.length; i++) {
+      const cols = lines[i].split(',');
+      if (dateIdx >= 0) {
+        const d = (cols[dateIdx] || '').trim();
+        if (d && !/^\d{4}-\d{2}-\d{2}$/.test(d)) badDates.push(d);
+      }
+      if (fieldsIdx >= 0) {
+        const fRaw = (cols[fieldsIdx] || '').trim().replace(/^"|"$/g,'');
+        if (fRaw) {
+          const parts = fRaw.split('|').filter(Boolean);
+          const inv   = parts.filter(p => !validF.has(p));
+          if (inv.length) { badFields.push(`row ${i}: "${fRaw}"`); }
+          else if (pbIdx >= 0) {
+            const pb = (cols[pbIdx] || '').trim().replace(/^"|"$/g,'');
+            if (pb && !parts.includes(pb)) badFields.push(`row ${i}: pb_field "${pb}" not in fields`);
+          }
+        }
+      }
+    }
+    if (badDates.length)  errors.push(`Dates not in YYYY-MM-DD format${badDates.length > 3 ? ` (${badDates.length} rows)` : ''}: ${badDates.slice(0,3).join(', ')}`);
+    if (badFields.length) errors.push(`Invalid fields/pb_field${badFields.length > 2 ? ` (${badFields.length} rows)` : ''}: ${badFields.slice(0,2).join('; ')}`);
+    return errors;
+  }
+
+  let _validationProceedFn = null;
+
+  function showValidationOverlay(errors, onProceed, type) {
+    _validationProceedFn = onProceed;
+    let overlay = document.getElementById('csv-validation-overlay');
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.id        = 'csv-validation-overlay';
+      overlay.className = 'workout-overlay';
+      overlay.innerHTML = `
+        <div class="workout-overlay-card" style="max-width:300px;text-align:left;padding:28px 24px 24px;">
+          <div id="csv-val-icon" style="text-align:center;font-size:40px;margin-bottom:10px;">⚠️</div>
+          <p id="csv-val-title" class="workout-overlay-title" style="text-align:center;margin-bottom:12px;">Import issues found</p>
+
+          <div id="csv-val-step1">
+            <ul id="csv-val-errors" style="margin:0 0 0 16px;padding:0;font-size:13px;color:var(--text2);line-height:1.7;"></ul>
+            <p id="csv-val-footer" style="font-size:12px;margin:14px 0 0;line-height:1.6;"></p>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:16px;">
+              <button class="cbtn" style="padding:10px;" onclick="closeValidationOverlay()">Cancel</button>
+              <button class="cbtn sel-yes" style="padding:10px;" id="csv-val-import-btn">Import anyway</button>
+            </div>
+          </div>
+
+          <div id="csv-val-step2-log" style="display:none;">
+            <button class="cbtn sel-yes" style="padding:10px;width:100%;margin-bottom:8px;" onclick="exportCSV(true)">Export current data first</button>
+            <button class="cbtn" style="padding:10px;width:100%;margin-bottom:16px;" onclick="selectDifferentLogFile()">Import a different file instead</button>
+            <p style="font-size:12px;color:var(--text3);margin:0 0 8px;text-align:center;">Choose how to import:</p>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:6px;">
+              <button class="cbtn sel-yes" style="padding:10px;" onclick="proceedWithImport('merge')">Merge</button>
+              <button class="cbtn" style="padding:10px;color:#c0392b;border-color:rgba(192,57,43,0.35);background:rgba(192,57,43,0.08);" onclick="proceedWithImport('replace')">Replace all</button>
+            </div>
+            <p style="font-size:11px;color:var(--text3);margin:0 0 14px;line-height:1.5;text-align:center;"><b>Merge</b> keeps other dates intact. <b>Replace all</b> deletes existing data first.</p>
+            <button class="cbtn" style="padding:10px;width:100%;" onclick="closeValidationOverlay()">Cancel</button>
+          </div>
+
+          <div id="csv-val-step2-workout" style="display:none;">
+            <p style="font-size:13px;color:var(--text2);line-height:1.6;margin:0 0 14px;">Are you sure? This will permanently replace <b>all</b> your saved workout history. You can export a backup of your current data first.</p>
+            <button class="cbtn sel-yes" style="padding:10px;width:100%;margin-bottom:8px;" onclick="exportWorkoutCSV(true)">Export current data first</button>
+            <button class="cbtn" style="padding:10px;width:100%;margin-bottom:16px;" onclick="selectDifferentWorkoutFile()">Import a different file instead</button>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+              <button class="cbtn" style="padding:10px;" onclick="closeValidationOverlay()">Cancel</button>
+              <button class="cbtn" style="padding:10px;color:#c0392b;border-color:rgba(192,57,43,0.35);background:rgba(192,57,43,0.08);" onclick="proceedWithImport()">Replace anyway</button>
+            </div>
+          </div>
+        </div>`;
+      document.body.appendChild(overlay);
+      overlay.addEventListener('click', e => { if (e.target === overlay) closeValidationOverlay(); });
+    }
+
+    // Reset all steps
+    document.getElementById('csv-val-step1').style.display         = 'none';
+    document.getElementById('csv-val-step2-log').style.display     = 'none';
+    document.getElementById('csv-val-step2-workout').style.display = 'none';
+
+    if (type === 'workout') {
+      document.getElementById('csv-val-icon').textContent  = '⚠️';
+      document.getElementById('csv-val-title').textContent = 'Import issues found';
+      document.getElementById('csv-val-errors').innerHTML  = errors.map(e => `<li style="margin-bottom:6px;">${e}</li>`).join('');
+      const footerEl  = document.getElementById('csv-val-footer');
+      const importBtn = document.getElementById('csv-val-import-btn');
+      footerEl.innerHTML = '<span style="color:var(--amber);font-weight:600;">Warning: importing will completely replace all your saved workout history.</span>';
+      importBtn.onclick  = () => { document.getElementById('csv-val-step1').style.display='none'; document.getElementById('csv-val-step2-workout').style.display=''; };
+      document.getElementById('csv-val-step1').style.display = '';
+    } else {
+      if (errors.length) {
+        document.getElementById('csv-val-icon').textContent  = '⚠️';
+        document.getElementById('csv-val-title').textContent = 'Import issues found';
+        document.getElementById('csv-val-errors').innerHTML  = errors.map(e => `<li style="margin-bottom:6px;">${e}</li>`).join('');
+        const footerEl  = document.getElementById('csv-val-footer');
+        const importBtn = document.getElementById('csv-val-import-btn');
+        footerEl.innerHTML   = 'Importing will overwrite <b>existing</b> entries on matching dates. Entries on other dates are kept.';
+        footerEl.style.color = 'var(--text3)';
+        importBtn.onclick    = () => { document.getElementById('csv-val-step1').style.display='none'; document.getElementById('csv-val-step2-log').style.display=''; };
+        document.getElementById('csv-val-step1').style.display = '';
+      } else {
+        document.getElementById('csv-val-icon').textContent  = '📥';
+        document.getElementById('csv-val-title').textContent = 'Import options';
+        document.getElementById('csv-val-step2-log').style.display = '';
+      }
+    }
+
+    overlay.classList.add('show');
+  }
+
+  function selectDifferentLogFile() {
+    closeValidationOverlay();
+    document.getElementById('csv-file-input').click();
+  }
+
+  function selectDifferentWorkoutFile() {
+    closeValidationOverlay();
+    document.getElementById('workout-file-input').click();
+  }
+
+  function closeValidationOverlay() {
+    const o = document.getElementById('csv-validation-overlay');
+    if (o) o.classList.remove('show');
+    _validationProceedFn = null;
+  }
+
+  function proceedWithImport(mode) {
+    closeValidationOverlay();
+    if (_validationProceedFn) _validationProceedFn(mode);
   }
 
   function updateWeekCounter() {
@@ -2835,66 +3014,73 @@
   function importWorkoutCSV(input) {
     const file = input.files[0];
     if (!file) return;
-
-    // Adopt the imported file's name as the default filename
-    saveWorkoutFilename(file.name.replace(/\.csv$/i,'').trim());
-    document.getElementById('workout-filename').value = getWorkoutFilename();
-
-    const reader  = new FileReader();
+    if (!file.name.match(/\.csv$/i)) { alert('Please select a .csv file.'); input.value=''; return; }
+    const importedName = file.name.replace(/\.csv$/i,'').trim();
+    const reader = new FileReader();
     reader.onload = e => {
+      input.value = '';
+      saveWorkoutFilename(importedName);
+      document.getElementById('workout-filename').value = getWorkoutFilename();
       const lines = e.target.result.split('\n').filter(l => l.trim());
       if (lines.length < 2) { showWorkoutOverlay('⚠️', 'File appears empty', 'Check you selected the right CSV.'); return; }
-
-      const headers = lines[0].split(',').map(h => h.trim());
-      const get = (cols, key) => {
-        const i = headers.indexOf(key);
-        return i >= 0 ? (cols[i] || '').trim().replace(/^"|"$/g,'') : '';
-      };
-
-      const imported = [];
-      const lib      = getExerciseLib();
-
-      for (let i = 1; i < lines.length; i++) {
-        const cols = lines[i].split(',');
-        const name = get(cols, 'exercise');
-        const date = get(cols, 'date');
-        if (!name || !date) continue;
-
-        // Handle both new format (fields/pb_field) and old format (type)
-        const fieldsRaw = get(cols, 'fields');
-        let   fields, pb_field;
-        if (fieldsRaw) {
-          // New CSV format
-          fields   = fieldsRaw.split('|').filter(Boolean);
-          pb_field = get(cols, 'pb_field') || fields[0] || '';
-        } else {
-          // Old CSV format — convert type to fields/pb_field
-          const type = get(cols, 'type') || 'weighted';
-          fields     = typeToFields(type);
-          pb_field   = type === 'weighted' ? 'weight' : type === 'timed' ? 'duration' : 'reps';
-        }
-
-        imported.push({
-          date, exercise: name,
-          fields:   fields.join('|'),
-          pb_field,
-          set_number: parseInt(get(cols, 'set_number')) || 1,
-          reps:       parseInt(get(cols, 'reps'))       || null,
-          weight_kg:  parseFloat(get(cols, 'weight_kg'))|| null,
-          duration_s: parseInt(get(cols, 'duration_s')) || null
-        });
-
-        if (!lib.find(ex => ex.name.toLowerCase() === name.toLowerCase())) {
-          lib.push({ name, fields, pb_field });
-        }
+      const errors = validateWorkoutCSV(lines);
+      if (errors.length) {
+        showValidationOverlay(errors, () => doImportWorkout(importedName, lines, input), 'workout');
+        return;
       }
-
-      saveWorkouts(imported);
-      saveExerciseLib(lib);
-      updateExerciseDatalist();
-      showWorkoutOverlay('✅', `Imported ${imported.length} set${imported.length !== 1 ? 's' : ''}`, 'Your workout history is ready.');
+      doImportWorkout(importedName, lines, input);
     };
     reader.readAsText(file);
+  }
+
+  function doImportWorkout(importedName, lines, input) {
+
+    const headers = lines[0].split(',').map(h => h.trim());
+    const get = (cols, key) => {
+      const i = headers.indexOf(key);
+      return i >= 0 ? (cols[i] || '').trim().replace(/^"|"$/g,'') : '';
+    };
+
+    const imported = [];
+    const lib      = getExerciseLib();
+
+    for (let i = 1; i < lines.length; i++) {
+      const cols = lines[i].split(',');
+      const name = get(cols, 'exercise');
+      const date = get(cols, 'date');
+      if (!name || !date) continue;
+
+      const fieldsRaw = get(cols, 'fields');
+      let   fields, pb_field;
+      if (fieldsRaw) {
+        fields   = fieldsRaw.split('|').filter(Boolean);
+        pb_field = get(cols, 'pb_field') || fields[0] || '';
+      } else {
+        const type = get(cols, 'type') || 'weighted';
+        fields     = typeToFields(type);
+        pb_field   = type === 'weighted' ? 'weight' : type === 'timed' ? 'duration' : 'reps';
+      }
+
+      imported.push({
+        date, exercise: name,
+        fields:   fields.join('|'),
+        pb_field,
+        set_number: parseInt(get(cols, 'set_number')) || 1,
+        reps:       parseInt(get(cols, 'reps'))       || null,
+        weight_kg:  parseFloat(get(cols, 'weight_kg'))|| null,
+        duration_s: parseInt(get(cols, 'duration_s')) || null
+      });
+
+      if (!lib.find(ex => ex.name.toLowerCase() === name.toLowerCase())) {
+        lib.push({ name, fields, pb_field });
+      }
+    }
+
+    saveWorkouts(imported);
+    saveExerciseLib(lib);
+    updateExerciseDatalist();
+    input.value = '';
+    showWorkoutOverlay('✅', `Imported ${imported.length} set${imported.length !== 1 ? 's' : ''}`, 'Your workout history is ready.');
   }
 
   /* Workout filename helpers */
