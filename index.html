@@ -2183,17 +2183,10 @@
 
     const opts = baseOptions('', 1, 10);
     opts.plugins.tooltip.displayColors = false;
-    opts.plugins.tooltip.padding      = 10;
-    opts.plugins.tooltip.bodySpacing  = 4;
     opts.plugins.tooltip.callbacks    = {
       title:      ctx => ctx[0].raw.date,
-      label:      ()  => null,
-      afterLabel: ctx => {
-        const lines = [];
-        const m = ctx.raw.colorLine; if (m) lines.push(m);
-        const n = ctx.raw.notes;     if (n) lines.push(n);
-        return lines;
-      }
+      label:      ctx => ctx.raw.colorLine || null,
+      afterLabel: ctx => ctx.raw.notes ? [ctx.raw.notes] : []
     };
     opts.scales.x = {
       type: 'linear',
@@ -2275,17 +2268,10 @@
 
     const opts = baseOptions('', 1, 10);
     opts.plugins.tooltip.displayColors = false;
-    opts.plugins.tooltip.padding      = 10;
-    opts.plugins.tooltip.bodySpacing  = 4;
     opts.plugins.tooltip.callbacks    = {
       title:      ctx => ctx[0].raw.date,
-      label:      ()  => null,
-      afterLabel: ctx => {
-        const lines = [];
-        const m = ctx.raw.colorLine; if (m) lines.push(m);
-        const n = ctx.raw.notes;     if (n) lines.push(n);
-        return lines;
-      }
+      label:      ctx => ctx.raw.colorLine || null,
+      afterLabel: ctx => ctx.raw.notes ? [ctx.raw.notes] : []
     };
     opts.scales.x = {
       type: 'linear',
