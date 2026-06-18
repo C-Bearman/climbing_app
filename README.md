@@ -50,6 +50,7 @@ Whenever a change is pushed to `master`, GitHub Pages redeploys within ~60 secon
 - [x] `feature/notes-tooltips` — 40-char notes fields with live counter; two-line tooltips on Session Rating and Flexibility charts
 - [x] `feature/workout-tracker` — third Workout tab; exercises with flexible field tracking (Reps / Weight / Duration); PB chips; sets with copy/hold-to-delete; full-screen save confirmation; CSV export & import
 - [x] `feature/workout-visualisations` — Workout Progress section in Charts tab; exercise picker adds individual cards; metric pills (Session Max / Session Total); sleep/energy dot colour coding with dynamic legend; "Colour nodes by" selector on Session Rating, Flexibility and Workout charts; time range slider wired to workout charts
+- [x] `chore/ui-polish` — single-dot chart empty state ("not enough data" message); Remove Exercise button styled red and labelled clearly; tooltip colour metric line on all colour-coded charts (Session Rating, Flexibility, Workout Progress); tooltip label reads "Max 22.5kg" / "Total 12 reps" etc.; consistent date format across all chart tooltips ("Fri 3 Apr"); Stretching Consistency tooltip reads "Stretched X times" with week label "w/c 20 Apr"; coloured square removed from all tooltips; tooltip spacing and styling unified across chart types
 
 ### Next up
 - [ ] Workout data visualisations in Charts tab — refine the exercise picker UX; add PB milestone marker (dashed line at all-time best)
@@ -64,13 +65,14 @@ Whenever a change is pushed to `master`, GitHub Pages redeploys within ~60 secon
 ### Charts — UI polish
 - [ ] **Draggable chart ordering** — allow users to reorder the chart accordion sections by holding and dragging, so frequently used charts (e.g. Workout Progress) can be pinned to the top; order should persist across sessions via localStorage
 - [ ] **Session Rating x-axis** — currently shows session numbers (1, 2, 3…); switch to actual dates. Complexity: the ordinal axis was chosen specifically to avoid visual gaps on days with no climbing session; switching to dates needs gap-handling so the line does not break on rest days (Chart.js `spanGaps` or pre-filtering)
-- [ ] **Tooltip content for colour-coded charts** — tooltip currently shows date and general notes; add a line showing the selected colour metric and its value for that session (e.g. "Sleep: 8h" or "Mental energy: 7/10"). This also acts as a sanity-check that the colour selector and dot colours are correct
+- [x] **Tooltip content for colour-coded charts** — tooltip shows date, selected colour metric value (e.g. "Sleep: 8h"), and general notes; consistent styling and spacing across all chart types; no coloured square; workout tooltip prefixes value with Max/Total and omits space before unit (e.g. "Max 22.5kg")
 - [ ] **Selective chart re-render on colour selector change** — changing "Colour nodes by" on one chart currently triggers a full `drawAllCharts()` redraw, causing all visible charts to re-animate; ideally only the chart whose selector changed should update
-- [ ] **Minimum data threshold for workout charts** — a single data point in the selected time range renders a lone dot with no connecting line, which looks broken; show a "not enough data in this range" message instead when fewer than 2 data points exist
-
+- [ ] **Sleep, Water & Energy Trends — node fill** — nodes are currently hollow (open circles); should be filled to match the visual style of Session Rating, Flexibility and Workout Progress charts
+- [ ] **Sleep, Water & Energy Trends — fill consistency** — Sleep and Water lines have a colour fill under the curve; Physical and Mental Energy do not; decide whether all four should have a fill or none should, and apply consistently
+- [x] **Stretching Consistency — tooltip** — reads "Stretched X times" with no coloured square; week labels read "w/c 20 Apr"
 ### Workout tab — UI polish
 - [ ] **Workout entry management** — no way to rename a misspelled exercise or delete individual saved sets; needs a management screen or edit flow, and must be covered in the onboarding tutorial
-- [ ] **Remove Exercise button** — the × button in the exercise block is easy to miss; consider labelling it "Remove Exercise" and giving it a red tint to follow standard convention for destructive actions
+- [ ] **Log entry deletion** — no way to delete a past daily log entry; the history panel shows entries but only lets you view them; needs a delete button per entry (with confirmation) that removes it from localStorage and re-exports cleanly to CSV
 - [ ] **Workout date highlights** — in the workout tab date picker, highlight dates that have saved workout entries (e.g. a green underline or dot) so the user can easily spot and navigate to past sessions
 
 ### Log page — planned additions
@@ -82,6 +84,9 @@ Whenever a change is pushed to `master`, GitHub Pages redeploys within ~60 secon
 - [ ] **"Why track this?" info button** — a hold-to-reveal tooltip or info overlay on optional fields (weight, height, nutrition, supplements) explaining what insights that data unlocks. Keeps the UI clean for people who just want to log, but rewards curiosity
 - [ ] **Nutrition quality slider** (1–10, self-rated — how well did you eat today?) alongside the existing calorie/protein fields
 - [ ] **Supplement tracker** — user-defined tick-box list (creatine, vitamin D, protein shake, etc.); presence/absence per day is enough — no units needed. Configurable by the user, similar to how exercises are defined in the workout tracker
+
+### Data integrity
+- [ ] **CSV import validation** — currently both CSVs are imported with minimal checking; a bad file silently corrupts data or produces confusing results. Add a validation pass on import that checks: (1) headers match the expected columns exactly; (2) date format is YYYY-MM-DD; (3) constrained fields are within expected values (`climbing` is yes/no, ratings are 1–10, sleep is 0–24, water is 0–15); (4) for the workout CSV, the `fields` column contains only valid pipe-separated values (`reps`, `weight`, `duration`) and `pb_field` is one of them; (5) numeric columns are actually numeric. On failure, show a clear error overlay listing the problems found with the option to cancel or proceed anyway
 
 ### Future branches
 - [ ] Goal lines extended to more metrics beyond sleep and water

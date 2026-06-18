@@ -1659,11 +1659,20 @@
       if (e.stretching === 'yes') weekMap[weekKey]++;
     });
     const weeks     = Object.keys(weekMap).sort();
-    const labels    = weeks.map(w => { const d = new Date(w+'T12:00:00'); return d.toLocaleDateString('en-GB',{day:'numeric',month:'short'}); });
+    const labels    = weeks.map(w => { const d = new Date(w+'T12:00:00'); return 'w/c ' + d.toLocaleDateString('en-GB',{day:'numeric',month:'short'}); });
     const values    = weeks.map(w => weekMap[w]);
     const barColors = values.map(v => v >= 4 ? '#1D9E75' : v >= 2 ? '#BA7517' : '#A32D2D');
     const opts = baseOptions('', 0, 7);
     opts.scales.y.ticks.stepSize = 1;
+    opts.plugins.tooltip = {
+      displayColors: false,
+      padding: 10,
+      bodySpacing: 4,
+      callbacks: {
+        title: ctx => ctx[0].label,
+        label: ctx => `Stretched ${ctx.parsed.y} time${ctx.parsed.y === 1 ? '' : 's'}`
+      }
+    };
     chartInstances['stretch'] = new Chart(document.getElementById('chart-stretch'), {
       type: 'bar',
       data: { labels, datasets: [{ data: values, backgroundColor: barColors, borderRadius: 4, borderSkipped: false }] },
@@ -1693,10 +1702,17 @@
 
   // Available colour-by fields with fixed thresholds (hi = green, mid = amber, below = red)
   const WO_COLOR_FIELDS = {
-    sleep:    { label: 'Sleep',           get: e => e.sleep,    hi: 8, mid: 6, hiLabel: '8h+',  midLabel: '6–8h', loLabel: '<6h'  },
-    mental:   { label: 'Mental energy',   get: e => e.mental,   hi: 7, mid: 5, hiLabel: '7–10', midLabel: '5–6',  loLabel: '1–4'  },
-    physical: { label: 'Physical energy', get: e => e.physical, hi: 7, mid: 5, hiLabel: '7–10', midLabel: '5–6',  loLabel: '1–4'  },
+    sleep:    { label: 'Sleep',           unit: 'h',    get: e => e.sleep,    hi: 8, mid: 6, hiLabel: '8h+',  midLabel: '6–8h', loLabel: '<6h'  },
+    mental:   { label: 'Mental energy',   unit: '/10',  get: e => e.mental,   hi: 7, mid: 5, hiLabel: '7–10', midLabel: '5–6',  loLabel: '1–4'  },
+    physical: { label: 'Physical energy', unit: '/10',  get: e => e.physical, hi: 7, mid: 5, hiLabel: '7–10', midLabel: '5–6',  loLabel: '1–4'  },
   };
+
+  // Formats the colour metric line shown in tooltips e.g. "Sleep: 8h" or "Mental energy: 7/10"
+  function colorMetricLine(colorDef, log) {
+    if (!log) return null;
+    const v = colorDef.get(log);
+    return v != null ? `${colorDef.label}: ${v}${colorDef.unit}` : null;
+  }
 
   // All possible metrics — label shown on pill, unit for axis/tooltip, aggregation fn
   const WO_METRICS = {
@@ -1719,7 +1735,7 @@
 
   // Short date format for chart x-axis: "18 Jun" (no day name)
   function formatWorkoutDate(dateStr) {
-    return new Date(dateStr + 'T12:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+    return new Date(dateStr + 'T12:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
   }
 
   /* Called by drawAllCharts — refreshes the picker and redraws any open cards */
@@ -1931,12 +1947,16 @@
     const yMax  = Math.ceil(Math.max(...data.filter(Boolean)) * 1.15 / 5) * 5 || 10;
     const opts  = baseOptions('', 0, yMax);
     opts.layout.padding.top = 20;
+    opts.plugins.tooltip.displayColors = false;
     opts.plugins.tooltip.callbacks = {
       title:      ctx => formatWorkoutDate(dates[ctx[0].dataIndex]),
-      label:      ctx => ` ${ctx.parsed.y} ${metric.unit}`,
+      label:      ctx => { const sep = metric.unit === 'reps' ? ' ' : ''; return `${metricKey.startsWith('max_') ? 'Max' : 'Total'} ${ctx.parsed.y}${sep}${metric.unit}`; },
       afterLabel: ctx => {
-        const log = logByDate[dates[ctx.dataIndex]];
-        return (log && log.notes) ? log.notes : null;
+        const log   = logByDate[dates[ctx.dataIndex]];
+        const lines = [];
+        const m = colorMetricLine(colorDef, log); if (m) lines.push(m);
+        if (log && log.notes) lines.push(log.notes);
+        return lines;
       }
     };
 
@@ -2162,12 +2182,17 @@
       <div class="sleep-legend-item"><div class="sleep-legend-dot" style="background:#6B6B66"></div> no data</div>`;
 
     const opts = baseOptions('', 1, 10);
-    opts.plugins.tooltip = {
-      displayColors: false,
-      callbacks: {
-        title:      ctx => ctx[0].raw.date,
-        label:      ()  => '',
-        afterLabel: ctx => ctx.raw.notes || ''
+    opts.plugins.tooltip.displayColors = false;
+    opts.plugins.tooltip.padding      = 10;
+    opts.plugins.tooltip.bodySpacing  = 4;
+    opts.plugins.tooltip.callbacks    = {
+      title:      ctx => ctx[0].raw.date,
+      label:      ()  => null,
+      afterLabel: ctx => {
+        const lines = [];
+        const m = ctx.raw.colorLine; if (m) lines.push(m);
+        const n = ctx.raw.notes;     if (n) lines.push(n);
+        return lines;
       }
     };
     opts.scales.x = {
@@ -2186,10 +2211,11 @@
         datasets: [{
           label: 'Session',
           data: sessData.map((e, i) => ({
-            x:     i + 1,
-            y:     e.sess_rating,
-            date:  formatDisplayDate(e.date),
-            notes: e.sess_notes || e.notes || null
+            x:         i + 1,
+            y:         e.sess_rating,
+            date:      formatDisplayDate(e.date),
+            colorLine: colorMetricLine(colorDef, e),
+            notes:     e.sess_notes || e.notes || null
           })),
           borderColor: 'rgba(29,158,117,0.4)',
           borderWidth: 2, tension: 0.3,
@@ -2248,12 +2274,17 @@
       <div class="sleep-legend-item"><div class="sleep-legend-dot" style="background:#6B6B66"></div> no data</div>`;
 
     const opts = baseOptions('', 1, 10);
-    opts.plugins.tooltip = {
-      displayColors: false,
-      callbacks: {
-        title:      ctx => ctx[0].raw.date,
-        label:      ()  => '',
-        afterLabel: ctx => ctx.raw.notes || ''
+    opts.plugins.tooltip.displayColors = false;
+    opts.plugins.tooltip.padding      = 10;
+    opts.plugins.tooltip.bodySpacing  = 4;
+    opts.plugins.tooltip.callbacks    = {
+      title:      ctx => ctx[0].raw.date,
+      label:      ()  => null,
+      afterLabel: ctx => {
+        const lines = [];
+        const m = ctx.raw.colorLine; if (m) lines.push(m);
+        const n = ctx.raw.notes;     if (n) lines.push(n);
+        return lines;
       }
     };
     opts.scales.x = {
@@ -2272,10 +2303,11 @@
         datasets: [{
           label: 'Flexibility',
           data: flexData.map((e, i) => ({
-            x:     i + 1,
-            y:     e.flex_rating,
-            date:  formatDisplayDate(e.date),
-            notes: e.notes || null
+            x:         i + 1,
+            y:         e.flex_rating,
+            date:      formatDisplayDate(e.date),
+            colorLine: colorMetricLine(colorDefF, e),
+            notes:     e.notes || null
           })),
           borderColor: 'rgba(155,89,182,0.4)',
           borderWidth: 2, tension: 0.3,
