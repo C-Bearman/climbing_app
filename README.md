@@ -49,6 +49,7 @@ Whenever a change is pushed to `master`, GitHub Pages redeploys within ~60 secon
 ### Recently shipped
 - [x] `feature/notes-tooltips` — 40-char notes fields with live counter; two-line tooltips on Session Rating and Flexibility charts
 - [x] `feature/workout-tracker` — third Workout tab; exercises with flexible field tracking (Reps / Weight / Duration); PB chips; sets with copy/hold-to-delete; full-screen save confirmation; CSV export & import
+- [x] `feature/workout-visualisations` — Workout Progress section in Charts tab; exercise picker adds individual cards; metric pills (Session Max / Session Total); sleep/energy dot colour coding with dynamic legend; "Colour nodes by" selector on Session Rating, Flexibility and Workout charts; time range slider wired to workout charts
 
 ### Next up
 - [ ] Workout data visualisations in Charts tab — refine the exercise picker UX; add PB milestone marker (dashed line at all-time best)
@@ -61,6 +62,7 @@ Whenever a change is pushed to `master`, GitHub Pages redeploys within ~60 secon
 - [ ] User-configurable dot colour thresholds — Session Rating, Flexibility, and Workout Progress charts all let users choose which metric colours the dots (sleep / mental / physical energy); extend this so users can set their own green/amber/red thresholds per metric (e.g. "for me, 7h+ sleep is good, not 8h+")
 
 ### Charts — UI polish
+- [ ] **Draggable chart ordering** — allow users to reorder the chart accordion sections by holding and dragging, so frequently used charts (e.g. Workout Progress) can be pinned to the top; order should persist across sessions via localStorage
 - [ ] **Session Rating x-axis** — currently shows session numbers (1, 2, 3…); switch to actual dates. Complexity: the ordinal axis was chosen specifically to avoid visual gaps on days with no climbing session; switching to dates needs gap-handling so the line does not break on rest days (Chart.js `spanGaps` or pre-filtering)
 - [ ] **Tooltip content for colour-coded charts** — tooltip currently shows date and general notes; add a line showing the selected colour metric and its value for that session (e.g. "Sleep: 8h" or "Mental energy: 7/10"). This also acts as a sanity-check that the colour selector and dot colours are correct
 - [ ] **Selective chart re-render on colour selector change** — changing "Colour nodes by" on one chart currently triggers a full `drawAllCharts()` redraw, causing all visible charts to re-animate; ideally only the chart whose selector changed should update
@@ -72,6 +74,9 @@ Whenever a change is pushed to `master`, GitHub Pages redeploys within ~60 secon
 - [ ] **Workout date highlights** — in the workout tab date picker, highlight dates that have saved workout entries (e.g. a green underline or dot) so the user can easily spot and navigate to past sessions
 
 ### Log page — planned additions
+- [ ] **Climbing session type tracking** — when logging a climbing day, capture what kind of session it was: discipline (bouldering / rope / both), session goal (max effort / projecting / technique / volume), and effort level. This enriches the Session Rating chart context and could unlock filters like "show only projecting sessions" or correlate session type with rating trends
+
+
 - [ ] **Body measurements (optional, infrequent)** — weight (kg) and height (cm) stored as a separate profile, not a daily log field. Not something you fill in every session — more like a one-time or monthly update. Needs a dedicated section or modal, separate from the day-to-day log form
 - [ ] **Strength-to-weight insights** — once body weight is stored, workout charts can express lifts as % of bodyweight (e.g. Pull-ups +60 kg at 90 kg = 167% BW). Climbing is a power-to-weight sport so this reframes raw numbers in a meaningful way
 - [ ] **"Why track this?" info button** — a hold-to-reveal tooltip or info overlay on optional fields (weight, height, nutrition, supplements) explaining what insights that data unlocks. Keeps the UI clean for people who just want to log, but rewards curiosity
