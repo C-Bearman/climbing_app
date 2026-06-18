@@ -890,21 +890,37 @@
     <!-- Data section — separate workout CSV file -->
     <div class="section" style="margin-top: 16px;">
       <div class="section-head">
-        <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
         Workout Data
       </div>
-      <div class="filename-row" style="margin-bottom: 10px;">
-        <input type="text" id="workout-filename" class="filename-input"
-               placeholder="workout_data"
-               oninput="onWorkoutFilenameChange(this.value)" />
+      <div class="field-top" style="margin-bottom:6px;">
+        <span class="field-name" style="font-size:13px;">File name</span>
+      </div>
+      <div class="input-wrap" style="margin-bottom:12px;">
+        <input type="text" id="workout-filename" placeholder="workout_data"
+               style="width:100%;padding:10px 46px 10px 12px;font-size:15px;color:var(--text);background:var(--surface2);border:0.5px solid var(--border-med);border-radius:var(--radius-sm);outline:none;font-family:inherit;"
+               oninput="onWorkoutFilenameChange(this.value)">
         <span class="unit">.csv</span>
       </div>
-      <div class="data-btns">
-        <button class="data-btn" onclick="exportWorkoutCSV(false)">Export CSV</button>
-        <button class="data-btn" onclick="exportWorkoutCSV(true)">Save as new</button>
-        <button class="data-btn" onclick="document.getElementById('workout-file-input').click()">Import CSV</button>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
+        <button class="cbtn sel-yes" style="padding:11px 8px;" onclick="exportWorkoutCSV(false)">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" style="width:15px;height:15px;stroke:currentColor;"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Export
+        </button>
+        <button class="cbtn" style="padding:11px 8px;" onclick="exportWorkoutCSV(true)">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" style="width:15px;height:15px;stroke:currentColor;"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+          Save as new
+        </button>
       </div>
-      <input type="file" id="workout-file-input" accept=".csv,text/csv,text/plain,*/*" style="display:none" />
+      <input type="file" id="workout-file-input" accept=".csv,text/csv,text/plain,*/*" style="display:none">
+      <button class="cbtn" style="width:100%;padding:11px;" onclick="document.getElementById('workout-file-input').click()">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" style="width:15px;height:15px;stroke:currentColor;"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 10 12 5 7 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Import CSV
+      </button>
+      <div class="toast" id="workout-import-toast" style="margin-top:8px;">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" style="width:14px;height:14px;stroke:var(--green);"><polyline points="20 6 9 17 4 12"/></svg>
+        <span id="workout-import-msg"></span>
+      </div>
     </div>
 
   </div><!-- end #tab-workout -->
