@@ -557,11 +557,12 @@
       cursor: pointer; -webkit-tap-highlight-color: transparent;
     }
     .remove-ex-btn {
-      font-size: 12px; color: var(--text3); background: none;
-      border: 0.5px solid var(--border-med); border-radius: var(--radius-sm);
+      font-size: 12px; color: #c0392b; background: rgba(192,57,43,0.08);
+      border: 0.5px solid rgba(192,57,43,0.35); border-radius: var(--radius-sm);
       padding: 7px 12px; cursor: pointer; -webkit-tap-highlight-color: transparent;
-      margin-left: auto; /* push to right */
+      margin-left: auto; font-weight: 600;
     }
+    .remove-ex-btn:active { background: rgba(192,57,43,0.18); }
 
     /* "Add Exercise" dashed button */
     .add-exercise-btn {
@@ -1873,7 +1874,29 @@
       const cutoffStr = cutoff.toISOString().split('T')[0];
       dates = dates.filter(d => d >= cutoffStr);
     }
-    if (!dates.length) { destroyChart(chartId); return; }
+    if (dates.length < 2) {
+      destroyChart(chartId);
+      const canvas = document.getElementById(chartId);
+      if (canvas) {
+        canvas.style.display = 'none';
+        const inner = canvas.closest('.chart-inner');
+        if (inner && !inner.querySelector('.chart-empty')) {
+          const msg = document.createElement('p');
+          msg.className = 'chart-empty';
+          msg.textContent = 'Not enough data in this range — try a wider time window.';
+          inner.appendChild(msg);
+        }
+      }
+      return;
+    }
+    // Clear any previous "not enough data" message when data is sufficient
+    const canvasEl = document.getElementById(chartId);
+    if (canvasEl) {
+      canvasEl.style.display = '';
+      const inner = canvasEl.closest('.chart-inner');
+      const existing = inner && inner.querySelector('.chart-empty');
+      if (existing) existing.remove();
+    }
 
     // Join daily log entries for dot colour + general notes on hover
     const logByDate = {};
@@ -2387,7 +2410,7 @@
         <div class="ex-footer">
           <button class="add-set-btn"  onclick="addSet(this.closest('.exercise-block'))">+ Add Set</button>
           <button class="copy-set-btn" onclick="addSetCopy(this.closest('.exercise-block'))">Copy Last</button>
-          <button class="remove-ex-btn" onclick="removeExerciseWithConfirm(this.closest('.exercise-block'))">Remove</button>
+          <button class="remove-ex-btn" onclick="removeExerciseWithConfirm(this.closest('.exercise-block'))">Remove Exercise</button>
         </div>
       </div>
     `;
