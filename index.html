@@ -2817,7 +2817,11 @@
     const csv = [headers.join(','), ...rows].join('\n');
 
     let filename = getWorkoutFilename();
-    if (saveAs) filename = prompt('Save workout data as:', filename) || filename;
+    if (saveAs) {
+      const entered = prompt('Save workout data as:', filename);
+      if (entered === null) return;
+      filename = entered.trim() || filename;
+    }
     saveWorkoutFilename(filename);
     document.getElementById('workout-filename').value = filename.replace(/\.csv$/i,'');
 
