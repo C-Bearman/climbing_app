@@ -1628,10 +1628,10 @@
     const labels = data.map(e => formatDisplayDate(e.date));
     const goals  = getGoals();
     const datasets = [
-      { label:'Sleep',    data:data.map(e=>e.sleep),    borderColor:'#1D9E75', backgroundColor:'rgba(29,158,117,0.06)', borderWidth:2, tension:0.3, fill:true,  pointRadius:3, clip:false, yAxisID:'y'  },
-      { label:'Water',    data:data.map(e=>e.water),    borderColor:'#6C9BD2', backgroundColor:'rgba(108,155,210,0.06)',borderWidth:2, tension:0.3, fill:true,  pointRadius:3, clip:false, yAxisID:'y1' },
-      { label:'Physical', data:data.map(e=>e.physical), borderColor:'#E8703A', borderWidth:2, tension:0.3, fill:false, pointRadius:3, clip:false, yAxisID:'y2' },
-      { label:'Mental',   data:data.map(e=>e.mental),   borderColor:'#9B59B6', borderWidth:2, tension:0.3, fill:false, pointRadius:3, clip:false, yAxisID:'y2' }
+      { label:'Sleep',    data:data.map(e=>e.sleep),    borderColor:'#1D9E75', backgroundColor:'rgba(29,158,117,0.06)',  borderWidth:2, tension:0.3, fill:true, pointRadius:3, pointBackgroundColor:'#1D9E75', clip:false, yAxisID:'y'  },
+      { label:'Water',    data:data.map(e=>e.water),    borderColor:'#6C9BD2', backgroundColor:'rgba(108,155,210,0.06)', borderWidth:2, tension:0.3, fill:true, pointRadius:3, pointBackgroundColor:'#6C9BD2', clip:false, yAxisID:'y1' },
+      { label:'Physical', data:data.map(e=>e.physical), borderColor:'#E8703A', backgroundColor:'rgba(232,112,58,0.06)',  borderWidth:2, tension:0.3, fill:true, pointRadius:3, pointBackgroundColor:'#E8703A', clip:false, yAxisID:'y2' },
+      { label:'Mental',   data:data.map(e=>e.mental),   borderColor:'#9B59B6', backgroundColor:'rgba(155,89,182,0.06)', borderWidth:2, tension:0.3, fill:true, pointRadius:3, pointBackgroundColor:'#9B59B6', clip:false, yAxisID:'y2' }
     ];
     if (goals.sleep) datasets.push({ label:'Sleep goal', data:Array(labels.length).fill(goals.sleep), borderColor:'#1D9E75', borderWidth:1.5, borderDash:[6,4], pointRadius:0, fill:false, tension:0, yAxisID:'y' });
     if (goals.water) datasets.push({ label:'Water goal', data:Array(labels.length).fill(goals.water), borderColor:'#6C9BD2', borderWidth:1.5, borderDash:[6,4], pointRadius:0, fill:false, tension:0, yAxisID:'y1' });
@@ -1639,6 +1639,21 @@
     opts.scales.y.ticks.color = '#1D9E75';
     opts.scales.y1 = { position:'right', min:0, max:5, ticks:{color:'#6C9BD2',font:{size:10}}, grid:{drawOnChartArea:false}, afterFit:(axis)=>{axis.width=28;} };
     opts.scales.y2 = { position:'left', min:1, max:10, display:false, grid:{drawOnChartArea:false} };
+    opts.plugins.tooltip.callbacks = {
+      title: ctx => ctx.every(i => i.dataset.label.includes('goal')) ? [] : [ctx[0].label],
+      label: ctx => {
+        const v = ctx.parsed.y;
+        switch (ctx.dataset.label) {
+          case 'Sleep':      return ` Sleep: ${v}h`;
+          case 'Water':      return ` Water: ${v}L`;
+          case 'Physical':   return ` Physical: ${v}/10`;
+          case 'Mental':     return ` Mental: ${v}/10`;
+          case 'Sleep goal': return ` Sleep goal: ${v}h`;
+          case 'Water goal': return ` Water goal: ${v}L`;
+          default:           return null;
+        }
+      }
+    };
     chartInstances['trends'] = new Chart(document.getElementById('chart-trends'), { type:'line', data:{labels,datasets}, options:opts });
     restorePillStates('trends');
   }
