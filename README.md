@@ -51,14 +51,18 @@ Whenever a change is pushed to `master`, GitHub Pages redeploys within ~60 secon
 - [x] `feature/workout-tracker` — third Workout tab; exercises with flexible field tracking (Reps / Weight / Duration); PB chips; sets with copy/hold-to-delete; full-screen save confirmation; CSV export & import
 
 ### Next up
-- [ ] Workout data visualisations in Charts tab — progress lines per exercise, PB milestones
-- [ ] Body weight tracking + strength-to-weight ratio — optional daily body weight entry; show weighted exercises as % of bodyweight (e.g. Pull-ups +60 kg at 90 kg = 167% BW). Climbing is a power-to-weight sport so this puts raw numbers in context
+- [ ] Workout data visualisations in Charts tab — refine the exercise picker UX; add PB milestone marker (dashed line at all-time best); wire up the existing time-range slider to workout charts
 - [ ] History log UX — show 3 entries at a time, scrollable, rather than the full list
 - [ ] Onboarding / tutorial overlay — first-launch walkthrough of Log, Workout and Charts tabs
 
+### Log page — planned additions
+- [ ] **Body measurements (optional, infrequent)** — weight (kg) and height (cm) stored as a separate profile, not a daily log field. Not something you fill in every session — more like a one-time or monthly update. Needs a dedicated section or modal, separate from the day-to-day log form
+- [ ] **Strength-to-weight insights** — once body weight is stored, workout charts can express lifts as % of bodyweight (e.g. Pull-ups +60 kg at 90 kg = 167% BW). Climbing is a power-to-weight sport so this reframes raw numbers in a meaningful way
+- [ ] **"Why track this?" info button** — a hold-to-reveal tooltip or info overlay on optional fields (weight, height, nutrition, supplements) explaining what insights that data unlocks. Keeps the UI clean for people who just want to log, but rewards curiosity
+- [ ] **Nutrition quality slider** (1–10, self-rated — how well did you eat today?) alongside the existing calorie/protein fields
+- [ ] **Supplement tracker** — user-defined tick-box list (creatine, vitamin D, protein shake, etc.); presence/absence per day is enough — no units needed. Configurable by the user, similar to how exercises are defined in the workout tracker
+
 ### Future branches
-- [ ] Daily log: optional nutrition quality slider (1–10, self-rated — how well did you eat today?) alongside the existing calorie/protein fields
-- [ ] Daily log: optional supplement tracker (creatine, protein, vitamins etc.) — free-text or checklist, user-configurable
 - [ ] Goal lines extended to more metrics beyond sleep and water
 - [ ] Water reminder notifications during climbing sessions
 - [ ] Auto-sync to Google Sheets via Google Apps Script
