@@ -335,7 +335,7 @@
     #cs-workout.open .chart-body { max-height: 6000px; }
 
     /* Exercise picker dropdown inside workout charts */
-    .wo-picker-row { margin-bottom: 16px; }
+    .wo-picker-row { margin-bottom: 12px; }
     #wo-exercise-picker {
       width: 100%; padding: 10px 12px; font-size: 14px; font-family: inherit;
       color: var(--text); background: var(--surface2);
@@ -344,16 +344,40 @@
     }
     #wo-exercise-picker:focus { border-color: var(--green); }
 
-    /* Per-exercise block inside the workout charts container */
-    .wo-exercise-title {
-      font-size: 14px; font-weight: 700; color: var(--text);
-      padding: 4px 0 2px; margin-bottom: 4px;
-      border-bottom: 1px solid var(--border); margin-top: 8px;
+    /* Individual exercise chart card */
+    .wo-exercise-card {
+      background: var(--surface2); border: 0.5px solid var(--border);
+      border-radius: var(--radius); padding: 14px 14px 16px;
+      margin-bottom: 12px;
     }
-    .wo-exercise-title:first-child { margin-top: 0; }
-    .wo-chart-label {
-      font-size: 11px; font-weight: 600; color: var(--text3);
-      text-transform: uppercase; letter-spacing: 0.4px; margin: 8px 0 4px;
+    .wo-card-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 4px;
+    }
+    .wo-exercise-title {
+      font-size: 14px; font-weight: 700; color: var(--text); margin: 0;
+    }
+    .wo-card-actions { display: flex; align-items: center; gap: 6px; }
+    .wo-info-btn {
+      background: none; border: none; cursor: pointer;
+      color: var(--text3); font-size: 15px; line-height: 1;
+      padding: 2px 4px; -webkit-tap-highlight-color: transparent;
+    }
+    .wo-remove-btn {
+      background: none; border: none; cursor: pointer;
+      color: var(--text3); font-size: 20px; line-height: 1;
+      padding: 2px 4px; -webkit-tap-highlight-color: transparent;
+    }
+    /* Pill row inside workout cards — reuses .pill / .pill-active */
+    .wo-pill-row { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 8px; }
+
+    /* Colour-by selector row */
+    .wo-color-row { display: flex; align-items: center; gap: 6px; margin: 8px 0 10px; }
+    .wo-color-label { font-size: 11px; color: var(--text3); white-space: nowrap; }
+    .wo-color-select {
+      font-size: 11px; color: var(--text2); background: var(--surface2);
+      border: 1px solid var(--border); border-radius: 6px;
+      padding: 3px 6px; cursor: pointer; flex: 1; max-width: 160px;
     }
 
     .chart-inner { padding: 0 16px 16px; }
@@ -997,10 +1021,14 @@
       <div class="chart-body">
         <div class="chart-inner">
           <canvas id="chart-session" class="chart-canvas"></canvas>
-          <div class="sleep-legend">
-            <div class="sleep-legend-item"><div class="sleep-legend-dot" style="background:#1D9E75"></div> 8h+ sleep</div>
-            <div class="sleep-legend-item"><div class="sleep-legend-dot" style="background:#BA7517"></div> 6–8h sleep</div>
-            <div class="sleep-legend-item"><div class="sleep-legend-dot" style="background:#A32D2D"></div> &lt;6h sleep</div>
+          <div class="sleep-legend" id="session-legend"></div>
+          <div class="wo-color-row">
+            <span class="wo-color-label">Colour nodes by</span>
+            <select class="wo-color-select" id="session-color-select" onchange="setSessColor(this.value)">
+              <option value="sleep">Sleep</option>
+              <option value="mental">Mental energy</option>
+              <option value="physical">Physical energy</option>
+            </select>
           </div>
         </div>
       </div>
@@ -1023,10 +1051,14 @@
       <div class="chart-body">
         <div class="chart-inner">
           <canvas id="chart-flex" class="chart-canvas"></canvas>
-          <div class="sleep-legend">
-            <div class="sleep-legend-item"><div class="sleep-legend-dot" style="background:#1D9E75"></div> 8h+ sleep</div>
-            <div class="sleep-legend-item"><div class="sleep-legend-dot" style="background:#BA7517"></div> 6–8h sleep</div>
-            <div class="sleep-legend-item"><div class="sleep-legend-dot" style="background:#A32D2D"></div> &lt;6h sleep</div>
+          <div class="sleep-legend" id="flex-legend"></div>
+          <div class="wo-color-row">
+            <span class="wo-color-label">Colour nodes by</span>
+            <select class="wo-color-select" id="flex-color-select" onchange="setFlexColor(this.value)">
+              <option value="sleep">Sleep</option>
+              <option value="mental">Mental energy</option>
+              <option value="physical">Physical energy</option>
+            </select>
           </div>
         </div>
       </div>
@@ -1100,7 +1132,7 @@
         <div class="chart-section-head-left">
           <div>
             <div class="chart-section-title">Workout Progress</div>
-            <div class="chart-section-sub">Select an exercise to see your progress</div>
+            <div class="chart-section-sub">Add exercises to compare your progress</div>
           </div>
         </div>
         <svg class="chart-chevron" viewBox="0 0 24 24" fill="none" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
@@ -1645,13 +1677,57 @@
      drawExerciseCharts() — the actual rendering logic.
   ============================================================ */
 
-  /* Called by drawAllCharts — just refreshes the picker options */
+  // Tracks which exercises are currently displayed as cards
+  let woShown = new Set();
+
+  // Tracks the currently selected metric pill per exercise name
+  let woMetricState = {};
+
+  // Tracks which log field colours the dots, per exercise card
+  let woColorState = {};
+
+  // Per-chart colour field for Session Rating and Flexibility charts
+  let sessionColorField = 'sleep';
+  let flexColorField    = 'sleep';
+
+  // Available colour-by fields with fixed thresholds (hi = green, mid = amber, below = red)
+  const WO_COLOR_FIELDS = {
+    sleep:    { label: 'Sleep',           get: e => e.sleep,    hi: 8, mid: 6, hiLabel: '8h+',  midLabel: '6–8h', loLabel: '<6h'  },
+    mental:   { label: 'Mental energy',   get: e => e.mental,   hi: 7, mid: 5, hiLabel: '7–10', midLabel: '5–6',  loLabel: '1–4'  },
+    physical: { label: 'Physical energy', get: e => e.physical, hi: 7, mid: 5, hiLabel: '7–10', midLabel: '5–6',  loLabel: '1–4'  },
+  };
+
+  // All possible metrics — label shown on pill, unit for axis/tooltip, aggregation fn
+  const WO_METRICS = {
+    max_weight:     { label: 'Session Max (kg)',    unit: 'kg',   agg: (day) => Math.max(...day.map(s => s.weight_kg  || 0)) || null },
+    total_weight:   { label: 'Session Total (kg)',  unit: 'kg',   agg: (day) => day.reduce((t, s) => t + (s.weight_kg  || 0), 0) || null },
+    max_reps:       { label: 'Session Max (reps)',  unit: 'reps', agg: (day) => Math.max(...day.map(s => s.reps       || 0)) || null },
+    total_reps:     { label: 'Session Total (reps)',unit: 'reps', agg: (day) => day.reduce((t, s) => t + (s.reps       || 0), 0) || null },
+    max_duration:   { label: 'Session Max (s)',     unit: 's',    agg: (day) => Math.max(...day.map(s => s.duration_s || 0)) || null },
+    total_duration: { label: 'Session Total (s)',   unit: 's',    agg: (day) => day.reduce((t, s) => t + (s.duration_s || 0), 0) || null },
+  };
+
+  // Returns the ordered list of metric keys available for a given fields array
+  function metricsForFields(fields) {
+    const keys = [];
+    if (fields.includes('weight'))   { keys.push('max_weight');   keys.push('total_weight'); }
+    if (fields.includes('reps'))     { keys.push('max_reps');     keys.push('total_reps'); }
+    if (fields.includes('duration')) { keys.push('max_duration'); keys.push('total_duration'); }
+    return keys;
+  }
+
+  // Short date format for chart x-axis: "18 Jun" (no day name)
+  function formatWorkoutDate(dateStr) {
+    return new Date(dateStr + 'T12:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+  }
+
+  /* Called by drawAllCharts — refreshes the picker and redraws any open cards */
   function drawWorkoutCharts() {
     const picker   = document.getElementById('wo-exercise-picker');
     const workouts = getWorkouts();
     if (!picker) return;
 
-    // Exercises with real entries, sorted by most recent use
+    // Exercises with real entries, sorted by most recently used
     const lastUsed = {};
     workouts.forEach(s => {
       const key = s.exercise.toLowerCase();
@@ -1661,14 +1737,12 @@
       .filter(e => lastUsed[e.name.toLowerCase()])
       .sort((a, b) => (lastUsed[b.name.toLowerCase()] || '').localeCompare(lastUsed[a.name.toLowerCase()] || ''));
 
-    // Preserve current selection across redraws
-    const current = picker.value;
-    picker.innerHTML = '<option value="">— choose an exercise —</option>';
+    // Rebuild picker — skip exercises already shown as cards
+    picker.innerHTML = '<option value="">+ Add exercise</option>';
     lib.forEach(e => {
+      if (woShown.has(e.name)) return; // already on screen
       const opt = document.createElement('option');
-      opt.value       = e.name;
-      opt.textContent = e.name;
-      if (e.name === current) opt.selected = true;
+      opt.value = opt.textContent = e.name;
       picker.appendChild(opt);
     });
 
@@ -1678,37 +1752,107 @@
       return;
     }
 
-    // Re-draw whichever exercise was already selected
-    if (current && lib.find(e => e.name === current)) {
-      drawExerciseCharts(current);
-    } else {
-      // Clear stale charts if the selection is no longer valid
-      Object.keys(chartInstances).filter(k => k.startsWith('wo-')).forEach(k => destroyChart(k));
-      document.getElementById('workout-charts-container').innerHTML = '';
-    }
+    // Redraw any cards that are already showing (covers tab switch and slider changes)
+    woShown.forEach(name => {
+      const safeId  = name.toLowerCase().replace(/[^a-z0-9]/g, '-');
+      const chartId = `wo-chart-${safeId}`;
+      if (document.getElementById(chartId)) {
+        renderExerciseCharts(name);
+      }
+    });
   }
 
-  /* Called when the user picks an exercise from the dropdown */
+  /* Called when the user picks from the dropdown — adds a new card */
   function onWorkoutPickerChange(name) {
-    Object.keys(chartInstances).filter(k => k.startsWith('wo-')).forEach(k => destroyChart(k));
+    const picker = document.getElementById('wo-exercise-picker');
+    picker.value = ''; // reset to placeholder immediately
+    if (!name || woShown.has(name)) return;
+
+    woShown.add(name);
+
+    // Remove the "empty" message if present
     const container = document.getElementById('workout-charts-container');
-    container.innerHTML = '';
-    if (!name) return;
-    drawExerciseCharts(name);
+    const empty = container.querySelector('.chart-empty');
+    if (empty) empty.remove();
+
+    // Determine available metrics for this exercise
+    const safeId  = name.toLowerCase().replace(/[^a-z0-9]/g, '-');
+    const lib     = getExerciseLib();
+    const ex      = lib.find(e => e.name.toLowerCase() === name.toLowerCase());
+    const fields  = ex ? (ex.fields || typeToFields(ex.type || '')) : [];
+    const metrics = metricsForFields(fields);
+
+    // Default to the first metric (Session Max of the PB field)
+    const pbField    = ex ? (ex.pb_field || fields[0] || '') : '';
+    const defaultKey = metrics.find(k => k.includes(pbField)) || metrics[0] || 'max_reps';
+    woMetricState[name] = defaultKey;
+
+    // Build pill HTML
+    const pillsHtml = metrics.map(key =>
+      `<button class="pill ${key === defaultKey ? 'pill-active' : ''}"
+               style="--pill-color:var(--green)"
+               onclick="setWoMetric('${name}','${key}')">${WO_METRICS[key].label}</button>`
+    ).join('');
+
+    // Build colour-by selector options
+    const colorOpts = Object.entries(WO_COLOR_FIELDS).map(([k, f]) =>
+      `<option value="${k}">${f.label}</option>`).join('');
+
+    // Create and append the card shell — one chart, pills above it, info button in header
+    const card = document.createElement('div');
+    card.className = 'wo-exercise-card';
+    card.id        = `wo-card-${safeId}`;
+    card.innerHTML = `
+      <div class="wo-card-header">
+        <p class="wo-exercise-title">${name}</p>
+        <div class="wo-card-actions">
+          <button class="wo-info-btn" onclick="showWoInfo('${name}')">ℹ︎</button>
+          <button class="wo-remove-btn" onclick="removeExerciseCard('${name}')">×</button>
+        </div>
+      </div>
+      <div class="wo-pill-row" id="wo-pills-${safeId}">${pillsHtml}</div>
+      <div class="chart-inner" style="height:230px;">
+        <canvas id="wo-chart-${safeId}" class="chart-canvas"></canvas>
+      </div>
+      <div class="sleep-legend" id="wo-legend-${safeId}"></div>
+      <div class="wo-color-row" id="wo-color-row-${safeId}">
+        <span class="wo-color-label">Colour nodes by</span>
+        <select class="wo-color-select" onchange="setWoColor('${name}', this.value)">${colorOpts}</select>
+      </div>`;
+    container.appendChild(card);
+
+    renderExerciseCharts(name);
+
+    // Remove this exercise from the picker now it's on screen
+    drawWorkoutCharts();
   }
 
-  /* Renders the progress line + volume bar for one exercise */
-  function drawExerciseCharts(name) {
-    const container = document.getElementById('workout-charts-container');
-    const workouts  = getWorkouts();
-    const lib       = getExerciseLib();
-    const ex        = lib.find(e => e.name.toLowerCase() === name.toLowerCase());
+  /* Removes an exercise card and destroys its chart instance */
+  function removeExerciseCard(name) {
+    const safeId = name.toLowerCase().replace(/[^a-z0-9]/g, '-');
+    destroyChart(`wo-chart-${safeId}`);
+    const card = document.getElementById(`wo-card-${safeId}`);
+    if (card) card.remove();
+    woShown.delete(name);
+    delete woMetricState[name];
+    drawWorkoutCharts(); // add it back to the picker
+  }
+
+  /* Renders (or re-renders) the single chart inside an existing card using the current metric */
+  function renderExerciseCharts(name) {
+    const workouts   = getWorkouts();
+    const lib        = getExerciseLib();
+    const ex         = lib.find(e => e.name.toLowerCase() === name.toLowerCase());
     if (!ex) return;
 
-    const fields  = ex.fields  || typeToFields(ex.type || '');
-    const pbField = ex.pb_field || fields[0] || '';
+    const fields     = ex.fields || typeToFields(ex.type || '');
+    const safeId     = name.toLowerCase().replace(/[^a-z0-9]/g, '-');
+    const chartId    = `wo-chart-${safeId}`;
+    const metricKey  = woMetricState[name] || metricsForFields(fields)[0] || 'max_reps';
+    const metric     = WO_METRICS[metricKey];
+    if (!metric) return;
 
-    // All sets for this exercise, grouped by date
+    // Group sets by date
     const sets = workouts
       .filter(s => s.exercise.toLowerCase() === name.toLowerCase())
       .sort((a, b) => a.date.localeCompare(b.date));
@@ -1719,85 +1863,120 @@
       if (!byDate[s.date]) byDate[s.date] = [];
       byDate[s.date].push(s);
     });
-    const dates  = Object.keys(byDate).sort();
-    const labels = dates.map(d => formatDisplayDate(d));
+    // Apply the same time-range filter as the main slider
+    const rangeVal  = parseInt(document.getElementById('range-slider').value);
+    const rangeDays = RANGE_DAYS[rangeVal];
+    let dates = Object.keys(byDate).sort();
+    if (rangeDays !== Infinity) {
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - rangeDays);
+      const cutoffStr = cutoff.toISOString().split('T')[0];
+      dates = dates.filter(d => d >= cutoffStr);
+    }
+    if (!dates.length) { destroyChart(chartId); return; }
 
-    // ── Progress: best value per session for the PB field ──
-    const progressData = dates.map(d => {
-      const day = byDate[d];
-      if (pbField === 'weight')   return Math.max(...day.map(s => s.weight_kg  || 0)) || null;
-      if (pbField === 'reps')     return Math.max(...day.map(s => s.reps       || 0)) || null;
-      if (pbField === 'duration') return Math.max(...day.map(s => s.duration_s || 0)) || null;
-      return null;
-    });
+    // Join daily log entries for dot colour + general notes on hover
+    const logByDate = {};
+    getEntries().forEach(e => { logByDate[e.date] = e; });
 
-    // ── Volume: adapts to the exercise type ──
-    // weight-tracked → set count | reps-tracked → total reps | duration → total secs
-    let volumeData, volumeLabel;
-    if (pbField === 'weight') {
-      volumeData  = dates.map(d => byDate[d].filter(s => s.reps || s.weight_kg).length);
-      volumeLabel = 'Sets';
-    } else if (pbField === 'reps') {
-      volumeData  = dates.map(d => byDate[d].reduce((sum, s) => sum + (s.reps || 0), 0));
-      volumeLabel = 'Total reps';
-    } else {
-      volumeData  = dates.map(d => byDate[d].reduce((sum, s) => sum + (s.duration_s || 0), 0));
-      volumeLabel = 'Total secs';
+    const colorKey = woColorState[name] || 'sleep';
+    const colorDef = WO_COLOR_FIELDS[colorKey];
+    const dotColor = log => {
+      if (!log) return '#6B6B66';
+      const v = colorDef.get(log);
+      if (v == null) return '#6B6B66';
+      return v >= colorDef.hi ? '#1D9E75' : v >= colorDef.mid ? '#BA7517' : '#A32D2D';
+    };
+    const dotColors = dates.map(d => dotColor(logByDate[d]));
+
+    // Update legend for this card
+    const safeIdLeg = name.toLowerCase().replace(/[^a-z0-9]/g, '-');
+    const legendEl  = document.getElementById(`wo-legend-${safeIdLeg}`);
+    if (legendEl) {
+      legendEl.innerHTML = `
+        <div class="sleep-legend-item"><div class="sleep-legend-dot" style="background:#1D9E75"></div> ${colorDef.hiLabel}</div>
+        <div class="sleep-legend-item"><div class="sleep-legend-dot" style="background:#BA7517"></div> ${colorDef.midLabel}</div>
+        <div class="sleep-legend-item"><div class="sleep-legend-dot" style="background:#A32D2D"></div> ${colorDef.loLabel}</div>
+        <div class="sleep-legend-item"><div class="sleep-legend-dot" style="background:#6B6B66"></div> no data</div>`;
     }
 
-    const unitMap = { weight: 'kg', reps: 'reps', duration: 's' };
-    const unit    = unitMap[pbField] || '';
-    const safeId  = name.toLowerCase().replace(/[^a-z0-9]/g, '-');
-    const progId  = `wo-prog-${safeId}`;
-    const volId   = `wo-vol-${safeId}`;
+    const labels = dates.map(d => formatWorkoutDate(d)); // "18 Jun" — no day name
+    const data   = dates.map(d => metric.agg(byDate[d]));
 
-    container.innerHTML = `
-      <div class="wo-chart-label">Top ${unit} per session</div>
-      <div class="chart-inner" style="height:180px; margin-bottom:20px;">
-        <canvas id="${progId}" class="chart-canvas"></canvas>
-      </div>
-      <div class="wo-chart-label">${volumeLabel} per session</div>
-      <div class="chart-inner" style="height:130px;">
-        <canvas id="${volId}" class="chart-canvas"></canvas>
-      </div>`;
+    destroyChart(chartId);
 
-    // Progress line
-    const progMax  = Math.max(...progressData.filter(Boolean)) * 1.15 || 10;
-    const progOpts = baseOptions('', 0, progMax);
-    progOpts.plugins.tooltip.callbacks = {
-      title: ctx => labels[ctx[0].dataIndex],
-      label: ctx => ` ${ctx.parsed.y} ${unit}`
+    const yMax  = Math.ceil(Math.max(...data.filter(Boolean)) * 1.15 / 5) * 5 || 10;
+    const opts  = baseOptions('', 0, yMax);
+    opts.layout.padding.top = 20;
+    opts.plugins.tooltip.callbacks = {
+      title:      ctx => formatWorkoutDate(dates[ctx[0].dataIndex]),
+      label:      ctx => ` ${ctx.parsed.y} ${metric.unit}`,
+      afterLabel: ctx => {
+        const log = logByDate[dates[ctx.dataIndex]];
+        return (log && log.notes) ? log.notes : null;
+      }
     };
-    chartInstances[progId] = new Chart(document.getElementById(progId), {
+
+    chartInstances[chartId] = new Chart(document.getElementById(chartId), {
       type: 'line',
       data: { labels, datasets: [{
-        data: progressData,
+        data,
         borderColor: '#1D9E75', backgroundColor: 'rgba(29,158,117,0.08)',
         borderWidth: 2, tension: 0.3, fill: true,
-        pointRadius: 4, pointBackgroundColor: '#1D9E75',
+        pointRadius: 4,
+        pointBackgroundColor: dotColors,
+        pointBorderColor:     dotColors,
         spanGaps: true
       }]},
-      options: progOpts
+      options: opts
+    });
+  }
+
+  /* Called when the colour-by selector changes */
+  function setWoColor(name, colorKey) {
+    woColorState[name] = colorKey;
+    renderExerciseCharts(name);
+  }
+
+  function setSessColor(key) { sessionColorField = key; drawAllCharts(); }
+  function setFlexColor(key) { flexColorField    = key; drawAllCharts(); }
+
+  /* Called when a pill is tapped — switches the metric and redraws */
+  function setWoMetric(name, metricKey) {
+    woMetricState[name] = metricKey;
+
+    // Update pill active states
+    const safeId = name.toLowerCase().replace(/[^a-z0-9]/g, '-');
+    document.querySelectorAll(`#wo-pills-${safeId} .pill`).forEach(btn => {
+      btn.classList.toggle('pill-active', btn.textContent === WO_METRICS[metricKey].label);
     });
 
-    // Volume bars
-    const volMax  = Math.max(...volumeData) * 1.2 || 10;
-    const volOpts = baseOptions('', 0, volMax);
-    volOpts.scales.y.ticks.stepSize = 1;
-    volOpts.plugins.tooltip.callbacks = {
-      title: ctx => labels[ctx[0].dataIndex],
-      label: ctx => ` ${ctx.parsed.y} ${volumeLabel.toLowerCase()}`
-    };
-    chartInstances[volId] = new Chart(document.getElementById(volId), {
-      type: 'bar',
-      data: { labels, datasets: [{
-        data: volumeData,
-        backgroundColor: 'rgba(29,158,117,0.45)',
-        borderColor: '#1D9E75',
-        borderWidth: 1, borderRadius: 4, borderSkipped: false
-      }]},
-      options: volOpts
-    });
+    renderExerciseCharts(name);
+  }
+
+  /* Info button — persistent overlay with a close button (not auto-dismissed) */
+  function showWoInfo(name) {
+    let overlay = document.getElementById('wo-info-overlay');
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.id        = 'wo-info-overlay';
+      overlay.className = 'workout-overlay';
+      overlay.innerHTML = `
+        <div class="workout-overlay-card" style="position:relative; padding-top:44px;">
+          <button onclick="document.getElementById('wo-info-overlay').classList.remove('show')"
+                  style="position:absolute;top:10px;right:12px;background:none;border:none;
+                         color:var(--text2);font-size:20px;cursor:pointer;line-height:1;">×</button>
+          <div class="workout-overlay-icon">ℹ︎</div>
+          <p class="workout-overlay-title">About these charts</p>
+          <p class="workout-overlay-sub" style="text-align:left; line-height:1.7;">
+            <b>Session Max</b> — the single best set that day.<br>
+            <b>Session Total</b> — all sets added together, including warm-ups.<br><br>
+            Dot colour shows how much sleep you logged that day.
+          </p>
+        </div>`;
+      document.body.appendChild(overlay);
+    }
+    overlay.classList.add('show');
   }
 
   function drawAllCharts() {
@@ -1950,15 +2129,22 @@
       No shared date backbone — no nulls, no gaps, clean unbroken line.
       Tooltip shows the actual date and session notes on tap.
     */
-    const sleepColor = e => e.sleep >= 8 ? '#1D9E75' : e.sleep >= 6 ? '#BA7517' : '#A32D2D';
+    const colorDef  = WO_COLOR_FIELDS[sessionColorField] || WO_COLOR_FIELDS.sleep;
+    const dotColor  = e => { const v = colorDef.get(e); return v == null ? '#6B6B66' : v >= colorDef.hi ? '#1D9E75' : v >= colorDef.mid ? '#BA7517' : '#A32D2D'; };
+    const legendEl  = document.getElementById('session-legend');
+    if (legendEl) legendEl.innerHTML = `
+      <div class="sleep-legend-item"><div class="sleep-legend-dot" style="background:#1D9E75"></div> ${colorDef.hiLabel}</div>
+      <div class="sleep-legend-item"><div class="sleep-legend-dot" style="background:#BA7517"></div> ${colorDef.midLabel}</div>
+      <div class="sleep-legend-item"><div class="sleep-legend-dot" style="background:#A32D2D"></div> ${colorDef.loLabel}</div>
+      <div class="sleep-legend-item"><div class="sleep-legend-dot" style="background:#6B6B66"></div> no data</div>`;
 
     const opts = baseOptions('', 1, 10);
     opts.plugins.tooltip = {
       displayColors: false,
       callbacks: {
-        title:      ctx => ctx[0].raw.date,  // title receives array — ctx[0] correct
-        label:      ()  => '',               // suppress default "y value" line
-        afterLabel: ctx => ctx.raw.notes || ''  // notes on second line if they exist
+        title:      ctx => ctx[0].raw.date,
+        label:      ()  => '',
+        afterLabel: ctx => ctx.raw.notes || ''
       }
     };
     opts.scales.x = {
@@ -1984,8 +2170,8 @@
           })),
           borderColor: 'rgba(29,158,117,0.4)',
           borderWidth: 2, tension: 0.3,
-          pointBackgroundColor: sessData.map(e => sleepColor(e)),
-          pointBorderColor:     sessData.map(e => sleepColor(e)),
+          pointBackgroundColor: sessData.map(e => dotColor(e)),
+          pointBorderColor:     sessData.map(e => dotColor(e)),
           pointRadius: 5, pointHoverRadius: 8,
           fill: false, clip: false
         }]
@@ -2029,7 +2215,14 @@
       Ordinal x-axis: each stretching session is numbered 1, 2, 3...
       Tooltip shows date and general notes on tap.
     */
-    const sleepColor = e => e.sleep >= 8 ? '#1D9E75' : e.sleep >= 6 ? '#BA7517' : '#A32D2D';
+    const colorDefF = WO_COLOR_FIELDS[flexColorField] || WO_COLOR_FIELDS.sleep;
+    const dotColorF = e => { const v = colorDefF.get(e); return v == null ? '#6B6B66' : v >= colorDefF.hi ? '#1D9E75' : v >= colorDefF.mid ? '#BA7517' : '#A32D2D'; };
+    const legendElF = document.getElementById('flex-legend');
+    if (legendElF) legendElF.innerHTML = `
+      <div class="sleep-legend-item"><div class="sleep-legend-dot" style="background:#1D9E75"></div> ${colorDefF.hiLabel}</div>
+      <div class="sleep-legend-item"><div class="sleep-legend-dot" style="background:#BA7517"></div> ${colorDefF.midLabel}</div>
+      <div class="sleep-legend-item"><div class="sleep-legend-dot" style="background:#A32D2D"></div> ${colorDefF.loLabel}</div>
+      <div class="sleep-legend-item"><div class="sleep-legend-dot" style="background:#6B6B66"></div> no data</div>`;
 
     const opts = baseOptions('', 1, 10);
     opts.plugins.tooltip = {
@@ -2063,8 +2256,8 @@
           })),
           borderColor: 'rgba(155,89,182,0.4)',
           borderWidth: 2, tension: 0.3,
-          pointBackgroundColor: flexData.map(e => sleepColor(e)),
-          pointBorderColor:     flexData.map(e => sleepColor(e)),
+          pointBackgroundColor: flexData.map(e => dotColorF(e)),
+          pointBorderColor:     flexData.map(e => dotColorF(e)),
           pointRadius: 5, pointHoverRadius: 8,
           fill: false, clip: false
         }]
