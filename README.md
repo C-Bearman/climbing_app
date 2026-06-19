@@ -61,6 +61,7 @@ Whenever a change is pushed to `master`, GitHub Pages redeploys within ~60 secon
 - [ ] History log UX — show 3 entries at a time, scrollable, rather than the full list
 - [ ] Onboarding / tutorial overlay — first-launch walkthrough of Log, Workout and Charts tabs; must include how to rename or delete a misspelled exercise name (e.g. if a user saves "Jumpinh" they currently have no way to correct it); should also ask on first launch whether the user has existing data to import (supports the coach use-case where athletes export their CSV and hand it to a coach who can import and view their data)
 - [ ] UX review: audit all info (ℹ︎) buttons across the app — check the text shown is accurate, helpful, and consistent in tone
+- [ ] **User-configurable optional sections** — as more optional fields are added (finger health, nutrition, supplements, body measurements etc.), users should be able to hide sections they don't track and re-enable them later; a simple show/hide toggle per section stored in localStorage would keep the log form clean for users who only want the core fields
 - [ ] User-configurable dot colour thresholds — Session Rating, Flexibility, and Workout Progress charts all let users choose which metric colours the dots (sleep / mental / physical energy); extend this so users can set their own green/amber/red thresholds per metric (e.g. "for me, 7h+ sleep is good, not 8h+")
 
 ### Charts — UI polish
@@ -81,8 +82,8 @@ Whenever a change is pushed to `master`, GitHub Pages redeploys within ~60 secon
 
 ### Log page — planned additions
 - [ ] **Climbing session type tracking** — when logging a climbing day, capture what kind of session it was: discipline (bouldering / rope / both), session goal (max effort / projecting / technique / volume), and effort level. This enriches the Session Rating chart context and could unlock filters like "show only projecting sessions" or correlate session type with rating trends
-
-
+- [ ] **Perceived session effort** — a simple 1–10 slider or rating for "how hard did today's session feel?", distinct from Session Rating (which captures quality/performance). Useful for tracking RPE trends and spotting when high effort isn't translating to good sessions (fatigue, overtraining signals)
+- [ ] **Finger health tracking** *(optional field)* — a daily finger health rating (1–10) or a quick "any issues?" toggle with a notes field; useful for monitoring tweaks, pulley strains, and recovery over time. Could tie into the charts tab to overlay finger health against session ratings
 - [ ] **Body measurements (optional, infrequent)** — weight (kg) and height (cm) stored as a separate profile, not a daily log field. Not something you fill in every session — more like a one-time or monthly update. Needs a dedicated section or modal, separate from the day-to-day log form
 - [ ] **Strength-to-weight insights** — once body weight is stored, workout charts can express lifts as % of bodyweight (e.g. Pull-ups +60 kg at 90 kg = 167% BW). Climbing is a power-to-weight sport so this reframes raw numbers in a meaningful way
 - [ ] **"Why track this?" info button** — a hold-to-reveal tooltip or info overlay on optional fields (weight, height, nutrition, supplements) explaining what insights that data unlocks. Keeps the UI clean for people who just want to log, but rewards curiosity
