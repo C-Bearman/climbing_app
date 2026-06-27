@@ -1677,8 +1677,9 @@
   }
 
   function proceedWithImport(mode) {
+    const fn = _validationProceedFn;
     closeValidationOverlay();
-    if (_validationProceedFn) _validationProceedFn(mode);
+    if (fn) fn(mode);
   }
 
   function updateWeekCounter() {
