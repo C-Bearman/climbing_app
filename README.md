@@ -67,17 +67,13 @@ Whenever a change is pushed to `master`, GitHub Pages redeploys within ~60 secon
 ### Charts — UI polish
 - [ ] **Draggable chart ordering** — allow users to reorder the chart accordion sections by holding and dragging, so frequently used charts (e.g. Workout Progress) can be pinned to the top; order should persist across sessions via localStorage
 - [ ] **Session Rating x-axis** — currently shows session numbers (1, 2, 3…); switch to actual dates. Complexity: the ordinal axis was chosen specifically to avoid visual gaps on days with no climbing session; switching to dates needs gap-handling so the line does not break on rest days (Chart.js `spanGaps` or pre-filtering)
-- [x] **Tooltip content for colour-coded charts** — tooltip shows date, selected colour metric value (e.g. "Sleep: 8h"), and general notes; consistent styling and spacing across all chart types; no coloured square; workout tooltip prefixes value with Max/Total and omits space before unit (e.g. "Max 22.5kg")
 - [ ] **Tooltip font rendering consistency** *(known limitation — investigated, no clean fix available)* — Session Rating and Flexibility Rating charts use a custom linear x-axis (to avoid gaps on non-climbing days), while Workout Progress uses a standard category axis. Chart.js renders Canvas tooltip text slightly differently between these two axis types. All tooltip config options (font, padding, bodySpacing, displayColors, callbacks) are now identical in code — the remaining visual difference is a Chart.js rendering artefact that cannot be controlled via the tooltip API. This is a PWA proof-of-concept constraint; a native app rewrite would not share this limitation.
 - [ ] **Selective chart re-render on colour selector change** — changing "Colour nodes by" on one chart currently triggers a full `drawAllCharts()` redraw, causing all visible charts to re-animate; ideally only the chart whose selector changed should update
-- [x] **Sleep, Water & Energy Trends — node fill** — nodes filled to match all other charts
-- [x] **Sleep, Water & Energy Trends — fill consistency** — all four lines (Sleep, Water, Physical, Mental) now have a consistent low-opacity area fill under the curve
-- [x] **Stretching Consistency — tooltip** — reads "Stretched X times" with no coloured square; week labels read "w/c 20 Apr"
+
 ### Workout tab — UI polish
 - [ ] **Workout entry management** — no way to rename a misspelled exercise or delete individual saved sets; needs a management screen or edit flow, and must be covered in the onboarding tutorial
 - [ ] **Log entry deletion** — no way to delete a past daily log entry; the history panel shows entries but only lets you view them; needs a delete button per entry (with confirmation) that removes it from localStorage and re-exports cleanly to CSV
 - [ ] **Workout date highlights** — in the workout tab date picker, highlight dates that have saved workout entries (e.g. a green underline or dot) so the user can easily spot and navigate to past sessions
-- [x] **Workout data section styling** — the data export/import section in the Workout tab is visually inconsistent with the equivalent section on the Log page; align the styling so both look identical
 - [ ] **CSV import overlay UX** — the core import validation and Merge/Replace all flow is in place; revisit the wording, layout, and visual styling of the warning overlays on both Log and Workout tabs after real-world use to see if anything needs tightening up
 
 ### Log page — planned additions
@@ -89,9 +85,6 @@ Whenever a change is pushed to `master`, GitHub Pages redeploys within ~60 secon
 - [ ] **"Why track this?" info button** — a hold-to-reveal tooltip or info overlay on optional fields (weight, height, nutrition, supplements) explaining what insights that data unlocks. Keeps the UI clean for people who just want to log, but rewards curiosity
 - [ ] **Nutrition quality slider** (1–10, self-rated — how well did you eat today?) alongside the existing calorie/protein fields
 - [ ] **Supplement tracker** — user-defined tick-box list (creatine, vitamin D, protein shake, etc.); presence/absence per day is enough — no units needed. Configurable by the user, similar to how exercises are defined in the workout tracker
-
-### Data integrity
-- [x] **CSV import validation** — validation overlay lists missing headers and malformed dates; workout CSV also checks `fields` and `pb_field` values; two-step confirmation with Merge / Replace all choice on log imports; full replace on workout imports
 
 ### Future branches
 - [ ] **Desktop / responsive layout** *(optional — Play Store is the primary target)* — the app is designed for a mobile viewport and works on phone screens. On a laptop or monitor the layout is narrow and centred. A responsive pass could widen the layout at larger breakpoints, reflow the tab navigation, and make charts larger — useful if coaches want to review athlete data on a desktop. This is lower priority than the Play Store APK build (see Eventual v1.0 below), but could be a lightweight CSS-only change if the scope is kept narrow.
