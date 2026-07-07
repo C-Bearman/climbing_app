@@ -263,6 +263,12 @@
     .estat b { color: var(--text); font-weight: 600; }
     .entry-note { font-size: 13px; color: var(--text2); margin-top: 7px; font-style: italic; border-top: 0.5px solid var(--border); padding-top: 7px; }
     .empty-hist { font-size: 13px; color: var(--text3); text-align: center; padding: 20px 0; }
+    #hist-list { max-height: 260px; overflow-y: auto; }
+    .entry-delete-btn { background:none; border:none; color:var(--text3); font-size:15px; cursor:pointer; padding:0 2px; line-height:1; flex-shrink:0; }
+    .entry-del-confirm { display:none; gap:6px; align-items:center; }
+    .entry-del-confirm button { font-size:12px; padding:3px 10px; border-radius:var(--radius-sm); border:0.5px solid; cursor:pointer; background:none; }
+    .entry-del-yes { color:#c0392b; border-color:rgba(192,57,43,0.4); }
+    .entry-del-cancel { color:var(--text2); border-color:var(--border); }
 
     /* ── Past date banner ── */
     .past-date-banner {
@@ -1398,11 +1404,20 @@
     const entries = getEntries();
     const list = document.getElementById('hist-list');
     if (!entries.length) { list.innerHTML = '<p class="empty-hist">No entries yet!</p>'; return; }
-    list.innerHTML = entries.slice(0,30).map(e => {
+    list.innerHTML = entries.map(e => {
       const icon = e.climbing === 'yes' ? '🧗' : e.climbing === 'no' ? '💤' : '';
       const stretchStr = e.stretching === 'yes' ? ' · 🧘' : '';
-      return `<div class="entry-card">
-        <div class="entry-date">${icon} ${formatDisplayDate(e.date)}${stretchStr}</div>
+      return `<div class="entry-card" id="entry-${e.date}">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:7px;">
+          <div class="entry-date" style="margin-bottom:0;">${icon} ${formatDisplayDate(e.date)}${stretchStr}</div>
+          <div style="display:flex;align-items:center;gap:6px;">
+            <button class="entry-delete-btn" onclick="deleteEntry('${e.date}')" title="Delete entry">✕</button>
+            <div class="entry-del-confirm" id="del-confirm-${e.date}">
+              <button class="entry-del-yes" onclick="confirmDeleteEntry('${e.date}')">Delete</button>
+              <button class="entry-del-cancel" onclick="renderHist()">Cancel</button>
+            </div>
+          </div>
+        </div>
         <div class="entry-stats">
           <div class="estat">Sleep <b>${e.sleep}h</b></div>
           <div class="estat">Water <b>${e.water}L</b></div>
@@ -1415,6 +1430,16 @@
         ${e.notes      ? `<div class="entry-note">📋 "${e.notes}"</div>` : ''}
       </div>`;
     }).join('');
+  }
+
+  function deleteEntry(date) {
+    document.getElementById(`entry-${date}`).querySelector('.entry-delete-btn').style.display = 'none';
+    document.getElementById(`del-confirm-${date}`).style.display = 'flex';
+  }
+
+  function confirmDeleteEntry(date) {
+    saveEntries(getEntries().filter(e => e.date !== date));
+    renderStreak(); updateWeekCounter(); renderHist();
   }
 
   /* ── Data / CSV ── */
