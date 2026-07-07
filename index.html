@@ -606,6 +606,12 @@
     .workout-overlay-title { font-size: 20px; font-weight: 700; color: var(--text); margin: 0 0 6px; }
     .workout-overlay-sub   { font-size: 13px; color: var(--text2); margin: 0; line-height: 1.5; }
 
+    /* Exercise session notes */
+    .ex-notes-row { display:flex; align-items:center; gap:8px; padding:10px 14px 4px; }
+    .ex-notes-input { flex:1; background:var(--surface2); border:0.5px solid var(--border); border-radius:var(--radius-sm); padding:8px 10px; font-size:13px; color:var(--text); font-family:inherit; }
+    .ex-notes-input::placeholder { color:var(--text3); }
+    .ex-notes-counter { font-size:11px; color:var(--text3); flex-shrink:0; }
+
     /* Inline validation error on exercise blocks */
     .exercise-block.ex-error { border-color: #e05252; }
     .ex-error-msg {
@@ -2162,6 +2168,10 @@
     const logByDate = {};
     getEntries().forEach(e => { logByDate[e.date] = e; });
 
+    // Build workout notes lookup (stored on set_number 1)
+    const notesByDate = {};
+    sets.forEach(s => { if (s.set_number === 1 && s.notes) notesByDate[s.date] = s.notes; });
+
     const colorKey = woColorState[name] || 'sleep';
     const colorDef = WO_COLOR_FIELDS[colorKey];
     const dotColor = log => {
@@ -2196,9 +2206,11 @@
       title:      ctx => formatWorkoutDate(dates[ctx[0].dataIndex]),
       label:      ctx => { const sep = metric.unit === 'reps' ? ' ' : ''; return `${metricKey.startsWith('max_') ? 'Max' : 'Total'} ${ctx.parsed.y}${sep}${metric.unit}`; },
       afterLabel: ctx => {
-        const log   = logByDate[dates[ctx.dataIndex]];
+        const date  = dates[ctx.dataIndex];
+        const log   = logByDate[date];
         const lines = [];
         const m = colorMetricLine(colorDef, log); if (m) lines.push(m);
+        if (notesByDate[date]) lines.push(`📝 ${notesByDate[date]}`);
         if (log && log.notes) lines.push(log.notes);
         return lines;
       }
@@ -2674,6 +2686,10 @@
           <button class="copy-set-btn" onclick="addSetCopy(this.closest('.exercise-block'))">Copy Last</button>
           <button class="remove-ex-btn" onclick="removeExerciseWithConfirm(this.closest('.exercise-block'))">Remove Exercise</button>
         </div>
+        <div class="ex-notes-row">
+          <input type="text" class="ex-notes-input" maxlength="40" placeholder="Session notes (optional)" oninput="this.nextElementSibling.textContent=this.value.length+'/40'">
+          <span class="ex-notes-counter">0/40</span>
+        </div>
       </div>
     `;
 
@@ -2958,12 +2974,14 @@
       if (existing) { existing.fields = fields; existing.pb_field = pbField; }
       else lib.push({ name, fields, pb_field: pbField });
 
+      const exNotes = block.querySelector('.ex-notes-input')?.value.trim() || '';
       block.querySelectorAll('.set-row').forEach((row, i) => {
         const set = {
           date: workoutDate, exercise: name,
           fields: fields.join('|'), pb_field: pbField,
           set_number: i + 1,
-          reps: null, weight_kg: null, duration_s: null
+          reps: null, weight_kg: null, duration_s: null,
+          notes: i === 0 ? exNotes : ''
         };
         if (fields.includes('reps'))     set.reps       = parseInt(row.querySelector('.set-reps')?.value)     || null;
         if (fields.includes('weight'))   set.weight_kg  = parseFloat(row.querySelector('.set-weight')?.value) || null;
@@ -3019,13 +3037,14 @@
     const workouts = getWorkouts();
     if (!workouts.length) { showWorkoutOverlay('⚠️', 'Nothing to export', 'Save a workout first.'); return; }
 
-    const headers = ['date','exercise','fields','pb_field','set_number','reps','weight_kg','duration_s'];
+    const headers = ['date','exercise','fields','pb_field','set_number','reps','weight_kg','duration_s','notes'];
     const rows    = workouts.map(s =>
       [s.date, `"${s.exercise}"`,
        s.fields   || '',
        s.pb_field || '',
        s.set_number,
-       s.reps ?? '', s.weight_kg ?? '', s.duration_s ?? ''].join(',')
+       s.reps ?? '', s.weight_kg ?? '', s.duration_s ?? '',
+       s.notes ? `"${s.notes}"` : ''].join(',')
     );
     const csv = [headers.join(','), ...rows].join('\n');
 
@@ -3102,7 +3121,8 @@
         set_number: parseInt(get(cols, 'set_number')) || 1,
         reps:       parseInt(get(cols, 'reps'))       || null,
         weight_kg:  parseFloat(get(cols, 'weight_kg'))|| null,
-        duration_s: parseInt(get(cols, 'duration_s')) || null
+        duration_s: parseInt(get(cols, 'duration_s')) || null,
+        notes:      get(cols, 'notes') || ''
       });
 
       if (!lib.find(ex => ex.name.toLowerCase() === name.toLowerCase())) {
@@ -3198,6 +3218,15 @@
         });
 
       updatePBChip(block, name, data.pb_field);
+
+      // Populate notes from the first saved set
+      const firstSet = data.sets.find(s => s.set_number === 1);
+      const note = firstSet?.notes || '';
+      const notesInput = block.querySelector('.ex-notes-input');
+      if (notesInput) {
+        notesInput.value = note;
+        block.querySelector('.ex-notes-counter').textContent = `${note.length}/40`;
+      }
     });
 
     showWorkoutOverlay('📋', `Workout loaded — ${formatDisplayDate(date)}`, 'Edit your sets below and save to update.');
