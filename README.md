@@ -53,10 +53,11 @@ Whenever a change is pushed to `master`, GitHub Pages redeploys within ~60 secon
 - [x] `chore/ui-polish` — single-dot chart empty state ("not enough data" message); Remove Exercise button styled red and labelled clearly; tooltip colour metric line on all colour-coded charts (Session Rating, Flexibility, Workout Progress); tooltip label reads "Max 22.5kg" / "Total 12 reps" etc.; consistent date format across all chart tooltips ("Fri 3 Apr"); Stretching Consistency tooltip reads "Stretched X times" with week label "w/c 20 Apr"; coloured square removed from all tooltips; tooltip spacing and styling unified across chart types; Sleep/Water/Energy Trends nodes filled and all four lines have area fill; Trends tooltip formatted with colour square and units ("Sleep: 8h", "Mental: 7/10"); goal line tooltip shows label only with no date
 - [x] `feature/csv-validation` — workout data section styled to match log page; Save as new cancel bug fixed; import restricted to .csv files only; CSV validation overlay listing header and date format errors; re-upload bug after cancelling validation fixed; two-step confirmation on both log and workout imports; log import supports Merge (overwrite matching dates, keep the rest) or Replace all (wipe and reload) to support both personal sync and coach use-cases; `.gitignore` added
 - [x] `feature/history-and-deletion` — log history panel now scrollable (all entries shown, capped height with native scroll); delete button per entry with inline confirmation (Delete / Cancel); Delete Application Data button on both log and workout data sections with confirmation overlay, backup prompt, and Save data option before proceeding
+- [x] `feature/workout-refinements` — per-exercise session notes field (40-char, live counter) beneath the set controls; notes stored in workout CSV and surfaced as 📝 tooltip labels on workout progress charts; workout date picker replaced with a custom calendar grid showing a green tinge on dates with saved workout data; date badge shows an open/close chevron consistent with chart and exercise accordions
 
 ### Next up
 - [ ] Workout data visualisations in Charts tab — refine the exercise picker UX; add PB milestone marker (dashed line at all-time best)
-- [ ] Workout session notes — add a notes field to the workout tracker (per session, not per set) so users can log how a session felt; show these notes on hover in the workout charts
+- [x] Workout session notes — per-exercise notes field (40-char) on the workout tracker; shown as 📝 tooltip labels on workout progress charts
 - [ ] Workout plan import — allow importing a saved workout template (e.g. "Pulling session: 5×pull-ups, 3×ring rows") that pre-populates the exercise list so the user doesn't have to build it from scratch each time
 - [ ] Rest day data — decide how rest days interact with the workout tracker; currently the workout tab is always available regardless of the daily log climbing toggle. Consider whether rest day entries should be blocked, flagged, or used to show recovery context on workout charts
 - [x] History log UX — show 3 entries at a time, scrollable, rather than the full list
@@ -74,7 +75,7 @@ Whenever a change is pushed to `master`, GitHub Pages redeploys within ~60 secon
 ### Workout tab — UI polish
 - [ ] **Workout entry management** — no way to rename a misspelled exercise or delete individual saved sets; needs a management screen or edit flow, and must be covered in the onboarding tutorial
 - [x] **Log entry deletion** — delete button per entry with inline confirmation; entry removed from localStorage, streak and week counter update immediately
-- [ ] **Workout date highlights** — in the workout tab date picker, highlight dates that have saved workout entries (e.g. a green underline or dot) so the user can easily spot and navigate to past sessions
+- [x] **Workout date highlights** — workout date picker replaced with a custom calendar grid; dates with saved entries shown with a green tinge; date badge shows open/close chevron
 - [ ] **CSV import overlay UX** — the core import validation and Merge/Replace all flow is in place; revisit the wording, layout, and visual styling of the warning overlays on both Log and Workout tabs after real-world use to see if anything needs tightening up
 
 ### Log page — planned additions
