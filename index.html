@@ -831,6 +831,10 @@
         <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" style="width:14px;height:14px;stroke:var(--green);"><polyline points="20 6 9 17 4 12"/></svg>
         <span id="import-msg"></span>
       </div>
+      <button class="cbtn" style="width:100%;padding:11px;margin-top:8px;color:#c0392b;border-color:rgba(192,57,43,0.35);" onclick="showDeleteDataOverlay('log')">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" style="width:15px;height:15px;stroke:currentColor;"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+        Delete Application Data
+      </button>
     </div>
 
     <!-- History -->
@@ -927,6 +931,10 @@
         <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" style="width:14px;height:14px;stroke:var(--green);"><polyline points="20 6 9 17 4 12"/></svg>
         <span id="workout-import-msg"></span>
       </div>
+      <button class="cbtn" style="width:100%;padding:11px;margin-top:8px;color:#c0392b;border-color:rgba(192,57,43,0.35);" onclick="showDeleteDataOverlay('workout')">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" style="width:15px;height:15px;stroke:currentColor;"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+        Delete Application Data
+      </button>
     </div>
 
   </div><!-- end #tab-workout -->
@@ -3225,6 +3233,71 @@
 
     overlay.classList.add('show');
     setTimeout(() => overlay.classList.remove('show'), 1600);
+  }
+
+  /* ── Delete application data ── */
+  function showDeleteDataOverlay(type) {
+    let overlay = document.getElementById('delete-data-overlay');
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.id = 'delete-data-overlay';
+      overlay.className = 'workout-overlay';
+      overlay.innerHTML = `
+        <div class="workout-overlay-card" style="max-width:300px;text-align:center;padding:28px 24px 24px;">
+          <div style="font-size:40px;margin-bottom:10px;">🗑️</div>
+          <p id="delete-data-title" class="workout-overlay-title" style="margin-bottom:12px;"></p>
+          <p id="delete-data-msg" style="font-size:13px;color:var(--text2);line-height:1.6;margin:0 0 16px;text-align:left;"></p>
+          <button id="delete-data-save-btn" class="cbtn sel-yes" style="padding:10px;width:100%;margin-bottom:16px;">Save data</button>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+            <button class="cbtn" style="padding:10px;" onclick="closeDeleteDataOverlay()">Cancel</button>
+            <button id="delete-data-confirm-btn" class="cbtn" style="padding:10px;color:#c0392b;border-color:rgba(192,57,43,0.35);background:rgba(192,57,43,0.08);">Delete all</button>
+          </div>
+        </div>`;
+      document.body.appendChild(overlay);
+      overlay.addEventListener('click', e => { if (e.target === overlay) closeDeleteDataOverlay(); });
+    }
+
+    const titleEl    = document.getElementById('delete-data-title');
+    const msgEl      = document.getElementById('delete-data-msg');
+    const saveBtn    = document.getElementById('delete-data-save-btn');
+    const confirmBtn = document.getElementById('delete-data-confirm-btn');
+
+    if (type === 'log') {
+      titleEl.textContent = 'Delete all daily log data?';
+      msgEl.textContent   = 'This will permanently delete all log entries stored on this device. If you do not have this data backed up, please save a copy first.';
+      saveBtn.onclick     = () => exportCSV(false);
+      confirmBtn.onclick  = () => clearLogData();
+    } else {
+      titleEl.textContent = 'Delete all workout data?';
+      msgEl.textContent   = 'This will permanently delete all workout sessions stored on this device. If you do not have this data backed up, please save a copy first.';
+      saveBtn.onclick     = () => exportWorkoutCSV(false);
+      confirmBtn.onclick  = () => clearWorkoutData();
+    }
+
+    overlay.classList.add('show');
+  }
+
+  function closeDeleteDataOverlay() {
+    const o = document.getElementById('delete-data-overlay');
+    if (o) o.classList.remove('show');
+  }
+
+  function clearLogData() {
+    localStorage.removeItem(STORAGE_KEY);
+    closeDeleteDataOverlay();
+    renderStreak(); updateWeekCounter();
+    if (document.getElementById('hist-panel').style.display === 'block') renderHist();
+    const msg = document.getElementById('import-msg'), toast = document.getElementById('import-toast');
+    msg.textContent = 'All log data deleted';
+    toast.classList.add('show'); setTimeout(() => toast.classList.remove('show'), 3000);
+  }
+
+  function clearWorkoutData() {
+    localStorage.removeItem(WORKOUT_KEY);
+    closeDeleteDataOverlay();
+    const msg = document.getElementById('workout-import-msg'), toast = document.getElementById('workout-import-toast');
+    msg.textContent = 'All workout data deleted';
+    toast.classList.add('show'); setTimeout(() => toast.classList.remove('show'), 3000);
   }
 
   /* Initialise the workout tab */
