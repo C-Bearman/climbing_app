@@ -138,6 +138,23 @@
       font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap;
     }
 
+    /* Workout tab — custom calendar picker */
+    .date-picker-panel.wo-cal-panel { display: block; padding: 0; }
+    .date-picker-panel.wo-cal-panel.open { display: block; }
+    .wo-cal { padding: 10px 14px 14px; }
+    .wo-cal-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+    .wo-cal-nav-btn { background: none; border: none; color: var(--text2); font-size: 22px; cursor: pointer; padding: 4px 8px; line-height: 1; }
+    .wo-cal-month { font-size: 14px; font-weight: 600; color: var(--text); }
+    .wo-cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+    .wo-cal-dow { font-size: 11px; color: var(--text3); text-align: center; padding-bottom: 4px; }
+    .wo-cal-day { border: none; border-radius: 6px; aspect-ratio: 1; font-size: 13px; cursor: pointer; background: transparent; color: var(--text); font-family: inherit; }
+    .wo-cal-day:active { opacity: 0.7; }
+    .wo-cal-day.has-workout { background: var(--green-light); color: var(--green); font-weight: 600; }
+    .wo-cal-day.is-selected { background: var(--green) !important; color: white !important; font-weight: 600; }
+    .wo-cal-day.is-today:not(.is-selected) { box-shadow: inset 0 0 0 1.5px var(--green); }
+    .wo-cal-day.other-month { color: var(--text3); }
+    .wo-cal-day.empty { pointer-events: none; }
+
     /* ── Section cards ── */
     .section {
       background: var(--surface); border-radius: var(--radius);
@@ -873,10 +890,8 @@
     </header>
 
     <!-- Date picker panel -->
-    <div class="date-picker-panel" id="workout-date-picker-panel">
-      <label for="workout-date-input">Logging for:</label>
-      <input type="date" id="workout-date-input" onchange="previewWorkoutDate(this.value)" />
-      <button class="date-confirm-btn" onclick="confirmWorkoutDate()">Set date</button>
+    <div class="date-picker-panel wo-cal-panel" id="workout-date-picker-panel">
+      <div class="wo-cal" id="workout-calendar"></div>
     </div>
 
     <!-- Past date banner -->
@@ -3143,22 +3158,66 @@
   function saveWorkoutFilename(v)  { localStorage.setItem(WORKOUT_FNAME_KEY, (v || 'workout_data').replace(/\.csv$/i,'').trim()); }
   function onWorkoutFilenameChange(v) { saveWorkoutFilename(v); }
 
-  /* Workout date picker — mirrors the log tab date picker exactly */
+  /* Workout date picker — custom calendar with green tinge on dates with saved workouts */
+  let calViewYear = null, calViewMonth = null;
+
   function toggleWorkoutDatePicker() {
     const panel = document.getElementById('workout-date-picker-panel');
-    if (panel.classList.contains('open')) { panel.classList.remove('open'); }
-    else { document.getElementById('workout-date-input').value = workoutDate; panel.classList.add('open'); }
+    if (panel.classList.contains('open')) { panel.classList.remove('open'); return; }
+    const d = new Date(workoutDate + 'T12:00:00');
+    calViewYear  = d.getFullYear();
+    calViewMonth = d.getMonth();
+    buildWorkoutCalendar();
+    panel.classList.add('open');
   }
-  function previewWorkoutDate(val) {
-    if (val) document.getElementById('workout-date-label').textContent = formatDisplayDate(val);
+
+  function buildWorkoutCalendar() {
+    const workoutDates = new Set(getWorkouts().map(s => s.date));
+    const today  = todayStr();
+    const year   = calViewYear;
+    const month  = calViewMonth;
+    const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    const firstDow    = new Date(year, month, 1).getDay();
+    const startOffset = (firstDow + 6) % 7; // convert Sun=0 to Mon-start
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+    let html = `<div class="wo-cal-nav">
+      <button class="wo-cal-nav-btn" onclick="shiftCalMonth(-1)">&#8249;</button>
+      <span class="wo-cal-month">${MONTHS[month]} ${year}</span>
+      <button class="wo-cal-nav-btn" onclick="shiftCalMonth(1)">&#8250;</button>
+    </div><div class="wo-cal-grid">
+      <div class="wo-cal-dow">Mo</div><div class="wo-cal-dow">Tu</div>
+      <div class="wo-cal-dow">We</div><div class="wo-cal-dow">Th</div>
+      <div class="wo-cal-dow">Fr</div><div class="wo-cal-dow">Sa</div>
+      <div class="wo-cal-dow">Su</div>`;
+
+    for (let i = 0; i < startOffset; i++) html += `<div class="wo-cal-day empty"></div>`;
+
+    for (let d = 1; d <= daysInMonth; d++) {
+      const ds  = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+      const cls = ['wo-cal-day'];
+      if (workoutDates.has(ds)) cls.push('has-workout');
+      if (ds === workoutDate)   cls.push('is-selected');
+      if (ds === today)         cls.push('is-today');
+      html += `<button class="${cls.join(' ')}" onclick="pickWorkoutDate('${ds}')">${d}</button>`;
+    }
+
+    html += `</div>`;
+    document.getElementById('workout-calendar').innerHTML = html;
   }
-  function confirmWorkoutDate() {
-    const val = document.getElementById('workout-date-input').value;
-    if (!val) return;
-    workoutDate = val;
+
+  function shiftCalMonth(delta) {
+    calViewMonth += delta;
+    if (calViewMonth > 11) { calViewMonth = 0; calViewYear++; }
+    if (calViewMonth < 0)  { calViewMonth = 11; calViewYear--; }
+    buildWorkoutCalendar();
+  }
+
+  function pickWorkoutDate(dateStr) {
+    workoutDate = dateStr;
     document.getElementById('workout-date-picker-panel').classList.remove('open');
     updateWorkoutDateUI();
-    loadWorkoutForDate(workoutDate); // populate blocks if entries exist for this date
+    loadWorkoutForDate(workoutDate);
   }
 
   /* Reconstruct exercise blocks from saved data for a given date.
