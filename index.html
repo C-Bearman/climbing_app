@@ -139,12 +139,14 @@
     }
 
     /* Workout tab — custom calendar picker */
-    .date-picker-panel.wo-cal-panel { display: block; padding: 0; }
-    .date-picker-panel.wo-cal-panel.open { display: block; }
+    .date-picker-panel.wo-cal-panel { display: block; max-height: 0; overflow: hidden; transition: max-height 0.3s ease; padding: 0; }
+    .date-picker-panel.wo-cal-panel.open { max-height: 460px; }
+    .wo-date-chevron { width: 12px; height: 12px; stroke: var(--text3); transition: transform 0.2s; margin-left: 2px; flex-shrink: 0; }
+    .date-badge.cal-open .wo-date-chevron { transform: rotate(180deg); }
     .wo-cal { padding: 10px 14px 14px; }
     .wo-cal-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
     .wo-cal-nav-btn { background: none; border: none; color: var(--text2); font-size: 22px; cursor: pointer; padding: 4px 8px; line-height: 1; }
-    .wo-cal-month { font-size: 14px; font-weight: 600; color: var(--text); }
+    .wo-cal-month { font-size: 14px; font-weight: 600; color: var(--text); flex: 1; text-align: center; }
     .wo-cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
     .wo-cal-dow { font-size: 11px; color: var(--text3); text-align: center; padding-bottom: 4px; }
     .wo-cal-day { border: none; border-radius: 6px; aspect-ratio: 1; font-size: 13px; cursor: pointer; background: transparent; color: var(--text); font-family: inherit; }
@@ -885,6 +887,7 @@
         <div class="date-badge" id="workout-date-badge" onclick="toggleWorkoutDatePicker()">
           <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
           <span id="workout-date-label"></span>
+          <svg class="wo-date-chevron" viewBox="0 0 24 24" fill="none" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
         </div>
       </div>
     </header>
@@ -3163,12 +3166,18 @@
 
   function toggleWorkoutDatePicker() {
     const panel = document.getElementById('workout-date-picker-panel');
-    if (panel.classList.contains('open')) { panel.classList.remove('open'); return; }
+    const badge = document.getElementById('workout-date-badge');
+    if (panel.classList.contains('open')) {
+      panel.classList.remove('open');
+      badge.classList.remove('cal-open');
+      return;
+    }
     const d = new Date(workoutDate + 'T12:00:00');
     calViewYear  = d.getFullYear();
     calViewMonth = d.getMonth();
     buildWorkoutCalendar();
     panel.classList.add('open');
+    badge.classList.add('cal-open');
   }
 
   function buildWorkoutCalendar() {
