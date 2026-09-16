@@ -2442,9 +2442,9 @@
     canvas.style.display = '';
 
     /*
-      Ordinal x-axis: each climbing session is numbered 1, 2, 3...
-      No shared date backbone — no nulls, no gaps, clean unbroken line.
-      Tooltip shows the actual date and session notes on tap.
+      Date x-axis: category axis built only from days with a session rating —
+      no shared daily backbone, so rest days simply aren't ticks and the
+      line never drops to zero. Tooltip shows the actual date and notes on tap.
     */
     const colorDef  = WO_COLOR_FIELDS[sessionColorField] || WO_COLOR_FIELDS.sleep;
     const dotColor  = e => { const v = colorDef.get(e); return v == null ? '#6B6B66' : v >= colorDef.hi ? '#1D9E75' : v >= colorDef.mid ? '#BA7517' : '#A32D2D'; };
@@ -2455,35 +2455,23 @@
       <div class="sleep-legend-item"><div class="sleep-legend-dot" style="background:#A32D2D"></div> ${colorDef.loLabel}</div>
       <div class="sleep-legend-item"><div class="sleep-legend-dot" style="background:#6B6B66"></div> no data</div>`;
 
+    const labels = sessData.map(e => formatDisplayDate(e.date));
+
     const opts = baseOptions('', 1, 10);
     opts.plugins.tooltip.displayColors = false;
     opts.plugins.tooltip.callbacks    = {
-      title:      ctx => ctx[0].raw.date,
-      label:      ctx => ctx.raw.colorLine || null,
-      afterLabel: ctx => ctx.raw.notes ? [ctx.raw.notes] : []
-    };
-    opts.scales.x = {
-      type: 'linear',
-      ticks: {
-        color: '#9B9B96', font: { size: 10 },
-        stepSize: 1,
-        callback: val => Number.isInteger(val) ? val : ''
-      },
-      grid: { color: 'rgba(0,0,0,0.04)' }
+      title:      ctx => labels[ctx[0].dataIndex],
+      label:      ctx => colorMetricLine(colorDef, sessData[ctx.dataIndex]) || null,
+      afterLabel: ctx => { const notes = sessData[ctx.dataIndex].sess_notes || sessData[ctx.dataIndex].notes; return notes ? [notes] : []; }
     };
 
     chartInstances['session'] = new Chart(canvas, {
       type: 'line',
       data: {
+        labels,
         datasets: [{
           label: 'Session',
-          data: sessData.map((e, i) => ({
-            x:         i + 1,
-            y:         e.sess_rating,
-            date:      formatDisplayDate(e.date),
-            colorLine: colorMetricLine(colorDef, e),
-            notes:     e.sess_notes || e.notes || null
-          })),
+          data: sessData.map(e => e.sess_rating),
           borderColor: 'rgba(29,158,117,0.4)',
           borderWidth: 2, tension: 0.3,
           pointBackgroundColor: sessData.map(e => dotColor(e)),
@@ -2492,7 +2480,7 @@
           fill: false, clip: false
         }]
       },
-      options: { ...opts, parsing: { xAxisKey: 'x', yAxisKey: 'y' } }
+      options: opts
     });
   }
 
@@ -2528,8 +2516,9 @@
     canvas.style.display = '';
 
     /*
-      Ordinal x-axis: each stretching session is numbered 1, 2, 3...
-      Tooltip shows date and general notes on tap.
+      Date x-axis: category axis built only from days with a flexibility rating —
+      no shared daily backbone, so non-stretching days simply aren't ticks and
+      the line never drops to zero. Tooltip shows date and notes on tap.
     */
     const colorDefF = WO_COLOR_FIELDS[flexColorField] || WO_COLOR_FIELDS.sleep;
     const dotColorF = e => { const v = colorDefF.get(e); return v == null ? '#6B6B66' : v >= colorDefF.hi ? '#1D9E75' : v >= colorDefF.mid ? '#BA7517' : '#A32D2D'; };
@@ -2540,35 +2529,23 @@
       <div class="sleep-legend-item"><div class="sleep-legend-dot" style="background:#A32D2D"></div> ${colorDefF.loLabel}</div>
       <div class="sleep-legend-item"><div class="sleep-legend-dot" style="background:#6B6B66"></div> no data</div>`;
 
+    const labels = flexData.map(e => formatDisplayDate(e.date));
+
     const opts = baseOptions('', 1, 10);
     opts.plugins.tooltip.displayColors = false;
     opts.plugins.tooltip.callbacks    = {
-      title:      ctx => ctx[0].raw.date,
-      label:      ctx => ctx.raw.colorLine || null,
-      afterLabel: ctx => ctx.raw.notes ? [ctx.raw.notes] : []
-    };
-    opts.scales.x = {
-      type: 'linear',
-      ticks: {
-        color: '#9B9B96', font: { size: 10 },
-        stepSize: 1,
-        callback: val => Number.isInteger(val) ? val : ''
-      },
-      grid: { color: 'rgba(0,0,0,0.04)' }
+      title:      ctx => labels[ctx[0].dataIndex],
+      label:      ctx => colorMetricLine(colorDefF, flexData[ctx.dataIndex]) || null,
+      afterLabel: ctx => { const notes = flexData[ctx.dataIndex].notes; return notes ? [notes] : []; }
     };
 
     chartInstances['flex'] = new Chart(canvas, {
       type: 'line',
       data: {
+        labels,
         datasets: [{
           label: 'Flexibility',
-          data: flexData.map((e, i) => ({
-            x:         i + 1,
-            y:         e.flex_rating,
-            date:      formatDisplayDate(e.date),
-            colorLine: colorMetricLine(colorDefF, e),
-            notes:     e.notes || null
-          })),
+          data: flexData.map(e => e.flex_rating),
           borderColor: 'rgba(155,89,182,0.4)',
           borderWidth: 2, tension: 0.3,
           pointBackgroundColor: flexData.map(e => dotColorF(e)),
@@ -2577,7 +2554,7 @@
           fill: false, clip: false
         }]
       },
-      options: { ...opts, parsing: { xAxisKey: 'x', yAxisKey: 'y' } }
+      options: opts
     });
   }
 
