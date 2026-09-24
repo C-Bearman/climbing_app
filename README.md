@@ -56,7 +56,7 @@ Whenever a change is pushed to `master`, GitHub Pages redeploys within ~60 secon
 - [x] `feature/workout-refinements` — per-exercise session notes field (40-char, live counter) beneath the set controls; notes stored in workout CSV and surfaced as 📝 tooltip labels on workout progress charts; workout date picker replaced with a custom calendar grid showing a green tinge on dates with saved workout data; date badge shows an open/close chevron consistent with chart and exercise accordions
 
 ### Next up
-- [ ] Workout data visualisations in Charts tab — refine the exercise picker UX; add PB milestone marker (dashed line at all-time best)
+- [ ] Workout data visualisations in Charts tab — refine the exercise picker UX
 - [x] Workout session notes — per-exercise notes field (40-char) on the workout tracker; shown as 📝 tooltip labels on workout progress charts
 - [ ] Workout plan import — allow importing a saved workout template (e.g. "Pulling session: 5×pull-ups, 3×ring rows") that pre-populates the exercise list so the user doesn't have to build it from scratch each time
 - [ ] Rest day data — decide how rest days interact with the workout tracker; currently the workout tab is always available regardless of the daily log climbing toggle. Consider whether rest day entries should be blocked, flagged, or used to show recovery context on workout charts
