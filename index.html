@@ -1129,6 +1129,7 @@
               <option value="sleep">Sleep</option>
               <option value="mental">Mental energy</option>
               <option value="physical">Physical energy</option>
+              <option value="stress">Work stress</option>
             </select>
           </div>
         </div>
@@ -1159,6 +1160,7 @@
               <option value="sleep">Sleep</option>
               <option value="mental">Mental energy</option>
               <option value="physical">Physical energy</option>
+              <option value="stress">Work stress</option>
             </select>
           </div>
         </div>
@@ -2087,11 +2089,15 @@
   let sessionColorField = 'sleep';
   let flexColorField    = 'sleep';
 
-  // Available colour-by fields with fixed thresholds (hi = green, mid = amber, below = red)
+  // Available colour-by fields with fixed thresholds (hi = green, mid = amber, below = red —
+  // unless invert:true, e.g. work stress, where a high value is bad rather than good).
+  // Fields sourced from optional data (like work_stress) will be null on days it wasn't
+  // tracked — metricDotColor below falls back to grey "no data" rather than guessing.
   const WO_COLOR_FIELDS = {
-    sleep:    { label: 'Sleep',           unit: 'h',    get: e => e.sleep,    hi: 8, mid: 6, hiLabel: '8h+',  midLabel: '6–8h', loLabel: '<6h'  },
-    mental:   { label: 'Mental energy',   unit: '/10',  get: e => e.mental,   hi: 8, mid: 4, hiLabel: '8–10', midLabel: '4–7',  loLabel: '1–3'  },
-    physical: { label: 'Physical energy', unit: '/10',  get: e => e.physical, hi: 8, mid: 4, hiLabel: '8–10', midLabel: '4–7',  loLabel: '1–3'  },
+    sleep:    { label: 'Sleep',           unit: 'h',    get: e => e.sleep,       hi: 8, mid: 6, hiLabel: '8h+',  midLabel: '6–8h', loLabel: '<6h'  },
+    mental:   { label: 'Mental energy',   unit: '/10',  get: e => e.mental,      hi: 8, mid: 4, hiLabel: '8–10', midLabel: '4–7',  loLabel: '1–3'  },
+    physical: { label: 'Physical energy', unit: '/10',  get: e => e.physical,    hi: 8, mid: 4, hiLabel: '8–10', midLabel: '4–7',  loLabel: '1–3'  },
+    stress:   { label: 'Work stress',     unit: '/10',  get: e => e.work_stress, hi: 8, mid: 4, hiLabel: '8–10', midLabel: '4–7',  loLabel: '1–3', invert: true },
   };
 
   // Formats the colour metric line shown in tooltips e.g. "Sleep: 8h" or "Mental energy: 7/10"
@@ -2099,6 +2105,29 @@
     if (!log) return null;
     const v = colorDef.get(log);
     return v != null ? `${colorDef.label}: ${v}${colorDef.unit}` : null;
+  }
+
+  // Shared dot-colouring logic for every "colour nodes by" chart (Session Rating,
+  // Flexibility, Workout Progress). Missing data (null/undefined) always falls back
+  // to grey, regardless of which metric is selected — there's nothing to colour by.
+  function metricDotColor(colorDef, v) {
+    if (v == null) return '#6B6B66';
+    const hiMatch  = v >= colorDef.hi;
+    const midMatch = v >= colorDef.mid;
+    if (colorDef.invert) return hiMatch ? '#A32D2D' : midMatch ? '#BA7517' : '#1D9E75';
+    return hiMatch ? '#1D9E75' : midMatch ? '#BA7517' : '#A32D2D';
+  }
+
+  // Builds the green/amber/red/no-data legend rows for a given colour-by field,
+  // respecting invert so the label always sits next to the colour it actually renders as.
+  function metricLegendHTML(colorDef) {
+    const rows = colorDef.invert
+      ? [['#A32D2D', colorDef.hiLabel], ['#BA7517', colorDef.midLabel], ['#1D9E75', colorDef.loLabel]]
+      : [['#1D9E75', colorDef.hiLabel], ['#BA7517', colorDef.midLabel], ['#A32D2D', colorDef.loLabel]];
+    rows.push(['#6B6B66', 'no data']);
+    return rows.map(([color, label]) =>
+      `<div class="sleep-legend-item"><div class="sleep-legend-dot" style="background:${color}"></div> ${label}</div>`
+    ).join('');
   }
 
   // All possible metrics — label shown on pill, unit for axis/tooltip, aggregation fn
@@ -2311,24 +2340,13 @@
 
     const colorKey = woColorState[name] || 'sleep';
     const colorDef = WO_COLOR_FIELDS[colorKey];
-    const dotColor = log => {
-      if (!log) return '#6B6B66';
-      const v = colorDef.get(log);
-      if (v == null) return '#6B6B66';
-      return v >= colorDef.hi ? '#1D9E75' : v >= colorDef.mid ? '#BA7517' : '#A32D2D';
-    };
+    const dotColor = log => metricDotColor(colorDef, log ? colorDef.get(log) : null);
     const dotColors = dates.map(d => dotColor(logByDate[d]));
 
     // Update legend for this card
     const safeIdLeg = name.toLowerCase().replace(/[^a-z0-9]/g, '-');
     const legendEl  = document.getElementById(`wo-legend-${safeIdLeg}`);
-    if (legendEl) {
-      legendEl.innerHTML = `
-        <div class="sleep-legend-item"><div class="sleep-legend-dot" style="background:#1D9E75"></div> ${colorDef.hiLabel}</div>
-        <div class="sleep-legend-item"><div class="sleep-legend-dot" style="background:#BA7517"></div> ${colorDef.midLabel}</div>
-        <div class="sleep-legend-item"><div class="sleep-legend-dot" style="background:#A32D2D"></div> ${colorDef.loLabel}</div>
-        <div class="sleep-legend-item"><div class="sleep-legend-dot" style="background:#6B6B66"></div> no data</div>`;
-    }
+    if (legendEl) legendEl.innerHTML = metricLegendHTML(colorDef);
 
     const labels = dates.map(d => formatWorkoutDate(d)); // "18 Jun" — no day name
     const data   = dates.map(d => metric.agg(byDate[d]));
@@ -2566,13 +2584,9 @@
       line never drops to zero. Tooltip shows the actual date and notes on tap.
     */
     const colorDef  = WO_COLOR_FIELDS[sessionColorField] || WO_COLOR_FIELDS.sleep;
-    const dotColor  = e => { const v = colorDef.get(e); return v == null ? '#6B6B66' : v >= colorDef.hi ? '#1D9E75' : v >= colorDef.mid ? '#BA7517' : '#A32D2D'; };
+    const dotColor  = e => metricDotColor(colorDef, colorDef.get(e));
     const legendEl  = document.getElementById('session-legend');
-    if (legendEl) legendEl.innerHTML = `
-      <div class="sleep-legend-item"><div class="sleep-legend-dot" style="background:#1D9E75"></div> ${colorDef.hiLabel}</div>
-      <div class="sleep-legend-item"><div class="sleep-legend-dot" style="background:#BA7517"></div> ${colorDef.midLabel}</div>
-      <div class="sleep-legend-item"><div class="sleep-legend-dot" style="background:#A32D2D"></div> ${colorDef.loLabel}</div>
-      <div class="sleep-legend-item"><div class="sleep-legend-dot" style="background:#6B6B66"></div> no data</div>`;
+    if (legendEl) legendEl.innerHTML = metricLegendHTML(colorDef);
 
     const labels = sessData.map(e => formatDisplayDate(e.date));
 
@@ -2640,13 +2654,9 @@
       the line never drops to zero. Tooltip shows date and notes on tap.
     */
     const colorDefF = WO_COLOR_FIELDS[flexColorField] || WO_COLOR_FIELDS.sleep;
-    const dotColorF = e => { const v = colorDefF.get(e); return v == null ? '#6B6B66' : v >= colorDefF.hi ? '#1D9E75' : v >= colorDefF.mid ? '#BA7517' : '#A32D2D'; };
+    const dotColorF = e => metricDotColor(colorDefF, colorDefF.get(e));
     const legendElF = document.getElementById('flex-legend');
-    if (legendElF) legendElF.innerHTML = `
-      <div class="sleep-legend-item"><div class="sleep-legend-dot" style="background:#1D9E75"></div> ${colorDefF.hiLabel}</div>
-      <div class="sleep-legend-item"><div class="sleep-legend-dot" style="background:#BA7517"></div> ${colorDefF.midLabel}</div>
-      <div class="sleep-legend-item"><div class="sleep-legend-dot" style="background:#A32D2D"></div> ${colorDefF.loLabel}</div>
-      <div class="sleep-legend-item"><div class="sleep-legend-dot" style="background:#6B6B66"></div> no data</div>`;
+    if (legendElF) legendElF.innerHTML = metricLegendHTML(colorDefF);
 
     const labels = flexData.map(e => formatDisplayDate(e.date));
 
