@@ -108,3 +108,10 @@ Whenever a change is pushed to `master`, GitHub Pages redeploys within ~60 secon
 
 ### Eventual v1.0
 - [ ] Wrap as native APK with Capacitor → **Bearman Climbs** on the Play Store
+
+### Vision — accounts & personalisation *(long-term, not scoped yet)*
+Eventually, support user accounts so each person can choose what they want to track rather than every optional field being on by default. This is a bigger shift than anything else on this roadmap — it moves the app from "everything lives in localStorage on your phone, nothing is sent anywhere" (see **Your data** above) to needing some form of backend, auth, and sync. Captured here as a direction, not a scoped task.
+
+- [ ] **User accounts / login** — the foundational piece everything below depends on. Needs a backend and an auth/sync strategy; a real departure from the current local-only, no-server architecture
+- [ ] **Onboarding asks what to track** — as part of first-launch onboarding (see Onboarding / tutorial overlay above), ask the user which optional metrics they want to log: work stress, physical/mental energy, finger health, nutrition, supplements, body measurements, etc. Builds on the User-configurable optional sections item above, but driven by account setup rather than discovered later in settings
+- [ ] **Profile-driven dashboard** — the Charts tab shows only the sections relevant to what the user chose to track during onboarding, rather than every chart regardless of whether they log that data. Cascades from the onboarding choices above
