@@ -706,6 +706,17 @@
         </div>
         <div style="margin-top:14px;">
           <div class="field-top" style="margin-bottom:8px;">
+            <span class="field-name" style="font-size:13px;color:var(--text2);">Session type</span>
+          </div>
+          <div class="wo-pill-row" id="session-type-pills">
+            <button class="pill" data-type="endurance" onclick="toggleSessionType('endurance')">Endurance</button>
+            <button class="pill" data-type="max_power" onclick="toggleSessionType('max_power')">Max Power</button>
+            <button class="pill" data-type="projecting" onclick="toggleSessionType('projecting')">Projecting</button>
+            <button class="pill" data-type="social" onclick="toggleSessionType('social')">Social / Unstructured</button>
+          </div>
+        </div>
+        <div style="margin-top:14px;">
+          <div class="field-top" style="margin-bottom:8px;">
             <span class="field-name" style="font-size:13px;color:var(--text2);">Session notes</span>
           </div>
           <textarea id="sess-notes" maxlength="40" placeholder="e.g. 'Crimps felt good, weak on power'" oninput="updCounter('sess-notes','sess-notes-count')"></textarea>
@@ -1282,7 +1293,22 @@
   let climbVal     = null;
   let stretchVal   = null;
   let stressVal    = null;
+  let sessTypeVal  = [];
   let selectedDate = todayStr();
+
+  // Tick-all-that-apply session type tags, stored pipe-delimited (CSV-comma-safe) as session_type
+  const SESSION_TYPES = {
+    endurance:  'Endurance',
+    max_power:  'Max Power',
+    projecting: 'Projecting',
+    social:     'Social / Unstructured'
+  };
+  function toggleSessionType(key) {
+    const i = sessTypeVal.indexOf(key);
+    if (i === -1) sessTypeVal.push(key); else sessTypeVal.splice(i, 1);
+    const btn = document.querySelector(`#session-type-pills button[data-type="${key}"]`);
+    if (btn) btn.classList.toggle('pill-active', sessTypeVal.includes(key));
+  }
 
   /* Chart.js instances — kept so we can destroy & redraw on range change */
   let chartInstances = {};
@@ -1471,8 +1497,9 @@
     document.getElementById('prot').value  = '';
     document.getElementById('notes').value = '';     updCounter('notes','notes-count');
     document.getElementById('sess-notes').value = ''; updCounter('sess-notes','sess-notes-count');
-    climbVal = null; stretchVal = null; stressVal = null;
+    climbVal = null; stretchVal = null; stressVal = null; sessTypeVal = [];
     document.getElementById('stress').value = 5; updEnergy('stress',5);
+    document.querySelectorAll('#session-type-pills .pill').forEach(b => b.classList.remove('pill-active'));
     ['btn-yes','btn-no','stretch-yes','stretch-no','stress-yes','stress-no'].forEach(id => document.getElementById(id).className = 'cbtn');
     document.getElementById('session-details').classList.remove('open');
     document.getElementById('stretch-details').classList.remove('open');
@@ -1487,6 +1514,10 @@
       if (prev.notes)    { document.getElementById('notes').value = prev.notes; updCounter('notes','notes-count'); }
       if (prev.sess_rating) { document.getElementById('sess').value = prev.sess_rating; updEnergy('sess',prev.sess_rating); }
       if (prev.sess_notes)  { document.getElementById('sess-notes').value = prev.sess_notes; updCounter('sess-notes','sess-notes-count'); }
+      if (prev.session_type) {
+        sessTypeVal = prev.session_type.split('|').filter(Boolean);
+        document.querySelectorAll('#session-type-pills .pill').forEach(b => b.classList.toggle('pill-active', sessTypeVal.includes(b.dataset.type)));
+      }
       if (prev.climbing)  setClimb(prev.climbing);
       if (prev.stretching) setStretch(prev.stretching);
       if (prev.flex_rating) { document.getElementById('flex').value = prev.flex_rating; updEnergy('flex',prev.flex_rating); }
@@ -1509,6 +1540,7 @@
       notes:    document.getElementById('notes').value.trim() || null,
       sess_rating: isClimbing   ? parseInt(document.getElementById('sess').value) : null,
       sess_notes:  isClimbing   ? (document.getElementById('sess-notes').value.trim() || null) : null,
+      session_type: isClimbing && sessTypeVal.length ? sessTypeVal.join('|') : null,
       stretching:  stretchVal,
       flex_rating: isStretching ? parseInt(document.getElementById('flex').value) : null,
       work_stress: stressVal === 'yes' ? parseInt(document.getElementById('stress').value) : null
@@ -1577,6 +1609,7 @@
           ${e.flex_rating ? `<div class="estat">Flex <b>${e.flex_rating}/10</b></div>` : ''}
           ${e.work_stress ? `<div class="estat">Stress <b>${e.work_stress}/10</b></div>` : ''}
         </div>
+        ${e.session_type ? `<div class="entry-note">🏷️ ${e.session_type.split('|').map(k => SESSION_TYPES[k] || k).join(', ')}</div>` : ''}
         ${e.sess_notes ? `<div class="entry-note">🧗 "${e.sess_notes}"</div>` : ''}
         ${e.notes      ? `<div class="entry-note">📋 "${e.notes}"</div>` : ''}
       </div>`;
@@ -1611,10 +1644,10 @@
       if (!custom) return;
       filename = custom.trim().replace(/\.csv$/i,'') || filename;
     }
-    const headers = ['date','climbing','sleep_h','water_L','physical_energy','mental_energy','session_rating','session_notes','stretching','flexibility_rating','work_stress','calories_kcal','protein_g','general_notes'];
+    const headers = ['date','climbing','sleep_h','water_L','physical_energy','mental_energy','session_rating','session_notes','session_type','stretching','flexibility_rating','work_stress','calories_kcal','protein_g','general_notes'];
     const rows = entries.map(e => [
       e.date, e.climbing||'', e.sleep, e.water, e.physical, e.mental,
-      e.sess_rating||'', '"'+(e.sess_notes||'').replace(/"/g,"'")+'"',
+      e.sess_rating||'', '"'+(e.sess_notes||'').replace(/"/g,"'")+'"', e.session_type||'',
       e.stretching||'', e.flex_rating||'', e.work_stress||'', e.calories||'', e.protein||'',
       '"'+(e.notes||'').replace(/"/g,"'")+'"'
     ]);
@@ -1654,6 +1687,7 @@
         sleep:parseFloat(get('sleep_h'))||7, water:parseFloat(get('water_L'))||2,
         physical:parseInt(get('physical_energy'))||5, mental:parseInt(get('mental_energy'))||5,
         sess_rating:parseInt(get('session_rating'))||null, sess_notes:get('session_notes')||null,
+        session_type:get('session_type')||null,
         stretching:get('stretching')||null, flex_rating:parseInt(get('flexibility_rating'))||null,
         work_stress:parseInt(get('work_stress'))||null,
         calories:get('calories_kcal')||null, protein:get('protein_g')||null, notes:get('general_notes')||null
