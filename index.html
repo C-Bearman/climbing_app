@@ -789,6 +789,36 @@
       </div>
     </div>
 
+    <!-- Work stress -->
+    <div class="section">
+      <div class="section-head">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M12 2a10 10 0 100 20A10 10 0 0012 2z"/><line x1="12" y1="7" x2="12" y2="13"/><line x1="12" y1="16" x2="12" y2="16"/></svg>
+        Work stress <span class="opt-tag">optional</span>
+      </div>
+      <div class="climb-btns">
+        <button class="cbtn" id="stress-yes" onclick="setStress('yes')">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+          Track today
+        </button>
+        <button class="cbtn" id="stress-no" onclick="setStress('no')">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          Skip
+        </button>
+      </div>
+      <div class="session-details" id="stress-details">
+        <hr class="session-divider">
+        <div class="field">
+          <div class="field-top">
+            <span class="field-name">Work stress</span>
+            <span class="field-val" id="stress-val">5</span>
+          </div>
+          <div class="energy-track" id="stress-track">
+            <input type="range" id="stress" min="1" max="10" step="1" value="5" oninput="updEnergy('stress',this.value)">
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Nutrition -->
     <div class="section">
       <div class="section-head">
@@ -1246,6 +1276,7 @@
   const STORAGE_KEY = 'climbing_app_v1';
   let climbVal     = null;
   let stretchVal   = null;
+  let stressVal    = null;
   let selectedDate = todayStr();
 
   /* Chart.js instances — kept so we can destroy & redraw on range change */
@@ -1333,6 +1364,12 @@
     document.getElementById('stretch-no').className  = 'cbtn' + (val === 'no'  ? ' sel-nope' : '');
     document.getElementById('stretch-details').classList.toggle('open', val === 'yes');
   }
+  function setStress(val) {
+    stressVal = val;
+    document.getElementById('stress-yes').className = 'cbtn' + (val === 'yes' ? ' sel-yes' : '');
+    document.getElementById('stress-no').className  = 'cbtn' + (val === 'no'  ? ' sel-nope' : '');
+    document.getElementById('stress-details').classList.toggle('open', val === 'yes');
+  }
 
   /* ── Slider updates ── */
   function updSleep(v) {
@@ -1349,16 +1386,20 @@
 
   // Physical/Mental use the 1-3 / 4-7 / 8-10 bands from the energy scale reference;
   // Session/Flex ratings keep the original 7/4 split.
+  // Work stress is inverted: a high score is bad, so 8-10 is red and 1-3 is green.
   const ENERGY_COLOR_THRESHOLDS = {
-    phys: { hi: 8, mid: 4 },
-    ment: { hi: 8, mid: 4 },
-    sess: { hi: 7, mid: 4 },
-    flex: { hi: 7, mid: 4 }
+    phys:   { hi: 8, mid: 4 },
+    ment:   { hi: 8, mid: 4 },
+    sess:   { hi: 7, mid: 4 },
+    flex:   { hi: 7, mid: 4 },
+    stress: { hi: 8, mid: 4, invert: true }
   };
   function updEnergy(id, v) {
     const n = parseInt(v);
     const t = ENERGY_COLOR_THRESHOLDS[id] || { hi: 7, mid: 4 };
-    const col = n >= t.hi ? 'var(--green)' : n >= t.mid ? 'var(--amber)' : 'var(--red)';
+    const col = t.invert
+      ? (n >= t.hi ? 'var(--red)'   : n >= t.mid ? 'var(--amber)' : 'var(--green)')
+      : (n >= t.hi ? 'var(--green)' : n >= t.mid ? 'var(--amber)' : 'var(--red)');
     document.getElementById(id+'-val').textContent = n;
     document.getElementById(id+'-val').style.color = col;
     const pct = ((n-1)/9*100).toFixed(1) + '%';
@@ -1425,10 +1466,12 @@
     document.getElementById('prot').value  = '';
     document.getElementById('notes').value = '';     updCounter('notes','notes-count');
     document.getElementById('sess-notes').value = ''; updCounter('sess-notes','sess-notes-count');
-    climbVal = null; stretchVal = null;
-    ['btn-yes','btn-no','stretch-yes','stretch-no'].forEach(id => document.getElementById(id).className = 'cbtn');
+    climbVal = null; stretchVal = null; stressVal = null;
+    document.getElementById('stress').value = 5; updEnergy('stress',5);
+    ['btn-yes','btn-no','stretch-yes','stretch-no','stress-yes','stress-no'].forEach(id => document.getElementById(id).className = 'cbtn');
     document.getElementById('session-details').classList.remove('open');
     document.getElementById('stretch-details').classList.remove('open');
+    document.getElementById('stress-details').classList.remove('open');
     if (prev) {
       document.getElementById('sleep').value = prev.sleep; updSleep(prev.sleep);
       document.getElementById('water').value = prev.water; updWater(prev.water);
@@ -1442,6 +1485,7 @@
       if (prev.climbing)  setClimb(prev.climbing);
       if (prev.stretching) setStretch(prev.stretching);
       if (prev.flex_rating) { document.getElementById('flex').value = prev.flex_rating; updEnergy('flex',prev.flex_rating); }
+      if (prev.work_stress) { setStress('yes'); document.getElementById('stress').value = prev.work_stress; updEnergy('stress',prev.work_stress); }
     }
   }
 
@@ -1461,7 +1505,8 @@
       sess_rating: isClimbing   ? parseInt(document.getElementById('sess').value) : null,
       sess_notes:  isClimbing   ? (document.getElementById('sess-notes').value.trim() || null) : null,
       stretching:  stretchVal,
-      flex_rating: isStretching ? parseInt(document.getElementById('flex').value) : null
+      flex_rating: isStretching ? parseInt(document.getElementById('flex').value) : null,
+      work_stress: stressVal === 'yes' ? parseInt(document.getElementById('stress').value) : null
     };
     const arr = getEntries().filter(e => e.date !== selectedDate);
     arr.unshift(entry);
@@ -1525,6 +1570,7 @@
           <div class="estat">Mental <b>${e.mental}/10</b></div>
           ${e.sess_rating ? `<div class="estat">Session <b>${e.sess_rating}/10</b></div>` : ''}
           ${e.flex_rating ? `<div class="estat">Flex <b>${e.flex_rating}/10</b></div>` : ''}
+          ${e.work_stress ? `<div class="estat">Stress <b>${e.work_stress}/10</b></div>` : ''}
         </div>
         ${e.sess_notes ? `<div class="entry-note">🧗 "${e.sess_notes}"</div>` : ''}
         ${e.notes      ? `<div class="entry-note">📋 "${e.notes}"</div>` : ''}
@@ -1560,11 +1606,11 @@
       if (!custom) return;
       filename = custom.trim().replace(/\.csv$/i,'') || filename;
     }
-    const headers = ['date','climbing','sleep_h','water_L','physical_energy','mental_energy','session_rating','session_notes','stretching','flexibility_rating','calories_kcal','protein_g','general_notes'];
+    const headers = ['date','climbing','sleep_h','water_L','physical_energy','mental_energy','session_rating','session_notes','stretching','flexibility_rating','work_stress','calories_kcal','protein_g','general_notes'];
     const rows = entries.map(e => [
       e.date, e.climbing||'', e.sleep, e.water, e.physical, e.mental,
       e.sess_rating||'', '"'+(e.sess_notes||'').replace(/"/g,"'")+'"',
-      e.stretching||'', e.flex_rating||'', e.calories||'', e.protein||'',
+      e.stretching||'', e.flex_rating||'', e.work_stress||'', e.calories||'', e.protein||'',
       '"'+(e.notes||'').replace(/"/g,"'")+'"'
     ]);
     const csv = [headers.join(','), ...rows.map(r=>r.join(','))].join('\n');
@@ -1604,10 +1650,12 @@
         physical:parseInt(get('physical_energy'))||5, mental:parseInt(get('mental_energy'))||5,
         sess_rating:parseInt(get('session_rating'))||null, sess_notes:get('session_notes')||null,
         stretching:get('stretching')||null, flex_rating:parseInt(get('flexibility_rating'))||null,
+        work_stress:parseInt(get('work_stress'))||null,
         calories:get('calories_kcal')||null, protein:get('protein_g')||null, notes:get('general_notes')||null
       };
       if (isNaN(entry.sess_rating)) entry.sess_rating=null;
       if (isNaN(entry.flex_rating)) entry.flex_rating=null;
+      if (isNaN(entry.work_stress)) entry.work_stress=null;
       if (entry.date) imported.push(entry);
     }
     if (!imported.length) { alert('No valid entries found in CSV.'); return; }
