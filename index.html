@@ -705,12 +705,14 @@
           </div>
         </div>
         <div style="margin-top:14px;">
-          <div class="field-top" style="margin-bottom:8px;">
+          <div class="field-top" style="margin-bottom:2px;">
             <span class="field-name" style="font-size:13px;color:var(--text2);">Session type</span>
           </div>
+          <small style="display:block; font-size:11px; color:var(--text3); margin-bottom:8px;">Select all that apply</small>
           <div class="wo-pill-row" id="session-type-pills">
             <button class="pill" data-type="endurance" onclick="toggleSessionType('endurance')">Endurance</button>
             <button class="pill" data-type="max_power" onclick="toggleSessionType('max_power')">Max Power</button>
+            <button class="pill" data-type="technical" onclick="toggleSessionType('technical')">Technical</button>
             <button class="pill" data-type="projecting" onclick="toggleSessionType('projecting')">Projecting</button>
             <button class="pill" data-type="social" onclick="toggleSessionType('social')">Social / Unstructured</button>
           </div>
@@ -1300,6 +1302,7 @@
   const SESSION_TYPES = {
     endurance:  'Endurance',
     max_power:  'Max Power',
+    technical:  'Technical',
     projecting: 'Projecting',
     social:     'Social / Unstructured'
   };
