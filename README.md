@@ -74,7 +74,7 @@ Whenever a change is pushed to `master`, GitHub Pages redeploys within ~60 secon
 - [ ] **Selective chart re-render on colour selector change** — changing "Colour nodes by" on one chart currently triggers a full `drawAllCharts()` redraw, causing all visible charts to re-animate; ideally only the chart whose selector changed should update
 
 ### Charts — new visualisations
-- [ ] **Session type breakdown chart** — a pie/donut chart showing the percentage split of session types (Endurance / Technique / Limit / Projecting / Social) over the selected time range. Depends on the climbing session type tracking field above
+- [ ] **Session type breakdown chart** — a pie/donut chart showing the percentage split of session types (Endurance / Max Power / Projecting / Social) over the selected time range. Session type tracking is now live — this is unblocked
 - [ ] **Climbing pyramid chart** — the classic climbing training pyramid: number of climbs completed at each grade, widest at the base (easier grades, more volume) narrowing towards the top (hardest sends). Depends on the route / grade log field above
 
 ### Workout tab — UI polish
@@ -86,7 +86,7 @@ Whenever a change is pushed to `master`, GitHub Pages redeploys within ~60 secon
 - [ ] **CSV import overlay UX** — the core import validation and Merge/Replace all flow is in place; revisit the wording, layout, and visual styling of the warning overlays on both Log and Workout tabs after real-world use to see if anything needs tightening up
 
 ### Log page — planned additions
-- [ ] **Climbing session type tracking** — when logging a climbing day, capture what kind of session it was via a tick-all-that-apply list: Endurance, Technique, Limit, Projecting, Social / unstructured. This enriches the Session Rating chart context and could unlock filters like "show only projecting sessions" or correlate session type with rating trends. Feeds the session type breakdown chart below
+- [x] **Climbing session type tracking** — tick-all-that-apply pill row on climbing days: Endurance, Max Power, Projecting, Social / Unstructured. Sits between Session Rating and Session notes, same `.pill` chip component used elsewhere. Feeds the session type breakdown chart below
 - [ ] **Perceived session effort** — a simple 1–10 slider or rating for "how hard did today's session feel?", distinct from Session Rating (which captures quality/performance). Useful for tracking RPE trends and spotting when high effort isn't translating to good sessions (fatigue, overtraining signals)
 - [ ] **Sleep quality rating** *(optional field)* — a daily sleep quality score (1–5: very poor → very good) alongside existing sleep hours; mirrors the scale used by the coach's tracking sheet and gives a richer picture than hours alone
 - [ ] **Training % complete** — a field to log what percentage of the planned session was completed (0–100%); distinct from session rating (which captures quality); useful for flagging interrupted or partial sessions and correlating completion rate with energy and recovery metrics
