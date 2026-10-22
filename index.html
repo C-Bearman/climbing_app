@@ -192,6 +192,9 @@
     }
     .session-details.open { max-height: 500px; opacity: 1; margin-top: 14px; }
     .session-divider { border: none; border-top: 0.5px solid var(--border); margin-bottom: 14px; }
+    /* Slider thumb (22px) overflows its 4px track — without this the last field's
+       thumb gets clipped flat by the overflow:hidden collapse/expand animation above */
+    .session-details .field:last-child { margin-bottom: 10px; }
 
     /* ── Sliders ── */
     .field { margin-bottom: 15px; }
