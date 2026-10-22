@@ -198,6 +198,7 @@
     .field:last-child { margin-bottom: 0; }
     .field-top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
     .field-name { font-size: 14px; color: var(--text); }
+    .field-name-group { display: flex; align-items: center; gap: 4px; }
     .field-val { font-size: 15px; font-weight: 600; color: var(--green); }
     input[type=range] {
       -webkit-appearance: none; appearance: none; width: 100%; height: 4px;
@@ -763,13 +764,25 @@
         Energy
       </div>
       <div class="field">
-        <div class="field-top"><span class="field-name">Physical</span><span class="field-val" id="phys-val">5</span></div>
+        <div class="field-top">
+          <span class="field-name-group">
+            <span class="field-name">Physical</span>
+            <button class="wo-info-btn" onclick="showEnergyInfo('physical')" aria-label="About the physical energy scale">ℹ︎</button>
+          </span>
+          <span class="field-val" id="phys-val">5</span>
+        </div>
         <div class="energy-track" id="phys-track">
           <input type="range" id="phys" min="1" max="10" step="1" value="5" oninput="updEnergy('phys',this.value)">
         </div>
       </div>
       <div class="field">
-        <div class="field-top"><span class="field-name">Mental</span><span class="field-val" id="ment-val">5</span></div>
+        <div class="field-top">
+          <span class="field-name-group">
+            <span class="field-name">Mental</span>
+            <button class="wo-info-btn" onclick="showEnergyInfo('mental')" aria-label="About the mental energy scale">ℹ︎</button>
+          </span>
+          <span class="field-val" id="ment-val">5</span>
+        </div>
         <div class="energy-track" id="ment-track">
           <input type="range" id="ment" min="1" max="10" step="1" value="5" oninput="updEnergy('ment',this.value)">
         </div>
@@ -1334,14 +1347,69 @@
     document.getElementById(counterId).textContent = remaining + ' left';
   }
 
+  // Physical/Mental use the 1-3 / 4-7 / 8-10 bands from the energy scale reference;
+  // Session/Flex ratings keep the original 7/4 split.
+  const ENERGY_COLOR_THRESHOLDS = {
+    phys: { hi: 8, mid: 4 },
+    ment: { hi: 8, mid: 4 },
+    sess: { hi: 7, mid: 4 },
+    flex: { hi: 7, mid: 4 }
+  };
   function updEnergy(id, v) {
     const n = parseInt(v);
-    const col = n >= 7 ? 'var(--green)' : n >= 4 ? 'var(--amber)' : 'var(--red)';
+    const t = ENERGY_COLOR_THRESHOLDS[id] || { hi: 7, mid: 4 };
+    const col = n >= t.hi ? 'var(--green)' : n >= t.mid ? 'var(--amber)' : 'var(--red)';
     document.getElementById(id+'-val').textContent = n;
     document.getElementById(id+'-val').style.color = col;
     const pct = ((n-1)/9*100).toFixed(1) + '%';
     document.getElementById(id+'-track').querySelector('input').style.background =
       `linear-gradient(to right,${col} 0%,${col} ${pct},var(--surface2) ${pct})`;
+  }
+
+  // Reference text for the Physical/Mental energy info buttons — bands match ENERGY_COLOR_THRESHOLDS above
+  const ENERGY_INFO = {
+    physical: {
+      title: 'Physical energy scale',
+      bands: [
+        { color: 'var(--green)', range: '8–10', text: 'Extra physical activity feels good. 10 means feeling physically your best.' },
+        { color: 'var(--amber)', range: '4–7',  text: 'Daily tasks feel relatively easy, but extra physical activity feels harder than normal.' },
+        { color: 'var(--red)',   range: '1–3',  text: 'Regular daily tasks feel exhausting. Rest is recommended.' }
+      ]
+    },
+    mental: {
+      title: 'Mental energy scale',
+      bands: [
+        { color: 'var(--green)', range: '8–10', text: 'Thinking feels sharp and motivation is high. Extra mental effort such as focus, decision making, problem solving feels easy. 10 means feeling mentally your best.' },
+        { color: 'var(--amber)', range: '4–7',  text: 'Daily tasks and duties feel manageable, but sustained focus or extra mental effort feels harder than normal.' },
+        { color: 'var(--red)',   range: '1–3',  text: 'Even routine tasks feel mentally draining. Focus and motivation are low. Rest is recommended.' }
+      ]
+    }
+  };
+
+  /* Info button next to the Physical/Mental sliders — persistent overlay with a close button */
+  function showEnergyInfo(field) {
+    const info = ENERGY_INFO[field];
+    if (!info) return;
+    let overlay = document.getElementById('energy-info-overlay');
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.id        = 'energy-info-overlay';
+      overlay.className = 'workout-overlay';
+      document.body.appendChild(overlay);
+    }
+    overlay.innerHTML = `
+      <div class="workout-overlay-card" style="position:relative; padding-top:44px; text-align:left;">
+        <button onclick="document.getElementById('energy-info-overlay').classList.remove('show')"
+                style="position:absolute;top:10px;right:12px;background:none;border:none;
+                       color:var(--text2);font-size:20px;cursor:pointer;line-height:1;">×</button>
+        <p class="workout-overlay-title" style="text-align:left;">${info.title}</p>
+        ${info.bands.map(b => `
+          <div style="display:flex; gap:8px; align-items:flex-start; margin-top:12px;">
+            <div style="width:10px; height:10px; border-radius:50%; background:${b.color}; margin-top:4px; flex-shrink:0;"></div>
+            <p class="workout-overlay-sub" style="margin:0; text-align:left;"><b>${b.range}</b> — ${b.text}</p>
+          </div>`).join('')}
+      </div>`;
+    overlay.classList.add('show');
   }
 
   /* ── prefillForm ── */
@@ -1971,8 +2039,8 @@
   // Available colour-by fields with fixed thresholds (hi = green, mid = amber, below = red)
   const WO_COLOR_FIELDS = {
     sleep:    { label: 'Sleep',           unit: 'h',    get: e => e.sleep,    hi: 8, mid: 6, hiLabel: '8h+',  midLabel: '6–8h', loLabel: '<6h'  },
-    mental:   { label: 'Mental energy',   unit: '/10',  get: e => e.mental,   hi: 7, mid: 5, hiLabel: '7–10', midLabel: '5–6',  loLabel: '1–4'  },
-    physical: { label: 'Physical energy', unit: '/10',  get: e => e.physical, hi: 7, mid: 5, hiLabel: '7–10', midLabel: '5–6',  loLabel: '1–4'  },
+    mental:   { label: 'Mental energy',   unit: '/10',  get: e => e.mental,   hi: 8, mid: 4, hiLabel: '8–10', midLabel: '4–7',  loLabel: '1–3'  },
+    physical: { label: 'Physical energy', unit: '/10',  get: e => e.physical, hi: 8, mid: 4, hiLabel: '8–10', midLabel: '4–7',  loLabel: '1–3'  },
   };
 
   // Formats the colour metric line shown in tooltips e.g. "Sleep: 8h" or "Mental energy: 7/10"
