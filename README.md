@@ -74,8 +74,9 @@ Whenever a change is pushed to `master`, GitHub Pages redeploys within ~60 secon
 - [ ] **Selective chart re-render on colour selector change** — changing "Colour nodes by" on one chart currently triggers a full `drawAllCharts()` redraw, causing all visible charts to re-animate; ideally only the chart whose selector changed should update
 
 ### Charts — new visualisations
-- [ ] **Climbing vs Rest day split chart** — a pie/donut chart showing the overall split between climbing days and rest days over the selected time range. Colour scheme still to be decided
-- [ ] **Session type breakdown chart** — a second pie/donut, scoped to climbing days only, showing the percentage split of session types (Endurance / Max Power / Technical / Projecting / Social) over the selected time range. Session type tracking is now live — this is unblocked. Colour scheme still to be decided (5 categories — needs a distinct, non-clashing palette, separate from the existing green/amber/red metric-colouring convention used elsewhere)
+- [ ] **Decide colour palette for the two pie charts below** — Climbing vs Rest needs two clearly contrasting colours; Session type breakdown needs 5 distinct, non-clashing colours. Neither should reuse the app's existing green/amber/red convention, since that means "good/neutral/bad" elsewhere and doesn't map to either of these (a session type isn't "better" than another; a rest day isn't "worse" than a climbing day)
+- [ ] **Climbing vs Rest day split chart** — a pie/donut chart showing the overall split between climbing days and rest days over the selected time range. Data already exists (`climbing` field) — just needs the chart build + palette above
+- [ ] **Session type breakdown chart** — a second pie/donut, scoped to climbing days only, showing the percentage split of session types (Endurance / Max Power / Technical / Projecting / Social) over the selected time range. Session type tracking is now live — just needs the chart build + palette above
 - [ ] **Climbing pyramid chart** — the classic climbing training pyramid: number of climbs completed at each grade, widest at the base (easier grades, more volume) narrowing towards the top (hardest sends). Depends on the route / grade log field above
 
 ### Workout tab — UI polish
