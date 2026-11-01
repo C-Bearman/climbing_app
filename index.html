@@ -718,6 +718,17 @@
         </div>
         <div style="margin-top:14px;">
           <div class="field-top" style="margin-bottom:8px;">
+            <span class="field-name" style="font-size:13px;color:var(--text2);">Time of day <span class="opt-tag">optional</span></span>
+          </div>
+          <div class="wo-pill-row" id="session-time-pills">
+            <button class="pill" data-time="morning" onclick="setSessionTime('morning')">Morning</button>
+            <button class="pill" data-time="afternoon" onclick="setSessionTime('afternoon')">Afternoon</button>
+            <button class="pill" data-time="evening" onclick="setSessionTime('evening')">Evening</button>
+            <button class="pill" data-time="night" onclick="setSessionTime('night')">Night</button>
+          </div>
+        </div>
+        <div style="margin-top:14px;">
+          <div class="field-top" style="margin-bottom:8px;">
             <span class="field-name" style="font-size:13px;color:var(--text2);">Session notes</span>
           </div>
           <textarea id="sess-notes" maxlength="40" placeholder="e.g. 'Crimps felt good, weak on power'" oninput="updCounter('sess-notes','sess-notes-count')"></textarea>
@@ -1330,6 +1341,7 @@
   let stressVal    = null;
   let nutriVal     = null;
   let sessTypeVal  = [];
+  let sessTimeVal  = null;
   let selectedDate = todayStr();
 
   // Tick-all-that-apply session type tags, stored pipe-delimited (CSV-comma-safe) as session_type
@@ -1345,6 +1357,15 @@
     if (i === -1) sessTypeVal.push(key); else sessTypeVal.splice(i, 1);
     const btn = document.querySelector(`#session-type-pills button[data-type="${key}"]`);
     if (btn) btn.classList.toggle('pill-active', sessTypeVal.includes(key));
+  }
+
+  // Single-select time of day, stored as session_time. Clicking the active
+  // pill again clears it, since this is optional (no forced default).
+  const SESSION_TIMES = { morning: 'Morning', afternoon: 'Afternoon', evening: 'Evening', night: 'Night' };
+  function setSessionTime(key) {
+    sessTimeVal = sessTimeVal === key ? null : key;
+    document.querySelectorAll('#session-time-pills .pill').forEach(b =>
+      b.classList.toggle('pill-active', b.dataset.time === sessTimeVal));
   }
 
   /* Chart.js instances — kept so we can destroy & redraw on range change */
@@ -1542,10 +1563,11 @@
     document.getElementById('notes').value = '';     updCounter('notes','notes-count');
     document.getElementById('sess-notes').value = ''; updCounter('sess-notes','sess-notes-count');
     document.getElementById('nutri-notes').value = ''; updCounter('nutri-notes','nutri-notes-count');
-    climbVal = null; stretchVal = null; stressVal = null; nutriVal = null; sessTypeVal = [];
+    climbVal = null; stretchVal = null; stressVal = null; nutriVal = null; sessTypeVal = []; sessTimeVal = null;
     document.getElementById('stress').value = 5; updEnergy('stress',5);
     document.getElementById('nutri').value  = 5; updEnergy('nutri',5);
     document.querySelectorAll('#session-type-pills .pill').forEach(b => b.classList.remove('pill-active'));
+    document.querySelectorAll('#session-time-pills .pill').forEach(b => b.classList.remove('pill-active'));
     ['btn-yes','btn-no','stretch-yes','stretch-no','stress-yes','stress-no','nutri-yes','nutri-no'].forEach(id => document.getElementById(id).className = 'cbtn');
     document.getElementById('session-details').classList.remove('open');
     document.getElementById('stretch-details').classList.remove('open');
@@ -1570,6 +1592,7 @@
         sessTypeVal = prev.session_type.split('|').filter(Boolean);
         document.querySelectorAll('#session-type-pills .pill').forEach(b => b.classList.toggle('pill-active', sessTypeVal.includes(b.dataset.type)));
       }
+      if (prev.session_time) setSessionTime(prev.session_time);
       if (prev.climbing)  setClimb(prev.climbing);
       if (prev.stretching) setStretch(prev.stretching);
       if (prev.flex_rating) { document.getElementById('flex').value = prev.flex_rating; updEnergy('flex',prev.flex_rating); }
@@ -1593,6 +1616,7 @@
       sess_rating: isClimbing   ? parseInt(document.getElementById('sess').value) : null,
       sess_notes:  isClimbing   ? (document.getElementById('sess-notes').value.trim() || null) : null,
       session_type: isClimbing && sessTypeVal.length ? sessTypeVal.join('|') : null,
+      session_time: isClimbing ? sessTimeVal : null,
       stretching:  stretchVal,
       flex_rating: isStretching ? parseInt(document.getElementById('flex').value) : null,
       work_stress: stressVal === 'yes' ? parseInt(document.getElementById('stress').value) : null,
@@ -1666,6 +1690,7 @@
         </div>
         ${e.session_type ? `<div class="entry-note">🏷️ ${e.session_type.split('|').map(k => SESSION_TYPES[k] || k).join(', ')}</div>` : ''}
         ${e.nutrition_notes ? `<div class="entry-note">🍽️ "${e.nutrition_notes}"</div>` : ''}
+        ${e.session_time ? `<div class="entry-note">🕐 ${SESSION_TIMES[e.session_time] || e.session_time}</div>` : ''}
         ${e.sess_notes ? `<div class="entry-note">🧗 "${e.sess_notes}"</div>` : ''}
         ${e.notes      ? `<div class="entry-note">📋 "${e.notes}"</div>` : ''}
       </div>`;
@@ -1700,10 +1725,10 @@
       if (!custom) return;
       filename = custom.trim().replace(/\.csv$/i,'') || filename;
     }
-    const headers = ['date','climbing','sleep_h','water_L','physical_energy','mental_energy','session_rating','session_notes','session_type','stretching','flexibility_rating','work_stress','calories_kcal','protein_g','nutrition_quality','nutrition_notes','general_notes'];
+    const headers = ['date','climbing','sleep_h','water_L','physical_energy','mental_energy','session_rating','session_notes','session_type','session_time','stretching','flexibility_rating','work_stress','calories_kcal','protein_g','nutrition_quality','nutrition_notes','general_notes'];
     const rows = entries.map(e => [
       e.date, e.climbing||'', e.sleep, e.water, e.physical, e.mental,
-      e.sess_rating||'', '"'+(e.sess_notes||'').replace(/"/g,"'")+'"', e.session_type||'',
+      e.sess_rating||'', '"'+(e.sess_notes||'').replace(/"/g,"'")+'"', e.session_type||'', e.session_time||'',
       e.stretching||'', e.flex_rating||'', e.work_stress||'', e.calories||'', e.protein||'',
       e.nutrition_quality||'', '"'+(e.nutrition_notes||'').replace(/"/g,"'")+'"',
       '"'+(e.notes||'').replace(/"/g,"'")+'"'
@@ -1744,7 +1769,7 @@
         sleep:parseFloat(get('sleep_h'))||7, water:parseFloat(get('water_L'))||2,
         physical:parseInt(get('physical_energy'))||5, mental:parseInt(get('mental_energy'))||5,
         sess_rating:parseInt(get('session_rating'))||null, sess_notes:get('session_notes')||null,
-        session_type:get('session_type')||null,
+        session_type:get('session_type')||null, session_time:get('session_time')||null,
         stretching:get('stretching')||null, flex_rating:parseInt(get('flexibility_rating'))||null,
         work_stress:parseInt(get('work_stress'))||null,
         nutrition_quality:parseInt(get('nutrition_quality'))||null, nutrition_notes:get('nutrition_notes')||null,
