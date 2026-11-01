@@ -853,26 +853,26 @@
           Skip
         </button>
       </div>
-      <div class="two-col" style="margin-top:14px;">
-        <div>
-          <div class="field-top" style="margin-bottom:6px;"><span class="field-name" style="font-size:13px;">Calories</span></div>
-          <div class="input-wrap">
-            <input type="number" id="cals" placeholder="2200" min="0" max="9999">
-            <span class="unit">kcal</span>
-          </div>
-        </div>
-        <div>
-          <div class="field-top" style="margin-bottom:6px;"><span class="field-name" style="font-size:13px;">Protein</span></div>
-          <div class="input-wrap">
-            <input type="number" id="prot" placeholder="150" min="0" max="999">
-            <span class="unit">g</span>
-          </div>
-        </div>
-      </div>
       <div style="margin-top:14px;">
         <div class="session-details" id="nutri-details">
           <hr class="session-divider">
-          <div class="field">
+          <div class="two-col">
+            <div>
+              <div class="field-top" style="margin-bottom:6px;"><span class="field-name" style="font-size:13px;">Calories</span></div>
+              <div class="input-wrap">
+                <input type="number" id="cals" placeholder="2200" min="0" max="9999">
+                <span class="unit">kcal</span>
+              </div>
+            </div>
+            <div>
+              <div class="field-top" style="margin-bottom:6px;"><span class="field-name" style="font-size:13px;">Protein</span></div>
+              <div class="input-wrap">
+                <input type="number" id="prot" placeholder="150" min="0" max="999">
+                <span class="unit">g</span>
+              </div>
+            </div>
+          </div>
+          <div class="field" style="margin-top:14px;">
             <div class="field-top">
               <span class="field-name">Nutrition quality</span>
               <span class="field-val" id="nutri-val">5</span>
@@ -1556,10 +1556,13 @@
       document.getElementById('water').value = prev.water; updWater(prev.water);
       document.getElementById('phys').value  = prev.physical; updEnergy('phys',prev.physical);
       document.getElementById('ment').value  = prev.mental;   updEnergy('ment',prev.mental);
-      if (prev.calories) document.getElementById('cals').value = prev.calories;
-      if (prev.protein)  document.getElementById('prot').value = prev.protein;
-      if (prev.nutrition_quality) { setNutriQuality('yes'); document.getElementById('nutri').value = prev.nutrition_quality; updEnergy('nutri',prev.nutrition_quality); }
-      if (prev.nutrition_notes)   { document.getElementById('nutri-notes').value = prev.nutrition_notes; updCounter('nutri-notes','nutri-notes-count'); }
+      if (prev.calories || prev.protein || prev.nutrition_quality || prev.nutrition_notes) {
+        setNutriQuality('yes');
+        if (prev.calories) document.getElementById('cals').value = prev.calories;
+        if (prev.protein)  document.getElementById('prot').value = prev.protein;
+        if (prev.nutrition_quality) { document.getElementById('nutri').value = prev.nutrition_quality; updEnergy('nutri',prev.nutrition_quality); }
+        if (prev.nutrition_notes)   { document.getElementById('nutri-notes').value = prev.nutrition_notes; updCounter('nutri-notes','nutri-notes-count'); }
+      }
       if (prev.notes)    { document.getElementById('notes').value = prev.notes; updCounter('notes','notes-count'); }
       if (prev.sess_rating) { document.getElementById('sess').value = prev.sess_rating; updEnergy('sess',prev.sess_rating); }
       if (prev.sess_notes)  { document.getElementById('sess-notes').value = prev.sess_notes; updCounter('sess-notes','sess-notes-count'); }
@@ -1584,8 +1587,8 @@
       water:    parseFloat(document.getElementById('water').value),
       physical: parseInt(document.getElementById('phys').value),
       mental:   parseInt(document.getElementById('ment').value),
-      calories: document.getElementById('cals').value  || null,
-      protein:  document.getElementById('prot').value  || null,
+      calories: nutriVal === 'yes' ? (document.getElementById('cals').value || null) : null,
+      protein:  nutriVal === 'yes' ? (document.getElementById('prot').value || null) : null,
       notes:    document.getElementById('notes').value.trim() || null,
       sess_rating: isClimbing   ? parseInt(document.getElementById('sess').value) : null,
       sess_notes:  isClimbing   ? (document.getElementById('sess-notes').value.trim() || null) : null,
