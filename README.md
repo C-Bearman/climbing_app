@@ -89,6 +89,7 @@ Whenever a change is pushed to `master`, GitHub Pages redeploys within ~60 secon
 
 ### Log page — planned additions
 - [x] **Climbing session type tracking** — tick-all-that-apply pill row on climbing days: Endurance, Max Power, Technical, Projecting, Social / Unstructured. Sits between Session Rating and Session notes, same `.pill` chip component used elsewhere. Feeds the session type breakdown chart below
+- [x] **Time of day tracking** — optional single-select pill row (Morning/Afternoon/Evening/Night) on climbing days, to spot correlations between when you climb and how you feel (energy, session rating). Click the active pill again to clear it
 - [ ] **Perceived session effort** — a simple 1–10 slider or rating for "how hard did today's session feel?", distinct from Session Rating (which captures quality/performance). Useful for tracking RPE trends and spotting when high effort isn't translating to good sessions (fatigue, overtraining signals)
 - [ ] **Sleep quality rating** *(optional field)* — a daily sleep quality score (1–5: very poor → very good) alongside existing sleep hours; mirrors the scale used by the coach's tracking sheet and gives a richer picture than hours alone
 - [ ] **Training % complete** — a field to log what percentage of the planned session was completed (0–100%); distinct from session rating (which captures quality); useful for flagging interrupted or partial sessions and correlating completion rate with energy and recovery metrics
