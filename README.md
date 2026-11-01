@@ -100,6 +100,7 @@ Whenever a change is pushed to `master`, GitHub Pages redeploys within ~60 secon
 - [ ] **Strength-to-weight insights** — once body weight is stored, workout charts can express lifts as % of bodyweight (e.g. Pull-ups +60 kg at 90 kg = 167% BW). Climbing is a power-to-weight sport so this reframes raw numbers in a meaningful way
 - [ ] **"Why track this?" info button** — a hold-to-reveal tooltip or info overlay on optional fields (weight, height, nutrition, supplements) explaining what insights that data unlocks. Keeps the UI clean for people who just want to log, but rewards curiosity
 - [x] **Nutrition quality slider** (1–10, self-rated — how well did you eat today?) — opt-in Track today/Skip toggle alongside the existing calorie/protein fields, plus a 40-char notes field
+- [ ] **Nutrition section mix-and-match clarity** — Calories, Protein, Nutrition quality and notes all sit behind one Track today/Skip toggle, but it's not obvious that each field within is independently optional too (e.g. logging only Protein, or only the quality rating, without filling the others). Needs some kind of visual hint — placeholder text, lighter field styling, or per-field "optional" labelling — so it reads as "fill in whatever's relevant" rather than implying all-or-nothing
 - [ ] **Supplement tracker** — user-defined tick-box list (creatine, vitamin D, protein shake, etc.); presence/absence per day is enough — no units needed. Configurable by the user, similar to how exercises are defined in the workout tracker
 
 ### Future branches
