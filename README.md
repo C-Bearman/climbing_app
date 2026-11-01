@@ -87,6 +87,7 @@ Whenever a change is pushed to `master`, GitHub Pages redeploys within ~60 secon
 - [x] **Log entry deletion** — delete button per entry with inline confirmation; entry removed from localStorage, streak and week counter update immediately
 - [x] **Workout date highlights** — workout date picker replaced with a custom calendar grid; dates with saved entries shown with a green tinge; date badge shows open/close chevron
 - [ ] **CSV import overlay UX** — the core import validation and Merge/Replace all flow is in place; revisit the wording, layout, and visual styling of the warning overlays on both Log and Workout tabs after real-world use to see if anything needs tightening up
+- [ ] **Skip Merge/Replace prompt when there's no existing data** — if a user has just deleted all their data (or this is a first-time import) and there are zero existing entries, importing a CSV shouldn't need to ask Merge vs Replace all — there's nothing to merge with or replace, so the choice is meaningless. Check the entry count before showing the overlay; import straight away if it's empty. Applies to both the Log and Workout import flows
 
 ### Log page — planned additions
 - [x] **Climbing session type tracking** — tick-all-that-apply pill row on climbing days: Endurance, Max Power, Technical, Projecting, Social / Unstructured. Sits between Session Rating and Session notes, same `.pill` chip component used elsewhere. Feeds the session type breakdown chart below
