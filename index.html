@@ -1826,6 +1826,10 @@
     toast.classList.add('show'); setTimeout(()=>toast.classList.remove('show'),3000);
     renderStreak(); updateWeekCounter();
     if (document.getElementById('hist-panel').style.display==='block') renderHist();
+    // Refresh the on-screen form in case the imported data includes the
+    // currently selected date — otherwise the sliders/toggles stay stale
+    // until the user navigates away from and back to that date.
+    prefillForm(selectedDate);
   }
 
   function parseCSVLine(line) {
