@@ -105,6 +105,7 @@ Whenever a change is pushed to `master`, GitHub Pages redeploys within ~60 secon
 
 ### Future branches
 - [ ] **Desktop / responsive layout** *(optional — Play Store is the primary target)* — the app is designed for a mobile viewport and works on phone screens. On a laptop or monitor the layout is narrow and centred. A responsive pass could widen the layout at larger breakpoints, reflow the tab navigation, and make charts larger — useful if coaches want to review athlete data on a desktop. This is lower priority than the Play Store APK build (see Eventual v1.0 below), but could be a lightweight CSS-only change if the scope is kept narrow.
+- [ ] **Time-of-day visual theming** *(fun/polish, low priority)* — now that sessions can be tagged Morning/Afternoon/Evening/Night, the app's look could shift to match: background colours, lighting mood, maybe tied to actual device time rather than (or as well as) the logged session time. Wants a cute bear mascot worked in too — a nod to the Bearman Climbs name — e.g. a small illustration that changes scene per time of day (bear waking up at sunrise, bear under stars at night). Needs its own design thinking session before any build
 - [ ] Goal lines extended to more metrics beyond sleep and water
 - [ ] Water reminder notifications during climbing sessions
 - [ ] Auto-sync to Google Sheets via Google Apps Script
