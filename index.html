@@ -1028,13 +1028,37 @@
 
     <header class="charts-header">
       <div class="charts-title">Bearman<em>Climbs</em></div>
-      <div class="range-row">
+      <div class="range-row" id="charts-range-row">
         <span class="range-label">Show last:</span>
         <input type="range" id="range-slider" min="0" max="4" step="1" value="4"
                style="flex:1;" oninput="onRangeChange(this.value)">
         <span class="range-val" id="range-val">All</span>
       </div>
     </header>
+
+    <!--
+      STARTER VIEW
+      Shown instead of the full charts below until CHARTS_MIN_ENTRIES
+      entries exist (see checkMinData's default — roughly one week).
+      A simple Climbing vs Rest day split, since that's meaningful
+      from day one, plus a progress nudge.
+    -->
+    <div id="charts-starter" style="display:none;">
+      <div class="section" style="margin: 10px 14px 0;">
+        <div class="section-head">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          Getting started
+        </div>
+        <p style="font-size:14px;color:var(--text2);margin:0 0 16px;line-height:1.5;">
+          Keep logging — full charts unlock once you have a week of entries
+          (<b id="starter-count" style="color:var(--text);">0</b>/7 so far).
+        </p>
+        <canvas id="chart-starter-split" class="chart-canvas" style="max-height:220px;"></canvas>
+        <div class="sleep-legend" id="starter-split-legend" style="justify-content:center;margin-top:12px;"></div>
+      </div>
+    </div>
+
+    <div id="charts-main">
 
     <!--
       GOALS CARD
@@ -1263,6 +1287,8 @@
     </div>
 
     <div style="height:10px;"></div>
+
+    </div><!-- end #charts-main -->
 
   </div><!-- end #tab-charts -->
 
@@ -2469,7 +2495,18 @@
     overlay.classList.add('show');
   }
 
+  // Full charts stay hidden behind a simple starter view until this many
+  // entries exist — matches checkMinData's default (roughly one week).
+  const CHARTS_MIN_ENTRIES = 7;
+
   function drawAllCharts() {
+    const allEntries = getEntries();
+    const unlocked = allEntries.length >= CHARTS_MIN_ENTRIES;
+    document.getElementById('charts-starter').style.display   = unlocked ? 'none' : '';
+    document.getElementById('charts-main').style.display      = unlocked ? '' : 'none';
+    document.getElementById('charts-range-row').style.display = unlocked ? '' : 'none';
+    if (!unlocked) { drawStarterView(allEntries); return; }
+
     const entries = getFilteredEntries();
     updateSessionStatsCard();
     drawSessionChart(entries);
@@ -2477,6 +2514,43 @@
     drawTrendsChart(entries);
     drawStretchChart(entries);
     drawWorkoutCharts();
+  }
+
+  /* ============================================================
+     STARTER VIEW — Climbing vs Rest day split
+     Shown pre-CHARTS_MIN_ENTRIES instead of the full charts tab.
+  ============================================================ */
+  function drawStarterView(entries) {
+    document.getElementById('starter-count').textContent = entries.length;
+    destroyChart('starter-split');
+
+    const climbCount = entries.filter(e => e.climbing === 'yes').length;
+    const restCount  = entries.filter(e => e.climbing === 'no').length;
+    const legendEl = document.getElementById('starter-split-legend');
+
+    if (climbCount + restCount === 0) {
+      if (legendEl) legendEl.innerHTML = '';
+      return;
+    }
+
+    legendEl.innerHTML = `
+      <div class="sleep-legend-item"><div class="sleep-legend-dot" style="background:#1D9E75"></div> Climbing (${climbCount})</div>
+      <div class="sleep-legend-item"><div class="sleep-legend-dot" style="background:#6C9BD2"></div> Rest (${restCount})</div>`;
+
+    chartInstances['starter-split'] = new Chart(document.getElementById('chart-starter-split'), {
+      type: 'doughnut',
+      data: {
+        labels: ['Climbing', 'Rest'],
+        datasets: [{ data: [climbCount, restCount], backgroundColor: ['#1D9E75', '#6C9BD2'], borderWidth: 0 }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${ctx.parsed}` } }
+        }
+      }
+    });
   }
 
   /* ============================================================
