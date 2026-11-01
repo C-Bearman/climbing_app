@@ -856,6 +856,40 @@
           </div>
         </div>
       </div>
+      <div style="margin-top:14px;">
+        <div class="field-top" style="margin-bottom:8px;">
+          <span class="field-name" style="font-size:13px;color:var(--text2);">Nutrition quality <span style="color:var(--text3);">· How well did you eat today?</span></span>
+        </div>
+        <div class="climb-btns">
+          <button class="cbtn" id="nutri-yes" onclick="setNutriQuality('yes')">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+            Track today
+          </button>
+          <button class="cbtn" id="nutri-no" onclick="setNutriQuality('no')">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            Skip
+          </button>
+        </div>
+        <div class="session-details" id="nutri-details">
+          <hr class="session-divider">
+          <div class="field">
+            <div class="field-top">
+              <span class="field-name">Nutrition quality</span>
+              <span class="field-val" id="nutri-val">5</span>
+            </div>
+            <div class="energy-track" id="nutri-track">
+              <input type="range" id="nutri" min="1" max="10" step="1" value="5" oninput="updEnergy('nutri',this.value)">
+            </div>
+          </div>
+          <div style="margin-top:14px;">
+            <div class="field-top" style="margin-bottom:8px;">
+              <span class="field-name" style="font-size:13px;color:var(--text2);">Nutrition notes</span>
+            </div>
+            <textarea id="nutri-notes" maxlength="40" placeholder="e.g. 'Skipped breakfast, ate out late'" oninput="updCounter('nutri-notes','nutri-notes-count')"></textarea>
+            <small class="char-counter" id="nutri-notes-count">40 left</small>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- General notes -->
@@ -1294,6 +1328,7 @@
   let climbVal     = null;
   let stretchVal   = null;
   let stressVal    = null;
+  let nutriVal     = null;
   let sessTypeVal  = [];
   let selectedDate = todayStr();
 
@@ -1403,6 +1438,12 @@
     document.getElementById('stress-no').className  = 'cbtn' + (val === 'no'  ? ' sel-nope' : '');
     document.getElementById('stress-details').classList.toggle('open', val === 'yes');
   }
+  function setNutriQuality(val) {
+    nutriVal = val;
+    document.getElementById('nutri-yes').className = 'cbtn' + (val === 'yes' ? ' sel-yes' : '');
+    document.getElementById('nutri-no').className  = 'cbtn' + (val === 'no'  ? ' sel-nope' : '');
+    document.getElementById('nutri-details').classList.toggle('open', val === 'yes');
+  }
 
   /* ── Slider updates ── */
   function updSleep(v) {
@@ -1425,7 +1466,8 @@
     ment:   { hi: 8, mid: 4 },
     sess:   { hi: 7, mid: 4 },
     flex:   { hi: 7, mid: 4 },
-    stress: { hi: 8, mid: 4, invert: true }
+    stress: { hi: 8, mid: 4, invert: true },
+    nutri:  { hi: 8, mid: 4 }
   };
   function updEnergy(id, v) {
     const n = parseInt(v);
@@ -1499,13 +1541,16 @@
     document.getElementById('prot').value  = '';
     document.getElementById('notes').value = '';     updCounter('notes','notes-count');
     document.getElementById('sess-notes').value = ''; updCounter('sess-notes','sess-notes-count');
-    climbVal = null; stretchVal = null; stressVal = null; sessTypeVal = [];
+    document.getElementById('nutri-notes').value = ''; updCounter('nutri-notes','nutri-notes-count');
+    climbVal = null; stretchVal = null; stressVal = null; nutriVal = null; sessTypeVal = [];
     document.getElementById('stress').value = 5; updEnergy('stress',5);
+    document.getElementById('nutri').value  = 5; updEnergy('nutri',5);
     document.querySelectorAll('#session-type-pills .pill').forEach(b => b.classList.remove('pill-active'));
-    ['btn-yes','btn-no','stretch-yes','stretch-no','stress-yes','stress-no'].forEach(id => document.getElementById(id).className = 'cbtn');
+    ['btn-yes','btn-no','stretch-yes','stretch-no','stress-yes','stress-no','nutri-yes','nutri-no'].forEach(id => document.getElementById(id).className = 'cbtn');
     document.getElementById('session-details').classList.remove('open');
     document.getElementById('stretch-details').classList.remove('open');
     document.getElementById('stress-details').classList.remove('open');
+    document.getElementById('nutri-details').classList.remove('open');
     if (prev) {
       document.getElementById('sleep').value = prev.sleep; updSleep(prev.sleep);
       document.getElementById('water').value = prev.water; updWater(prev.water);
@@ -1513,6 +1558,8 @@
       document.getElementById('ment').value  = prev.mental;   updEnergy('ment',prev.mental);
       if (prev.calories) document.getElementById('cals').value = prev.calories;
       if (prev.protein)  document.getElementById('prot').value = prev.protein;
+      if (prev.nutrition_quality) { setNutriQuality('yes'); document.getElementById('nutri').value = prev.nutrition_quality; updEnergy('nutri',prev.nutrition_quality); }
+      if (prev.nutrition_notes)   { document.getElementById('nutri-notes').value = prev.nutrition_notes; updCounter('nutri-notes','nutri-notes-count'); }
       if (prev.notes)    { document.getElementById('notes').value = prev.notes; updCounter('notes','notes-count'); }
       if (prev.sess_rating) { document.getElementById('sess').value = prev.sess_rating; updEnergy('sess',prev.sess_rating); }
       if (prev.sess_notes)  { document.getElementById('sess-notes').value = prev.sess_notes; updCounter('sess-notes','sess-notes-count'); }
@@ -1545,7 +1592,9 @@
       session_type: isClimbing && sessTypeVal.length ? sessTypeVal.join('|') : null,
       stretching:  stretchVal,
       flex_rating: isStretching ? parseInt(document.getElementById('flex').value) : null,
-      work_stress: stressVal === 'yes' ? parseInt(document.getElementById('stress').value) : null
+      work_stress: stressVal === 'yes' ? parseInt(document.getElementById('stress').value) : null,
+      nutrition_quality: nutriVal === 'yes' ? parseInt(document.getElementById('nutri').value) : null,
+      nutrition_notes:   nutriVal === 'yes' ? (document.getElementById('nutri-notes').value.trim() || null) : null
     };
     const arr = getEntries().filter(e => e.date !== selectedDate);
     arr.unshift(entry);
@@ -1610,8 +1659,10 @@
           ${e.sess_rating ? `<div class="estat">Session <b>${e.sess_rating}/10</b></div>` : ''}
           ${e.flex_rating ? `<div class="estat">Flex <b>${e.flex_rating}/10</b></div>` : ''}
           ${e.work_stress ? `<div class="estat">Stress <b>${e.work_stress}/10</b></div>` : ''}
+          ${e.nutrition_quality ? `<div class="estat">Nutrition <b>${e.nutrition_quality}/10</b></div>` : ''}
         </div>
         ${e.session_type ? `<div class="entry-note">🏷️ ${e.session_type.split('|').map(k => SESSION_TYPES[k] || k).join(', ')}</div>` : ''}
+        ${e.nutrition_notes ? `<div class="entry-note">🍽️ "${e.nutrition_notes}"</div>` : ''}
         ${e.sess_notes ? `<div class="entry-note">🧗 "${e.sess_notes}"</div>` : ''}
         ${e.notes      ? `<div class="entry-note">📋 "${e.notes}"</div>` : ''}
       </div>`;
@@ -1646,11 +1697,12 @@
       if (!custom) return;
       filename = custom.trim().replace(/\.csv$/i,'') || filename;
     }
-    const headers = ['date','climbing','sleep_h','water_L','physical_energy','mental_energy','session_rating','session_notes','session_type','stretching','flexibility_rating','work_stress','calories_kcal','protein_g','general_notes'];
+    const headers = ['date','climbing','sleep_h','water_L','physical_energy','mental_energy','session_rating','session_notes','session_type','stretching','flexibility_rating','work_stress','calories_kcal','protein_g','nutrition_quality','nutrition_notes','general_notes'];
     const rows = entries.map(e => [
       e.date, e.climbing||'', e.sleep, e.water, e.physical, e.mental,
       e.sess_rating||'', '"'+(e.sess_notes||'').replace(/"/g,"'")+'"', e.session_type||'',
       e.stretching||'', e.flex_rating||'', e.work_stress||'', e.calories||'', e.protein||'',
+      e.nutrition_quality||'', '"'+(e.nutrition_notes||'').replace(/"/g,"'")+'"',
       '"'+(e.notes||'').replace(/"/g,"'")+'"'
     ]);
     const csv = [headers.join(','), ...rows.map(r=>r.join(','))].join('\n');
@@ -1692,11 +1744,13 @@
         session_type:get('session_type')||null,
         stretching:get('stretching')||null, flex_rating:parseInt(get('flexibility_rating'))||null,
         work_stress:parseInt(get('work_stress'))||null,
+        nutrition_quality:parseInt(get('nutrition_quality'))||null, nutrition_notes:get('nutrition_notes')||null,
         calories:get('calories_kcal')||null, protein:get('protein_g')||null, notes:get('general_notes')||null
       };
       if (isNaN(entry.sess_rating)) entry.sess_rating=null;
       if (isNaN(entry.flex_rating)) entry.flex_rating=null;
       if (isNaN(entry.work_stress)) entry.work_stress=null;
+      if (isNaN(entry.nutrition_quality)) entry.nutrition_quality=null;
       if (entry.date) imported.push(entry);
     }
     if (!imported.length) { alert('No valid entries found in CSV.'); return; }
