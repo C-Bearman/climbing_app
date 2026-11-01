@@ -840,7 +840,20 @@
         <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M12 2a10 10 0 100 20A10 10 0 0012 2z"/><path d="M12 6v6l4 2"/></svg>
         Nutrition <span class="opt-tag">optional</span>
       </div>
-      <div class="two-col">
+      <div class="field-top" style="margin-bottom:8px;">
+        <span class="field-name" style="font-size:13px;color:var(--text2);">Nutrition quality <span style="color:var(--text3);">· How well did you eat today?</span></span>
+      </div>
+      <div class="climb-btns">
+        <button class="cbtn" id="nutri-yes" onclick="setNutriQuality('yes')">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+          Track today
+        </button>
+        <button class="cbtn" id="nutri-no" onclick="setNutriQuality('no')">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          Skip
+        </button>
+      </div>
+      <div class="two-col" style="margin-top:14px;">
         <div>
           <div class="field-top" style="margin-bottom:6px;"><span class="field-name" style="font-size:13px;">Calories</span></div>
           <div class="input-wrap">
@@ -857,19 +870,6 @@
         </div>
       </div>
       <div style="margin-top:14px;">
-        <div class="field-top" style="margin-bottom:8px;">
-          <span class="field-name" style="font-size:13px;color:var(--text2);">Nutrition quality <span style="color:var(--text3);">· How well did you eat today?</span></span>
-        </div>
-        <div class="climb-btns">
-          <button class="cbtn" id="nutri-yes" onclick="setNutriQuality('yes')">
-            <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
-            Track today
-          </button>
-          <button class="cbtn" id="nutri-no" onclick="setNutriQuality('no')">
-            <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-            Skip
-          </button>
-        </div>
         <div class="session-details" id="nutri-details">
           <hr class="session-divider">
           <div class="field">
