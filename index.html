@@ -1012,6 +1012,10 @@
 
     <div style="padding: 16px 16px 0;">
 
+      <!-- Saved workout plans — tap to populate the exercise list below.
+           Hidden entirely when no plans have been saved yet. -->
+      <div class="wo-pill-row" id="workout-plans-row" style="display:none; margin-bottom:14px;"></div>
+
       <!-- Exercise blocks are injected here by addExerciseBlock() -->
       <div id="exercise-list"></div>
 
@@ -1020,6 +1024,10 @@
 
       <button class="add-exercise-btn" onclick="addExerciseBlock()">
         + Add Exercise
+      </button>
+
+      <button class="add-exercise-btn" onclick="saveWorkoutAsPlan()">
+        💾 Save as Plan
       </button>
 
       <button class="save-workout-btn" onclick="saveWorkout()">
@@ -1400,6 +1408,7 @@
 
   /* Chart.js instances — kept so we can destroy & redraw on range change */
   let chartInstances = {};
+  let exerciseBlockCounter = 0;
 
   /* ── Utility ── */
   function todayStr() { return new Date().toISOString().split('T')[0]; }
@@ -2937,8 +2946,11 @@
     block.dataset.fields  = '';   // comma-separated e.g. 'reps,weight'
     block.dataset.pbField = '';   // which field is the PB metric
 
-    // Unique ID so PB radio buttons don't bleed between blocks
-    const bid = 'b' + Date.now();
+    // Unique ID so PB radio buttons don't bleed between blocks. A counter,
+    // not Date.now() — blocks added back-to-back in the same millisecond
+    // (e.g. applying a workout plan, or loading a multi-exercise past day)
+    // would otherwise collide and share a radio group.
+    const bid = 'b' + (++exerciseBlockCounter);
 
     block.innerHTML = `
       <div class="exercise-header" onclick="toggleExerciseBlock(this)">
@@ -3356,6 +3368,87 @@
     }
   }
 
+  /* ============================================================
+     WORKOUT PLANS
+     A plan is just a named list of exercises (name/fields/pb_field) —
+     no sets or numbers, since those change workout to workout. Saved
+     from whatever's currently on the exercise list; applying one adds
+     those exercises as fresh blocks, same as picking them from the
+     exercise library.
+  ============================================================ */
+  const WORKOUT_PLANS_KEY = 'bearmanclimbs_workout_plans_v1';
+  function getWorkoutPlans()      { try { return JSON.parse(localStorage.getItem(WORKOUT_PLANS_KEY) || '[]'); } catch(e) { return []; } }
+  function saveWorkoutPlans(arr)  { localStorage.setItem(WORKOUT_PLANS_KEY, JSON.stringify(arr)); }
+
+  function renderWorkoutPlans() {
+    const row   = document.getElementById('workout-plans-row');
+    const plans = getWorkoutPlans();
+    if (!plans.length) { row.innerHTML = ''; row.style.display = 'none'; return; }
+    row.style.display = 'flex';
+    row.innerHTML = plans.map(p => `
+      <span style="display:inline-flex;align-items:center;gap:2px;">
+        <button class="pill" onclick="applyWorkoutPlan('${p.name.replace(/'/g,"\\'")}')">${p.name}</button>
+        <button class="wo-remove-btn" style="font-size:15px;" onclick="deleteWorkoutPlan('${p.name.replace(/'/g,"\\'")}')" title="Delete plan">✕</button>
+      </span>`).join('');
+  }
+
+  /* Adds every exercise in a plan as a fresh block — leaves any exercises
+     already on the list untouched, so plans stack rather than replace. */
+  function applyWorkoutPlan(name) {
+    const plan = getWorkoutPlans().find(p => p.name === name);
+    if (!plan) return;
+    const list = document.getElementById('exercise-list');
+    plan.exercises.forEach(ex => {
+      addExerciseBlock();
+      const block = list.lastElementChild;
+      block.querySelector('.ex-name-input').value = ex.name;
+      block.querySelectorAll('.field-cb').forEach(cb => { cb.checked = ex.fields.includes(cb.value); });
+      onFieldChange(block);
+      if (ex.pb_field) {
+        const radio = block.querySelector(`.pb-radio[value="${ex.pb_field}"]`);
+        if (radio) { radio.checked = true; block.dataset.pbField = ex.pb_field; }
+      }
+      updatePBChip(block, ex.name, ex.pb_field);
+    });
+  }
+
+  /* Snapshots whatever's currently on the exercise list (name/fields/pb_field
+     only — no set data) and saves it as a named, reusable plan. */
+  function saveWorkoutAsPlan() {
+    const blocks = document.querySelectorAll('#exercise-list .exercise-block');
+    const exercises = [];
+    blocks.forEach(block => {
+      const name    = block.querySelector('.ex-name-input').value.trim();
+      const fields  = (block.dataset.fields || '').split(',').filter(Boolean);
+      const pbField = block.dataset.pbField || '';
+      if (name && fields.length) exercises.push({ name, fields, pb_field: pbField });
+    });
+    if (!exercises.length) {
+      showWorkoutOverlay('⚠️', 'No exercises yet', 'Add at least one exercise before saving a plan.');
+      return;
+    }
+    const planName = (prompt('Save this as a plan named:', '') || '').trim();
+    if (!planName) return;
+
+    const plans = getWorkoutPlans();
+    const existingIdx = plans.findIndex(p => p.name.toLowerCase() === planName.toLowerCase());
+    if (existingIdx >= 0) {
+      if (!confirm(`A plan named "${planName}" already exists. Overwrite it?`)) return;
+      plans[existingIdx] = { name: planName, exercises };
+    } else {
+      plans.push({ name: planName, exercises });
+    }
+    saveWorkoutPlans(plans);
+    renderWorkoutPlans();
+    showWorkoutOverlay('✅', 'Plan saved', `"${planName}" — ${exercises.length} exercise${exercises.length !== 1 ? 's' : ''}`);
+  }
+
+  function deleteWorkoutPlan(name) {
+    if (!confirm(`Delete plan "${name}"?`)) return;
+    saveWorkoutPlans(getWorkoutPlans().filter(p => p.name !== name));
+    renderWorkoutPlans();
+  }
+
   /* Export workout data as a separate CSV */
   function exportWorkoutCSV(saveAs) {
     const workouts = getWorkouts();
@@ -3708,6 +3801,7 @@
     updateWorkoutDateUI();
     document.getElementById('workout-filename').value = getWorkoutFilename();
     updateExerciseDatalist();
+    renderWorkoutPlans();
     document.getElementById('workout-file-input').addEventListener('change', function() {
       if (this.files && this.files.length > 0) importWorkoutCSV(this);
     });
