@@ -542,6 +542,15 @@
       background: var(--green-light); border-radius: 8px;
       padding: 5px 10px; margin-bottom: 12px; display: none;
     }
+    /* Last-session reference chip — neutral tone (not an achievement like
+       the PB chip), stays visible the whole time you're filling in today's
+       sets, so "what did I do last time" doesn't require remembering a
+       popup you've already dismissed. Only shown when history exists. */
+    .last-session-chip {
+      font-size: 12px; font-weight: 500; color: var(--text2);
+      background: var(--surface2); border-radius: 8px;
+      padding: 5px 10px; margin-bottom: 12px; display: none;
+    }
 
     /* "Sets" subheading above set rows */
     .sets-label {
@@ -3014,6 +3023,7 @@
         </div>
 
         <div class="pb-chip"></div>
+        <div class="last-session-chip"></div>
         <p class="sets-label">Sets</p>
         <div class="sets-list"></div>
 
@@ -3158,6 +3168,7 @@
     }
 
     updatePBChip(block, name, block.dataset.pbField);
+    updateLastSessionChip(block, name, (block.dataset.fields || '').split(',').filter(Boolean));
   }
 
   /* Show the PB chip only when a real best exists; hide it silently otherwise */
@@ -3168,6 +3179,23 @@
     if (pb) {
       chip.textContent   = '🏆 PB: ' + pb;
       chip.style.display = 'block'; // must be explicit — CSS default is none
+    } else {
+      chip.style.display = 'none'; // no "no previous entries" clutter
+    }
+  }
+
+  /* Persistent "last time" reference — stays visible the whole time this
+     block is open, so it doesn't require remembering a popup you've
+     already dismissed (see applyWorkoutPlan's confirm, which shows the
+     same summary before adding exercises). Read-only — never touches
+     the set input fields. */
+  function updateLastSessionChip(block, name, fields) {
+    const chip = block.querySelector('.last-session-chip');
+    if (!name || !fields.length) { chip.style.display = 'none'; return; }
+    const lastSets = getLastExerciseSets(name);
+    if (lastSets && lastSets.length) {
+      chip.textContent   = '🕐 Last time: ' + formatSetSummary(lastSets, fields);
+      chip.style.display = 'block';
     } else {
       chip.style.display = 'none'; // no "no previous entries" clutter
     }
@@ -3451,6 +3479,7 @@
         if (radio) { radio.checked = true; block.dataset.pbField = ex.pb_field; }
       }
       updatePBChip(block, ex.name, ex.pb_field);
+      updateLastSessionChip(block, ex.name, ex.fields);
     });
   }
 
