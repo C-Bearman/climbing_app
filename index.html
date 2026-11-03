@@ -551,6 +551,15 @@
       background: var(--surface2); border-radius: 8px;
       padding: 5px 10px; margin-bottom: 12px; display: none;
     }
+    /* Plan cue note chip — a setup/technique reminder saved on a plan's
+       exercise (e.g. "37° incline on bench"), not a graphed workout note.
+       Blue, distinct from the PB (green) and last-session (grey) chips —
+       only shown on exercises added via applyWorkoutPlan that have a note. */
+    .plan-note-chip {
+      font-size: 12px; font-weight: 500; color: #4A7FB5;
+      background: rgba(108,155,210,0.12); border-radius: 8px;
+      padding: 5px 10px; margin-bottom: 12px; display: none;
+    }
 
     /* "Sets" subheading above set rows */
     .sets-label {
@@ -3024,6 +3033,7 @@
 
         <div class="pb-chip"></div>
         <div class="last-session-chip"></div>
+        <div class="plan-note-chip"></div>
         <p class="sets-label">Sets</p>
         <div class="sets-list"></div>
 
@@ -3464,7 +3474,8 @@
     const preview = plan.exercises.map(ex => {
       const lastSets = getLastExerciseSets(ex.name);
       const summary  = lastSets ? formatSetSummary(lastSets, ex.fields) : 'no previous sets logged';
-      return `• ${ex.name} — last time: ${summary}`;
+      const noteLine = ex.note ? `\n  📌 ${ex.note}` : '';
+      return `• ${ex.name} — last time: ${summary}${noteLine}`;
     }).join('\n');
     if (!confirm(`Add "${name}" to today's workout?\n\n${preview}`)) return;
     const list = document.getElementById('exercise-list');
@@ -3480,6 +3491,8 @@
       }
       updatePBChip(block, ex.name, ex.pb_field);
       updateLastSessionChip(block, ex.name, ex.fields);
+      const noteChip = block.querySelector('.plan-note-chip');
+      if (ex.note) { noteChip.textContent = '📌 ' + ex.note; noteChip.style.display = 'block'; }
     });
   }
 
@@ -3503,12 +3516,22 @@
 
     const plans = getWorkoutPlans();
     const existingIdx = plans.findIndex(p => p.name.toLowerCase() === planName.toLowerCase());
-    if (existingIdx >= 0) {
-      if (!confirm(`A plan named "${planName}" already exists. Overwrite it?`)) return;
-      plans[existingIdx] = { name: planName, exercises };
-    } else {
-      plans.push({ name: planName, exercises });
-    }
+    const existingPlan = existingIdx >= 0 ? plans[existingIdx] : null;
+    if (existingPlan && !confirm(`A plan named "${planName}" already exists. Overwrite it?`)) return;
+
+    // Cue notes are a reminder for setup/technique (e.g. "37° incline on
+    // bench") — not workout notes, never graphed. Optional per exercise;
+    // pre-fills with the previous note on overwrite so unchanged cues
+    // don't need retyping.
+    exercises.forEach(ex => {
+      const prevNote = existingPlan ? (existingPlan.exercises.find(e => e.name.toLowerCase() === ex.name.toLowerCase())?.note || '') : '';
+      const note = (prompt(`Cue note for "${ex.name}"? (optional — e.g. "37° incline on bench")`, prevNote) || '').trim();
+      if (note) ex.note = note;
+    });
+
+    if (existingPlan) plans[existingIdx] = { name: planName, exercises };
+    else plans.push({ name: planName, exercises });
+
     saveWorkoutPlans(plans);
     renderWorkoutPlans();
     showWorkoutOverlay('✅', 'Plan saved', `"${planName}" — ${exercises.length} exercise${exercises.length !== 1 ? 's' : ''}`);
