@@ -2603,6 +2603,29 @@
     overlay.classList.add('show');
   }
 
+  /* Info button next to the RiR checkbox — same persistent overlay pattern as showWoInfo */
+  function showRirInfo() {
+    let overlay = document.getElementById('rir-info-overlay');
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.id        = 'rir-info-overlay';
+      overlay.className = 'workout-overlay';
+      overlay.innerHTML = `
+        <div class="workout-overlay-card" style="position:relative; padding-top:44px;">
+          <button onclick="document.getElementById('rir-info-overlay').classList.remove('show')"
+                  style="position:absolute;top:10px;right:12px;background:none;border:none;
+                         color:var(--text2);font-size:20px;cursor:pointer;line-height:1;">×</button>
+          <div class="workout-overlay-icon">ℹ︎</div>
+          <p class="workout-overlay-title">What is RiR?</p>
+          <p class="workout-overlay-sub" style="text-align:left; line-height:1.7;">
+            RiR stands for Reps in Reserve. This is to track how many more reps you feel you could have achieved.
+          </p>
+        </div>`;
+      document.body.appendChild(overlay);
+    }
+    overlay.classList.add('show');
+  }
+
   // Full charts stay hidden behind a simple starter view until this many
   // entries exist — matches checkMinData's default (roughly one week).
   const CHARTS_MIN_ENTRIES = 7;
@@ -3006,6 +3029,7 @@
                      onchange="onFieldChange(this.closest('.exercise-block'))">
               <span>RiR</span>
             </label>
+            <button type="button" class="wo-info-btn" style="margin-right:10px;" onclick="showRirInfo()" aria-label="What is RiR?">ℹ︎</button>
           </div>
           <div class="pb-row" style="display:none">
             <span class="field-row-label">PB by:</span>
