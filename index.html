@@ -3392,16 +3392,53 @@
       </span>`).join('');
   }
 
+  /* All sets from the most recent date this exercise was logged, sorted by
+     set number — null if it's never been logged before. */
+  function getLastExerciseSets(name) {
+    const sets = getWorkouts().filter(s => s.exercise.toLowerCase() === name.toLowerCase());
+    if (!sets.length) return null;
+    const lastDate = sets.reduce((max, s) => s.date > max ? s.date : max, sets[0].date);
+    return sets.filter(s => s.date === lastDate).sort((a, b) => a.set_number - b.set_number);
+  }
+
+  /* Collapses consecutive identical sets into "N sets of X reps @ Ykg" style
+     text, e.g. [4@138, 3@158, 3@158, 3@158] -> "4 reps @ 138kg, then 3 sets
+     of 3 reps @ 158kg". Purely descriptive — never touches input fields. */
+  function formatSetSummary(sets, fields) {
+    const groups = [];
+    sets.forEach(s => {
+      const key = fields.map(f => f === 'reps' ? s.reps : f === 'weight' ? s.weight_kg : s.duration_s).join('|');
+      const last = groups[groups.length - 1];
+      if (last && last.key === key) last.count++;
+      else groups.push({ key, count: 1, s });
+    });
+    return groups.map(g => {
+      const parts = [];
+      if (fields.includes('reps'))     parts.push(`${g.s.reps} rep${g.s.reps === 1 ? '' : 's'}`);
+      if (fields.includes('weight'))   parts.push(`@ ${g.s.weight_kg}kg`);
+      if (fields.includes('duration')) parts.push(`${g.s.duration_s}s`);
+      const desc = parts.join(' ');
+      return g.count > 1 ? `${g.count} sets of ${desc}` : desc;
+    }).join(', then ');
+  }
+
   /* Adds every exercise in a plan as a fresh block — leaves any exercises
      already on the list untouched, so plans stack rather than replace.
-     Confirms first and lists the exercises by name, so an accidental tap
-     on the wrong plan pill (e.g. S&C B instead of S&C C) is easy to catch
-     before anything actually gets added. */
+     Confirms first, listing each exercise plus a "last time" summary of
+     what was actually logged for it, so an accidental tap on the wrong
+     plan pill (e.g. S&C B instead of S&C C) is easy to catch before
+     anything actually gets added. The preview is read-only text — the
+     input fields it adds stay blank either way, so progressively
+     increasing weight/reps isn't blocked by having to clear old numbers. */
   function applyWorkoutPlan(name) {
     const plan = getWorkoutPlans().find(p => p.name === name);
     if (!plan) return;
-    const exNames = plan.exercises.map(ex => ex.name).join(', ');
-    if (!confirm(`Add "${name}" to today's workout?\n\n${exNames}`)) return;
+    const preview = plan.exercises.map(ex => {
+      const lastSets = getLastExerciseSets(ex.name);
+      const summary  = lastSets ? formatSetSummary(lastSets, ex.fields) : 'no previous sets logged';
+      return `• ${ex.name} — last time: ${summary}`;
+    }).join('\n');
+    if (!confirm(`Add "${name}" to today's workout?\n\n${preview}`)) return;
     const list = document.getElementById('exercise-list');
     plan.exercises.forEach(ex => {
       addExerciseBlock();
@@ -3449,7 +3486,10 @@
   }
 
   function deleteWorkoutPlan(name) {
-    if (!confirm(`Delete plan "${name}"?`)) return;
+    const plan = getWorkoutPlans().find(p => p.name === name);
+    const exNames = plan ? plan.exercises.map(ex => ex.name).join(', ') : '';
+    const msg = `Permanently delete "${name}"?\n\n${exNames}\n\nThis can't be undone — you'll need to rebuild it from scratch (Save as Plan again) if you want it back.`;
+    if (!confirm(msg)) return;
     saveWorkoutPlans(getWorkoutPlans().filter(p => p.name !== name));
     renderWorkoutPlans();
   }
