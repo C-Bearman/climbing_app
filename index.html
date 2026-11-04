@@ -482,6 +482,41 @@
       background: var(--surface); border: 0.5px solid var(--border);
       border-radius: var(--radius); margin-bottom: 12px; overflow: hidden;
     }
+
+    /* Plan group — wraps the exercises added by a single "apply plan" tap,
+       same card/header/accordion pattern as .exercise-block, so applying
+       two plans at once is visually traceable instead of one flat pile. */
+    .plan-group {
+      background: var(--surface2); border: 0.5px solid var(--border);
+      border-radius: var(--radius); margin-bottom: 12px; overflow: hidden;
+    }
+    .plan-group-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 13px 16px; cursor: pointer;
+    }
+    .plan-group-title { font-weight: 700; font-size: 14px; color: var(--text); }
+    .plan-group-body {
+      max-height: 0; overflow: hidden;
+      transition: max-height 0.3s ease, padding 0.3s ease;
+      padding: 0 16px;
+    }
+    .plan-group-body.open { max-height: 4000px; padding: 0 16px 16px; }
+
+    /* "Plan notes" — press and hold to peek (read-only), quick tap to edit */
+    .plan-notes-btn {
+      display: block; width: 100%; padding: 9px 12px; margin-bottom: 10px;
+      font-size: 13px; font-weight: 600; font-family: inherit;
+      color: #4A7FB5; background: rgba(108,155,210,0.12);
+      border: 1px dashed rgba(108,155,210,0.4); border-radius: var(--radius-sm);
+      cursor: pointer; -webkit-tap-highlight-color: transparent;
+      -webkit-user-select: none; user-select: none; touch-action: none;
+    }
+    .plan-notes-popup {
+      font-size: 13px; color: var(--text2); line-height: 1.6;
+      background: var(--surface); border: 0.5px solid var(--border);
+      border-radius: var(--radius-sm); padding: 10px 12px; margin: -4px 0 10px;
+    }
+    .plan-notes-popup b { color: var(--text); }
     /* Header row — always visible, tapping toggles collapse */
     .exercise-header {
       display: flex; align-items: center; justify-content: space-between;
@@ -1427,6 +1462,16 @@
   /* Chart.js instances — kept so we can destroy & redraw on range change */
   let chartInstances = {};
   let exerciseBlockCounter = 0;
+
+  // Plans applied to the currently-viewed workout date, in the order they
+  // were tapped — drives the pill shading below. Session-only (not saved),
+  // reset whenever the viewed date changes.
+  let appliedPlansToday = [];
+  const PLAN_PILL_SHADES = [
+    { bg: '#CFE3F5', text: '#1B4D7A' },
+    { bg: '#8FB8E0', text: '#0E3A63' },
+    { bg: '#5B93C9', text: '#FFFFFF' }
+  ];
 
   /* ── Utility ── */
   function todayStr() { return new Date().toISOString().split('T')[0]; }
@@ -2980,8 +3025,8 @@
   }
 
   /* Add a new exercise block to the workout tab */
-  function addExerciseBlock() {
-    const list  = document.getElementById('exercise-list');
+  function addExerciseBlock(container) {
+    const list  = container || document.getElementById('exercise-list');
     const block = document.createElement('div');
     block.className      = 'exercise-block';
     block.dataset.fields  = '';   // comma-separated e.g. 'reps,weight'
@@ -3461,11 +3506,16 @@
     const plans = getWorkoutPlans();
     if (!plans.length) { row.innerHTML = ''; row.style.display = 'none'; return; }
     row.style.display = 'flex';
-    row.innerHTML = plans.map(p => `
+    row.innerHTML = plans.map(p => {
+      const appliedIdx = appliedPlansToday.indexOf(p.name);
+      const shade = appliedIdx === -1 ? null : PLAN_PILL_SHADES[Math.min(appliedIdx, PLAN_PILL_SHADES.length - 1)];
+      const style = shade ? ` style="--pill-color:${shade.bg}; color:${shade.text};"` : '';
+      return `
       <span style="display:inline-flex;align-items:center;gap:2px;">
-        <button class="pill" onclick="applyWorkoutPlan('${p.name.replace(/'/g,"\\'")}')">${p.name}</button>
+        <button class="pill${shade ? ' pill-active' : ''}"${style} onclick="applyWorkoutPlan('${p.name.replace(/'/g,"\\'")}')">${p.name}</button>
         <button class="wo-remove-btn" style="font-size:15px;" onclick="deleteWorkoutPlan('${p.name.replace(/'/g,"\\'")}')" title="Delete plan">✕</button>
-      </span>`).join('');
+      </span>`;
+    }).join('');
   }
 
   /* All sets from the most recent date this exercise was logged, sorted by
@@ -3516,10 +3566,37 @@
       return `• ${ex.name} — last time: ${summary}${noteLine}`;
     }).join('\n');
     if (!confirm(`Add "${name}" to today's workout?\n\n${preview}`)) return;
-    const list = document.getElementById('exercise-list');
+
+    // Wraps this plan's exercises in their own collapsible group, with the
+    // plan name as the header — so applying a second plan afterwards stays
+    // traceable (which exercise came from which plan) instead of one flat
+    // undifferentiated list.
+    const list  = document.getElementById('exercise-list');
+    const group = document.createElement('div');
+    group.className = 'plan-group';
+    group.dataset.planName = name;
+    group.innerHTML = `
+      <div class="plan-group-header" onclick="togglePlanGroup(this)">
+        <span class="plan-group-title">${name}</span>
+        <div class="ex-toggle">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+      </div>
+      <div class="plan-group-body open">
+        <button type="button" class="plan-notes-btn" data-plan="${name.replace(/"/g, '&quot;')}"
+                onmousedown="planNotesPressStart(this)" onmouseup="planNotesPressEnd(this)" onmouseleave="planNotesPressCancel(this)"
+                ontouchstart="planNotesPressStart(this)" ontouchend="planNotesPressEnd(this)" ontouchcancel="planNotesPressCancel(this)">
+          📌 Plan notes — hold to view, tap to edit
+        </button>
+        <div class="plan-notes-popup" style="display:none;"></div>
+        <div class="plan-group-exercises"></div>
+      </div>`;
+    list.appendChild(group);
+    const body = group.querySelector('.plan-group-exercises');
+
     plan.exercises.forEach(ex => {
-      addExerciseBlock();
-      const block = list.lastElementChild;
+      addExerciseBlock(body);
+      const block = body.lastElementChild;
       block.querySelector('.ex-name-input').value = ex.name;
       block.querySelectorAll('.field-cb').forEach(cb => { cb.checked = ex.fields.includes(cb.value); });
       onFieldChange(block);
@@ -3532,6 +3609,100 @@
       const noteChip = block.querySelector('.plan-note-chip');
       if (ex.note) { noteChip.textContent = '📌 ' + ex.note; noteChip.style.display = 'block'; }
     });
+
+    if (!appliedPlansToday.includes(name)) appliedPlansToday.push(name);
+    renderWorkoutPlans();
+  }
+
+  /* Collapse/expand a plan group — same chevron-flip pattern as toggleExerciseBlock */
+  function togglePlanGroup(header) {
+    const body = header.nextElementSibling;
+    const poly = header.querySelector('polyline');
+    const isOpen = body.classList.contains('open');
+    body.classList.toggle('open');
+    poly.setAttribute('points', isOpen ? '18 15 12 9 6 15' : '6 9 12 15 18 9');
+  }
+
+  /* ── Plan notes button: press-and-hold peeks (read-only), a quick tap edits ── */
+  let planNotesPressedAt = 0;
+
+  function planNotesPressStart(btn) {
+    planNotesPressedAt = Date.now();
+    const popup   = btn.nextElementSibling;
+    const plan    = getWorkoutPlans().find(p => p.name === btn.dataset.plan);
+    const noted   = plan ? plan.exercises.filter(ex => ex.note) : [];
+    popup.innerHTML = noted.length
+      ? noted.map(ex => `<p style="margin:0 0 8px;"><b>${ex.name}</b><br>${ex.note}</p>`).join('')
+      : `<p style="margin:0;">No notes yet — tap (don't hold) to add some.</p>`;
+    popup.style.display = 'block';
+  }
+
+  function planNotesPressEnd(btn) {
+    const heldMs = Date.now() - planNotesPressedAt;
+    btn.nextElementSibling.style.display = 'none';
+    if (heldMs < 350) editPlanNotes(btn.dataset.plan); // short tap -> edit, not peek
+  }
+
+  function planNotesPressCancel(btn) {
+    btn.nextElementSibling.style.display = 'none';
+  }
+
+  /* Editable notes overlay — one textarea per exercise in the plan, no tight
+     character limit (these aren't graphed, unlike Session notes). Saves back
+     to the plan itself, so the cue updates for every future use of this plan,
+     and refreshes any matching chips already on screen. */
+  function editPlanNotes(planName) {
+    const plan = getWorkoutPlans().find(p => p.name === planName);
+    if (!plan) return;
+    let overlay = document.getElementById('plan-notes-edit-overlay');
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.id        = 'plan-notes-edit-overlay';
+      overlay.className = 'workout-overlay';
+      document.body.appendChild(overlay);
+    }
+    const fieldsHtml = plan.exercises.map((ex, i) => `
+      <div style="margin-bottom:14px; text-align:left;">
+        <label style="display:block; font-size:13px; font-weight:600; color:var(--text); margin-bottom:6px;">${ex.name}</label>
+        <textarea class="plan-note-edit-input" data-idx="${i}" rows="2"
+          style="width:100%; box-sizing:border-box; padding:9px 12px; font-size:14px; font-family:inherit; color:var(--text); background:var(--surface2); border:0.5px solid var(--border-med); border-radius:var(--radius-sm); outline:none; resize:vertical;"
+        >${ex.note || ''}</textarea>
+      </div>`).join('');
+    overlay.innerHTML = `
+      <div class="workout-overlay-card" style="position:relative; padding-top:44px; max-width:340px; text-align:left;">
+        <button onclick="document.getElementById('plan-notes-edit-overlay').classList.remove('show')"
+                style="position:absolute;top:10px;right:12px;background:none;border:none;
+                       color:var(--text2);font-size:20px;cursor:pointer;line-height:1;">×</button>
+        <p class="workout-overlay-title" style="text-align:left;">Edit cue notes — ${planName}</p>
+        <div style="margin-top:12px;">${fieldsHtml}</div>
+        <button class="save-workout-btn" onclick="savePlanNotesEdit('${planName.replace(/'/g, "\\'")}')">Save</button>
+      </div>`;
+    overlay.classList.add('show');
+  }
+
+  function savePlanNotesEdit(planName) {
+    const plans = getWorkoutPlans();
+    const plan  = plans.find(p => p.name === planName);
+    if (!plan) return;
+    document.querySelectorAll('.plan-note-edit-input').forEach(ta => {
+      const idx = parseInt(ta.dataset.idx);
+      const val = ta.value.trim();
+      if (val) plan.exercises[idx].note = val;
+      else delete plan.exercises[idx].note;
+    });
+    saveWorkoutPlans(plans);
+    document.getElementById('plan-notes-edit-overlay').classList.remove('show');
+
+    // Refresh chips already on screen for this plan's exercises
+    document.querySelectorAll(`.plan-group[data-plan-name="${CSS.escape(planName)}"] .exercise-block`).forEach(block => {
+      const exName = block.querySelector('.ex-name-input').value.trim();
+      const ex     = plan.exercises.find(e => e.name === exName);
+      const chip   = block.querySelector('.plan-note-chip');
+      if (ex && ex.note) { chip.textContent = '📌 ' + ex.note; chip.style.display = 'block'; }
+      else chip.style.display = 'none';
+    });
+
+    showWorkoutOverlay('✅', 'Notes updated', `Saved for "${planName}"`);
   }
 
   /* Snapshots whatever's currently on the exercise list (name/fields/pb_field
@@ -3763,6 +3934,8 @@
     workoutDate = dateStr;
     document.getElementById('workout-date-picker-panel').classList.remove('open');
     updateWorkoutDateUI();
+    appliedPlansToday = [];
+    renderWorkoutPlans();
     loadWorkoutForDate(workoutDate);
   }
 
