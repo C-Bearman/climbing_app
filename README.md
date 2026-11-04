@@ -84,7 +84,7 @@ Whenever a change is pushed to `master`, GitHub Pages redeploys within ~60 secon
 
 ### Workout tab — UI polish
 - [ ] **Workout entry management** — no way to rename a misspelled exercise or delete individual saved sets; needs a management screen or edit flow, and must be covered in the onboarding tutorial
-- [ ] **Reps In Reserve (RIR)** — add an optional RIR field per set on the workout tracker so users can log how many reps they had left in reserve; mirrors the coach's S&C tracking format and gives a measure of session intensity beyond raw reps and weight
+- [x] **Reps In Reserve (RIR)** — optional "RIR" checkbox alongside Reps/Weight/Duration; logs how many reps were left in reserve per set (0 = failure/max effort). Not offered as a PB metric. Not yet surfaced anywhere in charts — currently just logging/storage, no visualisation
 - [ ] **S&C catch-up sessions** *(low priority thought piece)* — explore how to handle S&C sets done on a different day than planned (e.g. missed Monday, did it Wednesday); currently the workout tab is date-agnostic but there is no way to flag a session as "catch-up" or link it to the intended session date
 - [x] **Log entry deletion** — delete button per entry with inline confirmation; entry removed from localStorage, streak and week counter update immediately
 - [x] **Workout date highlights** — workout date picker replaced with a custom calendar grid; dates with saved entries shown with a green tinge; date badge shows open/close chevron

@@ -2612,6 +2612,29 @@
     overlay.classList.add('show');
   }
 
+  /* Info button next to the RiR checkbox — same persistent overlay pattern as showWoInfo */
+  function showRirInfo() {
+    let overlay = document.getElementById('rir-info-overlay');
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.id        = 'rir-info-overlay';
+      overlay.className = 'workout-overlay';
+      overlay.innerHTML = `
+        <div class="workout-overlay-card" style="position:relative; padding-top:44px;">
+          <button onclick="document.getElementById('rir-info-overlay').classList.remove('show')"
+                  style="position:absolute;top:10px;right:12px;background:none;border:none;
+                         color:var(--text2);font-size:20px;cursor:pointer;line-height:1;">×</button>
+          <div class="workout-overlay-icon">ℹ︎</div>
+          <p class="workout-overlay-title">What is RiR?</p>
+          <p class="workout-overlay-sub" style="text-align:left; line-height:1.7;">
+            RiR stands for Reps in Reserve. This is to track how many more reps you feel you could have achieved.
+          </p>
+        </div>`;
+      document.body.appendChild(overlay);
+    }
+    overlay.classList.add('show');
+  }
+
   // Full charts stay hidden behind a simple starter view until this many
   // entries exist — matches checkMinData's default (roughly one week).
   const CHARTS_MIN_ENTRIES = 7;
@@ -3010,6 +3033,12 @@
                      onchange="onFieldChange(this.closest('.exercise-block'))">
               <span>Duration</span>
             </label>
+            <label class="field-check-label">
+              <input type="checkbox" class="field-cb" value="rir"
+                     onchange="onFieldChange(this.closest('.exercise-block'))">
+              <span>RiR</span>
+            </label>
+            <button type="button" class="wo-info-btn" style="margin-right:10px;" onclick="showRirInfo()" aria-label="What is RiR?">ℹ︎</button>
           </div>
           <div class="pb-row" style="display:none">
             <span class="field-row-label">PB by:</span>
@@ -3247,6 +3276,9 @@
       html += `<input type="number" class="set-input set-duration" placeholder="secs" min="1" step="1" />`;
       html += `<span class="set-unit">s</span>`;
     }
+    if (fields.includes('rir')) {
+      html += `<input type="number" class="set-input set-rir" placeholder="RiR" min="0" max="10" step="1" />`;
+    }
     html += `<button class="remove-set-btn" onclick="confirmRemoveSet(this)">×</button>`;
 
     row.innerHTML = html;
@@ -3354,13 +3386,19 @@
           date: workoutDate, exercise: name,
           fields: fields.join('|'), pb_field: pbField,
           set_number: i + 1,
-          reps: null, weight_kg: null, duration_s: null,
+          reps: null, weight_kg: null, duration_s: null, rir: null,
           notes: i === 0 ? exNotes : ''
         };
         if (fields.includes('reps'))     set.reps       = parseInt(row.querySelector('.set-reps')?.value)     || null;
         if (fields.includes('weight'))   set.weight_kg  = parseFloat(row.querySelector('.set-weight')?.value) || null;
         if (fields.includes('duration')) set.duration_s = parseInt(row.querySelector('.set-duration')?.value)  || null;
-        if (set.reps || set.weight_kg || set.duration_s) newSets.push(set);
+        if (fields.includes('rir')) {
+          // Don't use `|| null` here — 0 is a valid, common RIR value (failure/max effort)
+          // and would otherwise get wiped out since 0 is falsy.
+          const rirVal = parseInt(row.querySelector('.set-rir')?.value);
+          set.rir = isNaN(rirVal) ? null : rirVal;
+        }
+        if (set.reps || set.weight_kg || set.duration_s || set.rir != null) newSets.push(set);
       });
     });
 
@@ -3551,13 +3589,13 @@
     const workouts = getWorkouts();
     if (!workouts.length) { showWorkoutOverlay('⚠️', 'Nothing to export', 'Save a workout first.'); return; }
 
-    const headers = ['date','exercise','fields','pb_field','set_number','reps','weight_kg','duration_s','notes'];
+    const headers = ['date','exercise','fields','pb_field','set_number','reps','weight_kg','duration_s','rir','notes'];
     const rows    = workouts.map(s =>
       [s.date, `"${s.exercise}"`,
        s.fields   || '',
        s.pb_field || '',
        s.set_number,
-       s.reps ?? '', s.weight_kg ?? '', s.duration_s ?? '',
+       s.reps ?? '', s.weight_kg ?? '', s.duration_s ?? '', s.rir ?? '',
        s.notes ? `"${s.notes}"` : ''].join(',')
     );
     const csv = [headers.join(','), ...rows].join('\n');
@@ -3628,6 +3666,8 @@
         pb_field   = type === 'weighted' ? 'weight' : type === 'timed' ? 'duration' : 'reps';
       }
 
+      const rirParsed = parseInt(get(cols, 'rir'));
+
       imported.push({
         date, exercise: name,
         fields:   fields.join('|'),
@@ -3636,6 +3676,7 @@
         reps:       parseInt(get(cols, 'reps'))       || null,
         weight_kg:  parseFloat(get(cols, 'weight_kg'))|| null,
         duration_s: parseInt(get(cols, 'duration_s')) || null,
+        rir:        isNaN(rirParsed) ? null : rirParsed, // 0 is a valid RIR value, don't treat as falsy
         notes:      get(cols, 'notes') || ''
       });
 
@@ -3779,6 +3820,7 @@
           if (s.reps       != null) { const inp = row.querySelector('.set-reps');     if (inp) inp.value = s.reps; }
           if (s.weight_kg  != null) { const inp = row.querySelector('.set-weight');   if (inp) inp.value = s.weight_kg; }
           if (s.duration_s != null) { const inp = row.querySelector('.set-duration'); if (inp) inp.value = s.duration_s; }
+          if (s.rir        != null) { const inp = row.querySelector('.set-rir');      if (inp) inp.value = s.rir; }
         });
 
       updatePBChip(block, name, data.pb_field);
