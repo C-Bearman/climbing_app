@@ -502,21 +502,35 @@
     }
     .plan-group-body.open { max-height: 4000px; padding: 0 16px 16px; }
 
-    /* "Plan notes" — press and hold to peek (read-only), quick tap to edit */
-    .plan-notes-btn {
-      display: block; width: 100%; padding: 9px 12px; margin-bottom: 10px;
-      font-size: 13px; font-weight: 600; font-family: inherit;
-      color: #4A7FB5; background: rgba(108,155,210,0.12);
-      border: 1px dashed rgba(108,155,210,0.4); border-radius: var(--radius-sm);
-      cursor: pointer; -webkit-tap-highlight-color: transparent;
-      -webkit-user-select: none; user-select: none; touch-action: none;
+    /* "Plan Notes" pill — left-aligned, opens the speech-bubble panel below it */
+    .plan-notes-pill {
+      display: inline-flex; margin-bottom: 10px;
+      color: #4A7FB5; border-color: rgba(108,155,210,0.5);
+      background: rgba(108,155,210,0.12);
     }
-    .plan-notes-popup {
+    /* Speech-bubble panel — small triangular tail pointing up at the pill */
+    .plan-notes-bubble {
+      position: relative;
       font-size: 13px; color: var(--text2); line-height: 1.6;
       background: var(--surface); border: 0.5px solid var(--border);
-      border-radius: var(--radius-sm); padding: 10px 12px; margin: -4px 0 10px;
+      border-radius: var(--radius-sm); padding: 12px 14px; margin: 2px 0 12px;
     }
-    .plan-notes-popup b { color: var(--text); }
+    .plan-notes-bubble::before {
+      content: ''; position: absolute; top: -6px; left: 18px;
+      width: 11px; height: 11px; background: var(--surface);
+      border-left: 0.5px solid var(--border); border-top: 0.5px solid var(--border);
+      transform: rotate(45deg);
+    }
+    .plan-notes-bubble-title { font-weight: 700; color: var(--text); margin: 0 0 8px; }
+    .plan-notes-bubble b { color: var(--text); }
+    .plan-notes-edit-pill { margin-top: 2px; }
+    .plan-note-edit-textarea {
+      width: 100%; box-sizing: border-box; margin-top: 4px;
+      padding: 8px 10px; font-size: 13px; font-family: inherit;
+      color: var(--text); background: var(--surface2);
+      border: 0.5px solid var(--border-med); border-radius: var(--radius-sm);
+      outline: none; resize: vertical;
+    }
     /* Header row — always visible, tapping toggles collapse */
     .exercise-header {
       display: flex; align-items: center; justify-content: space-between;
@@ -3583,12 +3597,9 @@
         </div>
       </div>
       <div class="plan-group-body open">
-        <button type="button" class="plan-notes-btn" data-plan="${name.replace(/"/g, '&quot;')}"
-                onmousedown="planNotesPressStart(this)" onmouseup="planNotesPressEnd(this)" onmouseleave="planNotesPressCancel(this)"
-                ontouchstart="planNotesPressStart(this)" ontouchend="planNotesPressEnd(this)" ontouchcancel="planNotesPressCancel(this)">
-          📌 Plan notes — hold to view, tap to edit
-        </button>
-        <div class="plan-notes-popup" style="display:none;"></div>
+        <button type="button" class="pill plan-notes-pill" data-plan="${name.replace(/"/g, '&quot;')}"
+                onclick="togglePlanNotesBubble(this)">📌 Plan Notes</button>
+        <div class="plan-notes-bubble" style="display:none;"></div>
         <div class="plan-group-exercises"></div>
       </div>`;
     list.appendChild(group);
@@ -3623,78 +3634,64 @@
     poly.setAttribute('points', isOpen ? '18 15 12 9 6 15' : '6 9 12 15 18 9');
   }
 
-  /* ── Plan notes button: press-and-hold peeks (read-only), a quick tap edits ── */
-  let planNotesPressedAt = 0;
+  /* ── Plan Notes pill: toggles a speech-bubble panel open/closed ── */
+  function togglePlanNotesBubble(btn) {
+    const bubble = btn.nextElementSibling;
+    const isOpen = bubble.style.display === 'block';
+    if (isOpen) { bubble.style.display = 'none'; return; }
+    bubble.dataset.plan = btn.dataset.plan;
+    renderPlanNotesReadOnly(bubble);
+    bubble.style.display = 'block';
+  }
 
-  function planNotesPressStart(btn) {
-    planNotesPressedAt = Date.now();
-    const popup   = btn.nextElementSibling;
-    const plan    = getWorkoutPlans().find(p => p.name === btn.dataset.plan);
-    const noted   = plan ? plan.exercises.filter(ex => ex.note) : [];
-    popup.innerHTML = noted.length
+  /* Title + notes list (or "no notes yet") + an Edit notes pill underneath */
+  function renderPlanNotesReadOnly(bubble) {
+    const plan  = getWorkoutPlans().find(p => p.name === bubble.dataset.plan);
+    const noted = plan ? plan.exercises.filter(ex => ex.note) : [];
+    const list  = noted.length
       ? noted.map(ex => `<p style="margin:0 0 8px;"><b>${ex.name}</b><br>${ex.note}</p>`).join('')
-      : `<p style="margin:0;">No notes yet — tap (don't hold) to add some.</p>`;
-    popup.style.display = 'block';
+      : `<p style="margin:0 0 8px;">No notes yet.</p>`;
+    bubble.innerHTML = `
+      <p class="plan-notes-bubble-title">Plan Notes</p>
+      <div class="plan-notes-bubble-content">${list}</div>
+      <button type="button" class="pill plan-notes-edit-pill" onclick="startEditPlanNotes(this)">Edit notes</button>`;
   }
 
-  function planNotesPressEnd(btn) {
-    const heldMs = Date.now() - planNotesPressedAt;
-    btn.nextElementSibling.style.display = 'none';
-    if (heldMs < 350) editPlanNotes(btn.dataset.plan); // short tap -> edit, not peek
-  }
-
-  function planNotesPressCancel(btn) {
-    btn.nextElementSibling.style.display = 'none';
-  }
-
-  /* Editable notes overlay — one textarea per exercise in the plan, no tight
-     character limit (these aren't graphed, unlike Session notes). Saves back
-     to the plan itself, so the cue updates for every future use of this plan,
-     and refreshes any matching chips already on screen. */
-  function editPlanNotes(planName) {
-    const plan = getWorkoutPlans().find(p => p.name === planName);
+  /* Swaps the read-only list for one textarea per exercise, no tight
+     character limit (these aren't graphed, unlike Session notes), and
+     swaps the Edit notes pill for a Save pill. */
+  function startEditPlanNotes(editBtn) {
+    const bubble = editBtn.closest('.plan-notes-bubble');
+    const plan   = getWorkoutPlans().find(p => p.name === bubble.dataset.plan);
     if (!plan) return;
-    let overlay = document.getElementById('plan-notes-edit-overlay');
-    if (!overlay) {
-      overlay = document.createElement('div');
-      overlay.id        = 'plan-notes-edit-overlay';
-      overlay.className = 'workout-overlay';
-      document.body.appendChild(overlay);
-    }
-    const fieldsHtml = plan.exercises.map((ex, i) => `
-      <div style="margin-bottom:14px; text-align:left;">
-        <label style="display:block; font-size:13px; font-weight:600; color:var(--text); margin-bottom:6px;">${ex.name}</label>
-        <textarea class="plan-note-edit-input" data-idx="${i}" rows="2"
-          style="width:100%; box-sizing:border-box; padding:9px 12px; font-size:14px; font-family:inherit; color:var(--text); background:var(--surface2); border:0.5px solid var(--border-med); border-radius:var(--radius-sm); outline:none; resize:vertical;"
-        >${ex.note || ''}</textarea>
+    const fields = plan.exercises.map((ex, i) => `
+      <div style="margin-bottom:10px;">
+        <b>${ex.name}</b>
+        <textarea class="plan-note-edit-textarea" data-idx="${i}" rows="2">${ex.note || ''}</textarea>
       </div>`).join('');
-    overlay.innerHTML = `
-      <div class="workout-overlay-card" style="position:relative; padding-top:44px; max-width:340px; text-align:left;">
-        <button onclick="document.getElementById('plan-notes-edit-overlay').classList.remove('show')"
-                style="position:absolute;top:10px;right:12px;background:none;border:none;
-                       color:var(--text2);font-size:20px;cursor:pointer;line-height:1;">×</button>
-        <p class="workout-overlay-title" style="text-align:left;">Edit cue notes — ${planName}</p>
-        <div style="margin-top:12px;">${fieldsHtml}</div>
-        <button class="save-workout-btn" onclick="savePlanNotesEdit('${planName.replace(/'/g, "\\'")}')">Save</button>
-      </div>`;
-    overlay.classList.add('show');
+    bubble.innerHTML = `
+      <p class="plan-notes-bubble-title">Plan Notes</p>
+      <div class="plan-notes-bubble-content">${fields}</div>
+      <button type="button" class="pill plan-notes-edit-pill" onclick="savePlanNotesBubble(this)">Save</button>`;
   }
 
-  function savePlanNotesEdit(planName) {
-    const plans = getWorkoutPlans();
-    const plan  = plans.find(p => p.name === planName);
+  /* Saves back to the plan itself (so the cue updates for every future use
+     of this plan, not just today), refreshes any matching chip already on
+     screen, then returns the bubble to its read-only view. */
+  function savePlanNotesBubble(saveBtn) {
+    const bubble = saveBtn.closest('.plan-notes-bubble');
+    const plans  = getWorkoutPlans();
+    const plan   = plans.find(p => p.name === bubble.dataset.plan);
     if (!plan) return;
-    document.querySelectorAll('.plan-note-edit-input').forEach(ta => {
+    bubble.querySelectorAll('.plan-note-edit-textarea').forEach(ta => {
       const idx = parseInt(ta.dataset.idx);
       const val = ta.value.trim();
       if (val) plan.exercises[idx].note = val;
       else delete plan.exercises[idx].note;
     });
     saveWorkoutPlans(plans);
-    document.getElementById('plan-notes-edit-overlay').classList.remove('show');
 
-    // Refresh chips already on screen for this plan's exercises
-    document.querySelectorAll(`.plan-group[data-plan-name="${CSS.escape(planName)}"] .exercise-block`).forEach(block => {
+    document.querySelectorAll(`.plan-group[data-plan-name="${CSS.escape(plan.name)}"] .exercise-block`).forEach(block => {
       const exName = block.querySelector('.ex-name-input').value.trim();
       const ex     = plan.exercises.find(e => e.name === exName);
       const chip   = block.querySelector('.plan-note-chip');
@@ -3702,7 +3699,7 @@
       else chip.style.display = 'none';
     });
 
-    showWorkoutOverlay('✅', 'Notes updated', `Saved for "${planName}"`);
+    renderPlanNotesReadOnly(bubble);
   }
 
   /* Snapshots whatever's currently on the exercise list (name/fields/pb_field
