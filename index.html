@@ -3596,6 +3596,11 @@
                 onclick="togglePlanNotesBubble(this)">📌 Plan Notes</button>
         <div class="plan-notes-bubble" style="display:none;"></div>
         <div class="plan-group-exercises"></div>
+        <button type="button" class="add-exercise-btn" onclick="addExerciseToGroup(this)">+ Add Exercise</button>
+        <div style="display:flex; gap:8px; margin:-4px 0 4px;">
+          <button type="button" class="pill" onclick="updatePlanFromGroup(this)">💾 Add to Plan</button>
+          <button type="button" class="pill" onclick="saveGroupAsNewPlan(this)">💾 Create Plan</button>
+        </div>
       </div>`;
     list.appendChild(group);
     const body = group.querySelector('.plan-group-exercises');
@@ -3640,6 +3645,84 @@
     // plan was applied more than once today.
     appliedPlansToday = [...document.querySelectorAll('.plan-group')].map(g => g.dataset.planName);
     renderWorkoutPlans();
+  }
+
+  /* Adds a fresh exercise block directly into this group (e.g. applied
+     "Pull/Dip Day" — pull ups, dips — then want to add push ups too), so
+     it's visually grouped with the plan's other exercises rather than
+     sitting as a separate standalone block. */
+  function addExerciseToGroup(btn) {
+    const container = btn.closest('.plan-group-body').querySelector('.plan-group-exercises');
+    addExerciseBlock(container);
+  }
+
+  /* Reads a group's current exercises (name/fields/pb_field) — same
+     validation as the main Save as Plan flow: skips any block with no
+     name or no fields ticked. */
+  function collectGroupExercises(group) {
+    const exercises = [];
+    group.querySelectorAll('.exercise-block').forEach(block => {
+      const name    = block.querySelector('.ex-name-input').value.trim();
+      const fields  = (block.dataset.fields || '').split(',').filter(Boolean);
+      const pbField = block.dataset.pbField || '';
+      if (name && fields.length) exercises.push({ name, fields, pb_field: pbField });
+    });
+    return exercises;
+  }
+
+  /* Overwrites the saved plan this group came from with its current
+     exercises — e.g. you added Push Ups alongside Pull Ups/Dips and want
+     that to stick for next time. Existing cue notes are preserved for any
+     exercise still present (matched by name); a brand new exercise has no
+     note until added separately via the Plan Notes pill. */
+  function updatePlanFromGroup(btn) {
+    const group     = btn.closest('.plan-group');
+    const planName  = group.dataset.planName;
+    const exercises = collectGroupExercises(group);
+    if (!exercises.length) {
+      showWorkoutOverlay('⚠️', 'Nothing to save', 'Add at least one named, tracked exercise first.');
+      return;
+    }
+    if (!confirm(`Update "${planName}" with these exercises?\n\n${exercises.map(e => '• ' + e.name).join('\n')}`)) return;
+
+    const plans    = getWorkoutPlans();
+    const existing = plans.find(p => p.name === planName);
+    exercises.forEach(ex => {
+      const prevNote = existing?.exercises.find(e => e.name.toLowerCase() === ex.name.toLowerCase())?.note;
+      if (prevNote) ex.note = prevNote;
+    });
+    const idx = plans.findIndex(p => p.name === planName);
+    if (idx >= 0) plans[idx] = { name: planName, exercises };
+    else plans.push({ name: planName, exercises });
+
+    saveWorkoutPlans(plans);
+    renderWorkoutPlans();
+    showWorkoutOverlay('✅', 'Plan updated', `"${planName}" — ${exercises.length} exercise${exercises.length !== 1 ? 's' : ''}`);
+  }
+
+  /* Saves this group's current exercises as a brand new, separate plan —
+     the plan this group originally came from is left untouched. */
+  function saveGroupAsNewPlan(btn) {
+    const group     = btn.closest('.plan-group');
+    const exercises = collectGroupExercises(group);
+    if (!exercises.length) {
+      showWorkoutOverlay('⚠️', 'Nothing to save', 'Add at least one named, tracked exercise first.');
+      return;
+    }
+    const planName = (prompt('Save this as a new plan named:', '') || '').trim();
+    if (!planName) return;
+
+    const plans = getWorkoutPlans();
+    const existingIdx = plans.findIndex(p => p.name.toLowerCase() === planName.toLowerCase());
+    if (existingIdx >= 0) {
+      if (!confirm(`A plan named "${planName}" already exists. Overwrite it?`)) return;
+      plans[existingIdx] = { name: planName, exercises };
+    } else {
+      plans.push({ name: planName, exercises });
+    }
+    saveWorkoutPlans(plans);
+    renderWorkoutPlans();
+    showWorkoutOverlay('✅', 'Plan saved', `"${planName}" — ${exercises.length} exercise${exercises.length !== 1 ? 's' : ''}`);
   }
 
   /* ── Plan Notes pill: toggles a speech-bubble panel open/closed ── */
