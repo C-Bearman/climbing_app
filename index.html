@@ -3666,7 +3666,6 @@
     if (!plan) return;
     const fields = plan.exercises.map((ex, i) => `
       <div style="margin-bottom:10px;">
-        <b>${ex.name}</b>
         <textarea class="plan-note-edit-textarea" data-idx="${i}" rows="2">${ex.note || ''}</textarea>
       </div>`).join('');
     bubble.innerHTML = `
