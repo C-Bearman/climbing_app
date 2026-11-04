@@ -3636,7 +3636,7 @@
     const plan  = getWorkoutPlans().find(p => p.name === bubble.dataset.plan);
     const noted = plan ? plan.exercises.filter(ex => ex.note) : [];
     const list  = noted.length
-      ? noted.map(ex => `<p style="margin:0 0 8px;"><b>${ex.name}</b><br>${ex.note}</p>`).join('')
+      ? noted.map(ex => `<p style="margin:0 0 8px;">${ex.note}</p>`).join('')
       : `<p style="margin:0 0 8px;">No notes yet.</p>`;
     bubble.innerHTML = `
       <p class="plan-notes-bubble-title">Plan Notes</p>
