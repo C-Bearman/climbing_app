@@ -3581,8 +3581,12 @@
     group.innerHTML = `
       <div class="plan-group-header" onclick="togglePlanGroup(this)">
         <span class="plan-group-title">${name}</span>
-        <div class="ex-toggle">
-          <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+        <div style="display:flex; align-items:center; gap:4px;">
+          <button type="button" class="wo-remove-btn" title="Remove this plan from today's workout"
+                  onclick="event.stopPropagation(); removePlanGroupWithConfirm(this)">✕</button>
+          <div class="ex-toggle">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+          </div>
         </div>
       </div>
       <div class="plan-group-body open">
@@ -3619,6 +3623,21 @@
     const isOpen = body.classList.contains('open');
     body.classList.toggle('open');
     poly.setAttribute('points', isOpen ? '18 15 12 9 6 15' : '6 9 12 15 18 9');
+  }
+
+  /* Removes this plan's exercises from today's session only — the saved
+     plan itself (and any other plans/exercises already on the list) is
+     untouched. Safety net for applying the wrong plan on the wrong day,
+     without having to permanently delete the plan to undo it. */
+  function removePlanGroupWithConfirm(btn) {
+    const group = btn.closest('.plan-group');
+    const name  = group.dataset.planName;
+    if (!confirm(`Remove "${name}" from today's workout?\n\nThis only removes it from today — the saved plan itself won't be touched.`)) return;
+    group.remove();
+    // Recompute from what's actually still on screen, in case the same
+    // plan was applied more than once today.
+    appliedPlansToday = [...document.querySelectorAll('.plan-group')].map(g => g.dataset.planName);
+    renderWorkoutPlans();
   }
 
   /* ── Plan Notes pill: toggles a speech-bubble panel open/closed ── */
