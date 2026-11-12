@@ -81,7 +81,7 @@
       padding-bottom: var(--safe-bottom);
       background: var(--surface);
       border-top: 0.5px solid var(--border);
-      display: grid; grid-template-columns: 1fr 1fr 1fr;
+      display: grid; grid-template-columns: 1fr 1fr 1fr 1fr;
       z-index: 100;
     }
     .nav-btn {
@@ -776,6 +776,8 @@
             <button class="pill" data-type="max_power" onclick="toggleSessionType('max_power')">Max Power</button>
             <button class="pill" data-type="technical" onclick="toggleSessionType('technical')">Technical</button>
             <button class="pill" data-type="projecting" onclick="toggleSessionType('projecting')">Projecting</button>
+            <button class="pill" data-type="volume" onclick="toggleSessionType('volume')">Volume</button>
+            <button class="pill" data-type="outdoors" onclick="toggleSessionType('outdoors')">Outdoors</button>
             <button class="pill" data-type="social" onclick="toggleSessionType('social')">Social / Unstructured</button>
           </div>
         </div>
@@ -1153,27 +1155,12 @@
     </header>
 
     <!--
-      STARTER VIEW
-      Shown instead of the full charts below until CHARTS_MIN_ENTRIES
-      entries exist (see checkMinData's default — roughly one week).
-      A simple Climbing vs Rest day split, since that's meaningful
-      from day one, plus a progress nudge.
+      The Charts nav tab itself is hidden (see updateChartsNavVisibility())
+      until CHARTS_MIN_ENTRIES entries exist, so everything below can
+      assume it's already unlocked — no separate starter view needed here.
+      The pre-unlock nudge lives in the Activity tab instead, since that's
+      visible from day 1.
     -->
-    <div id="charts-starter" style="display:none;">
-      <div class="section" style="margin: 10px 14px 0;">
-        <div class="section-head">
-          <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-          Getting started
-        </div>
-        <p style="font-size:14px;color:var(--text2);margin:0 0 16px;line-height:1.5;">
-          Keep logging — full charts unlock once you have a week of entries
-          (<b id="starter-count" style="color:var(--text);">0</b>/7 so far).
-        </p>
-        <canvas id="chart-starter-split" class="chart-canvas" style="max-height:220px;"></canvas>
-        <div class="sleep-legend" id="starter-split-legend" style="justify-content:center;margin-top:12px;"></div>
-      </div>
-    </div>
-
     <div id="charts-main">
 
     <!--
@@ -1288,6 +1275,13 @@
       </div>
     </div>
 
+    <!--
+      CHART: CLIMBING ACTIVITY
+      Two side-by-side doughnuts over the selected time range:
+      Climbing vs Rest days, and a breakdown of session type tags
+      across climbing days (a day can carry multiple tags, so this
+      counts tag occurrences, not days).
+    -->
     <!--
       CHART 2: FLEXIBILITY RATING
       Stretching days only. Dots coloured by sleep quality.
@@ -1408,6 +1402,61 @@
 
   </div><!-- end #tab-charts -->
 
+  <!-- ═══════════════════════════════════════════
+       ACTIVITY TAB
+       Climbing vs Rest days, and session type split.
+       Unlike the Charts tab, shown from day 1 — meaningful
+       even with just a couple of entries, no 7-day gate.
+       Has its own independent "Show last" time range slider.
+  ═══════════════════════════════════════════ -->
+  <div class="tab-view" id="tab-activity">
+
+    <header class="charts-header">
+      <div class="charts-title">Bearman<em>Climbs</em></div>
+      <div class="range-row">
+        <span class="range-label">Show last:</span>
+        <input type="range" id="activity-range-slider" min="0" max="4" step="1" value="4"
+               style="flex:1;" oninput="onActivityRangeChange(this.value)">
+        <span class="range-val" id="activity-range-val">All</span>
+      </div>
+    </header>
+
+    <!--
+      GETTING STARTED NUDGE
+      Shown until CHARTS_MIN_ENTRIES entries exist — the Charts tab
+      itself stays hidden until then, so this is the one place that
+      explains why and tracks progress toward it. The charts below
+      this still render from day 1 regardless.
+    -->
+    <div id="activity-getting-started" class="section" style="margin: 10px 14px 0; display:none;">
+      <div class="section-head">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        Getting started
+      </div>
+      <p id="activity-getting-started-text" style="font-size:14px;color:var(--text2);margin:0;line-height:1.5;"></p>
+    </div>
+
+    <div class="section" style="margin: 10px 14px 0;">
+      <div class="section-head">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+        Climbing vs Rest
+      </div>
+      <canvas id="chart-climb-split" class="chart-canvas" style="max-height:220px;"></canvas>
+      <div class="sleep-legend" id="climb-split-legend" style="justify-content:center;margin-top:10px;"></div>
+    </div>
+
+    <div class="section" style="margin: 10px 14px 0;">
+      <div class="section-head">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><rect x="3" y="12" width="4" height="8"/><rect x="10" y="7" width="4" height="13"/><rect x="17" y="3" width="4" height="17"/></svg>
+        Session type split
+      </div>
+      <p id="session-type-split-sub" style="font-size:12px;color:var(--text3);margin:-8px 0 12px;"></p>
+      <canvas id="chart-session-type-split" class="chart-canvas" style="max-height:220px;"></canvas>
+      <div class="sleep-legend" id="session-type-split-legend" style="justify-content:center;margin-top:10px;"></div>
+    </div>
+
+  </div><!-- end #tab-activity -->
+
 </div><!-- end .app -->
 
 <!--
@@ -1428,6 +1477,10 @@
     <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
     Charts
   </button>
+  <button class="nav-btn" id="nav-activity" onclick="switchTab('activity')">
+    <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2v10l7 7"/></svg>
+    Activity
+  </button>
 </nav>
 
 <script>
@@ -1447,6 +1500,8 @@
     max_power:  'Max Power',
     technical:  'Technical',
     projecting: 'Projecting',
+    volume:     'Volume',
+    outdoors:   'Outdoors',
     social:     'Social / Unstructured'
   };
   function toggleSessionType(key) {
@@ -1490,7 +1545,7 @@
   function getEntries() {
     try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch(e) { return []; }
   }
-  function saveEntries(arr) { localStorage.setItem(STORAGE_KEY, JSON.stringify(arr)); }
+  function saveEntries(arr) { localStorage.setItem(STORAGE_KEY, JSON.stringify(arr)); updateChartsNavVisibility(); }
 
   /* ============================================================
      switchTab(tab)
@@ -1499,13 +1554,16 @@
      When switching to charts, draws them fresh so data is current.
   ============================================================ */
   function switchTab(tab) {
-    document.getElementById('tab-log').classList.toggle('active',     tab === 'log');
-    document.getElementById('tab-workout').classList.toggle('active', tab === 'workout');
-    document.getElementById('tab-charts').classList.toggle('active',  tab === 'charts');
-    document.getElementById('nav-log').classList.toggle('active',     tab === 'log');
-    document.getElementById('nav-workout').classList.toggle('active', tab === 'workout');
-    document.getElementById('nav-charts').classList.toggle('active',  tab === 'charts');
+    document.getElementById('tab-log').classList.toggle('active',      tab === 'log');
+    document.getElementById('tab-workout').classList.toggle('active',  tab === 'workout');
+    document.getElementById('tab-charts').classList.toggle('active',   tab === 'charts');
+    document.getElementById('tab-activity').classList.toggle('active', tab === 'activity');
+    document.getElementById('nav-log').classList.toggle('active',      tab === 'log');
+    document.getElementById('nav-workout').classList.toggle('active',  tab === 'workout');
+    document.getElementById('nav-charts').classList.toggle('active',   tab === 'charts');
+    document.getElementById('nav-activity').classList.toggle('active', tab === 'activity');
     if (tab === 'charts') drawAllCharts();
+    if (tab === 'activity') drawActivityCharts();
   }
 
   /* ============================================================
@@ -2112,9 +2170,11 @@
     drawAllCharts();
   }
 
-  /* Returns entries filtered to the current time range selection */
-  function getFilteredEntries() {
-    const val  = parseInt(document.getElementById('range-slider').value);
+  /* Returns entries filtered to the current time range selection.
+     sliderId defaults to the main Charts tab's slider; the Activity
+     tab passes its own independent slider id. */
+  function getFilteredEntries(sliderId = 'range-slider') {
+    const val  = parseInt(document.getElementById(sliderId).value);
     const days = RANGE_DAYS[val];
     const all  = getEntries();
     if (days === Infinity) return all;
@@ -2122,6 +2182,30 @@
     cutoff.setDate(cutoff.getDate() - days);
     const cutoffStr = cutoff.toISOString().split('T')[0];
     return all.filter(e => e.date >= cutoffStr);
+  }
+
+  function onActivityRangeChange(val) {
+    document.getElementById('activity-range-val').textContent = RANGE_LABELS[val];
+    drawActivityCharts();
+  }
+
+  function drawActivityCharts() {
+    updateActivityGettingStarted();
+    const entries = getFilteredEntries('activity-range-slider');
+    drawClimbSplitChart(entries);
+    drawSessionTypeSplitChart(entries);
+  }
+
+  function updateActivityGettingStarted() {
+    const total     = getEntries().length;
+    const remaining = CHARTS_MIN_ENTRIES - total;
+    const unlocked  = remaining <= 0;
+    const card = document.getElementById('activity-getting-started');
+    if (card) card.style.display = unlocked ? 'none' : '';
+    const textEl = document.getElementById('activity-getting-started-text');
+    if (textEl && !unlocked) {
+      textEl.innerHTML = `Keep logging for visuals! <b style="color:var(--text);">${remaining}</b> more day${remaining !== 1 ? 's' : ''} to go!`;
+    }
   }
 
   /* ============================================================
@@ -2686,18 +2770,12 @@
     overlay.classList.add('show');
   }
 
-  // Full charts stay hidden behind a simple starter view until this many
-  // entries exist — matches checkMinData's default (roughly one week).
+  // The Charts nav tab itself is hidden until this many entries exist
+  // (see updateChartsNavVisibility()) — matches checkMinData's default
+  // (roughly one week). drawAllCharts() can assume it's already unlocked.
   const CHARTS_MIN_ENTRIES = 7;
 
   function drawAllCharts() {
-    const allEntries = getEntries();
-    const unlocked = allEntries.length >= CHARTS_MIN_ENTRIES;
-    document.getElementById('charts-starter').style.display   = unlocked ? 'none' : '';
-    document.getElementById('charts-main').style.display      = unlocked ? '' : 'none';
-    document.getElementById('charts-range-row').style.display = unlocked ? '' : 'none';
-    if (!unlocked) { drawStarterView(allEntries); return; }
-
     const entries = getFilteredEntries();
     updateSessionStatsCard();
     drawSessionChart(entries);
@@ -2707,19 +2785,67 @@
     drawWorkoutCharts();
   }
 
-  /* ============================================================
-     STARTER VIEW — Climbing vs Rest day split
-     Shown pre-CHARTS_MIN_ENTRIES instead of the full charts tab.
-  ============================================================ */
-  function drawStarterView(entries) {
-    document.getElementById('starter-count').textContent = entries.length;
-    destroyChart('starter-split');
+  /* Shows/hides the Charts nav tab based on CHARTS_MIN_ENTRIES, and backs
+     out of it gracefully if it's currently open and the count drops back
+     below the threshold (e.g. deleting entries). Called on load and
+     whenever entries are saved/deleted/imported — see saveEntries(). */
+  function updateChartsNavVisibility() {
+    const unlocked = getEntries().length >= CHARTS_MIN_ENTRIES;
+    const navCharts = document.getElementById('nav-charts');
+    if (navCharts) navCharts.style.display = unlocked ? '' : 'none';
+    if (!unlocked && document.getElementById('tab-charts').classList.contains('active')) {
+      switchTab('log');
+    }
+    updateActivityGettingStarted();
+  }
 
+  /* ============================================================
+     CHART: Climbing vs Rest days (doughnut), and session type
+     tag breakdown across climbing days (doughnut). Both respect
+     the main time-range slider via the filtered entries passed in.
+  ============================================================ */
+  const SESSION_TYPE_COLORS = {
+    endurance:  '#1D9E75',
+    max_power:  '#A32D2D',
+    technical:  '#6C9BD2',
+    projecting: '#BA7517',
+    volume:     '#9B59B6',
+    outdoors:   '#2E8B57',
+    social:     '#8E8E8E'
+  };
+
+  /* Draws a total count in the middle of a doughnut's hole. Pass a
+     getter so the text reflects whatever's current when drawn/redrawn. */
+  function doughnutCenterTextPlugin(getText) {
+    return {
+      id: 'centerText',
+      afterDraw(chart) {
+        const text = getText();
+        if (!text) return;
+        const { ctx, chartArea: { left, right, top, bottom } } = chart;
+        ctx.save();
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        const cx = (left + right) / 2, cy = (top + bottom) / 2;
+        ctx.font = '700 24px -apple-system, BlinkMacSystemFont, sans-serif';
+        ctx.fillStyle = getComputedStyle(document.body).getPropertyValue('--text').trim() || '#1a1a1a';
+        ctx.fillText(text, cx, cy - 8);
+        ctx.font = '500 11px -apple-system, BlinkMacSystemFont, sans-serif';
+        ctx.fillStyle = getComputedStyle(document.body).getPropertyValue('--text3').trim() || '#9B9B96';
+        ctx.fillText('days', cx, cy + 12);
+        ctx.restore();
+      }
+    };
+  }
+
+  function drawClimbSplitChart(entries) {
+    destroyChart('climb-split');
     const climbCount = entries.filter(e => e.climbing === 'yes').length;
     const restCount  = entries.filter(e => e.climbing === 'no').length;
-    const legendEl = document.getElementById('starter-split-legend');
+    const total      = climbCount + restCount;
+    const legendEl = document.getElementById('climb-split-legend');
 
-    if (climbCount + restCount === 0) {
+    if (total === 0) {
       if (legendEl) legendEl.innerHTML = '';
       return;
     }
@@ -2728,7 +2854,7 @@
       <div class="sleep-legend-item"><div class="sleep-legend-dot" style="background:#1D9E75"></div> Climbing (${climbCount})</div>
       <div class="sleep-legend-item"><div class="sleep-legend-dot" style="background:#6C9BD2"></div> Rest (${restCount})</div>`;
 
-    chartInstances['starter-split'] = new Chart(document.getElementById('chart-starter-split'), {
+    chartInstances['climb-split'] = new Chart(document.getElementById('chart-climb-split'), {
       type: 'doughnut',
       data: {
         labels: ['Climbing', 'Rest'],
@@ -2739,6 +2865,104 @@
         plugins: {
           legend: { display: false },
           tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${ctx.parsed}` } }
+        }
+      },
+      plugins: [doughnutCenterTextPlugin(() => String(total))]
+    });
+  }
+
+  /*
+    Session type split — vertical bar rather than a pie/doughnut.
+    Tags are tick-all-that-apply, so they can overlap and don't sum to
+    100% of climbing days; a pie implies parts of a whole, which would
+    misrepresent that. Bars auto-scale to the tallest tag (axis hidden,
+    since a bare number wouldn't be self-explanatory) so relative
+    frequency — more Technical sessions than Projecting, say — reads
+    at a glance without wasted headroom. The "out of N climbing days"
+    context lives in the tooltip instead.
+  */
+  function drawSessionTypeSplitChart(entries) {
+    destroyChart('session-type-split');
+    const legendEl = document.getElementById('session-type-split-legend');
+    const subEl    = document.getElementById('session-type-split-sub');
+
+    const climbDays  = entries.filter(e => e.climbing === 'yes');
+    const climbCount = climbDays.length;
+    if (subEl) subEl.textContent = climbCount ? `${climbCount} climbing day${climbCount !== 1 ? 's' : ''} · tags can overlap` : '';
+
+    const counts = {};
+    climbDays.forEach(e => {
+      if (!e.session_type) return;
+      e.session_type.split('|').filter(Boolean).forEach(key => {
+        counts[key] = (counts[key] || 0) + 1;
+      });
+    });
+
+    // Lives in the Activity tab's plain .section card, not a .chart-inner
+    // wrapper (that pattern belongs to the Charts tab's accordion cards).
+    const canvas = document.getElementById('chart-session-type-split');
+    const container  = canvas ? canvas.closest('.section') : null;
+    const existingMsg = container ? container.querySelector('.chart-empty') : null;
+    if (existingMsg) existingMsg.remove();
+
+    const keys = Object.keys(counts).sort((a, b) => counts[b] - counts[a]);
+    if (!keys.length) {
+      if (legendEl) legendEl.innerHTML = '';
+      if (canvas) canvas.style.display = 'none';
+      if (container) {
+        const msg = document.createElement('p');
+        msg.className = 'chart-empty';
+        msg.textContent = climbCount
+          ? 'No session type tags recorded yet — tag a climbing day in the Log tab to see this split.'
+          : 'No climbing days in this range yet.';
+        container.appendChild(msg);
+      }
+      return;
+    }
+    if (canvas) canvas.style.display = '';
+
+    const labels = keys.map(k => SESSION_TYPES[k] || k);
+    const colors = keys.map(k => SESSION_TYPE_COLORS[k] || '#9B9B96');
+    const data   = keys.map(k => counts[k]);
+    const pct    = k => climbCount ? Math.round(counts[k] / climbCount * 100) : 0;
+
+    legendEl.innerHTML = keys.map(k =>
+      `<div class="sleep-legend-item"><div class="sleep-legend-dot" style="background:${SESSION_TYPE_COLORS[k] || '#9B9B96'}"></div> ${SESSION_TYPES[k] || k} (${counts[k]} · ${pct(k)}%)</div>`
+    ).join('');
+
+    chartInstances['session-type-split'] = new Chart(document.getElementById('chart-session-type-split'), {
+      type: 'bar',
+      data: { labels, datasets: [{ data, backgroundColor: colors, borderWidth: 0, borderRadius: 4, barPercentage: 0.7 }] },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        scales: {
+          x: {
+            ticks: { color: '#9B9B96', font: { size: 11 } },
+            grid: { display: false }
+          },
+          y: {
+            // Auto-scaled to the tallest bar (not climbCount) so short
+            // bars don't leave a block of dead space above them — the
+            // axis is hidden anyway, and relative height between bars
+            // is honest either way. Absolute "out of N" context comes
+            // from the tooltip instead.
+            beginAtZero: true,
+            display: false,
+            grid: { display: false }
+          }
+        },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              title: () => '',
+              label: ctx => {
+                const key   = keys[ctx.dataIndex];
+                const label = (SESSION_TYPES[key] || key).toLowerCase();
+                return ` ${ctx.parsed.y} out of ${climbCount} session${climbCount !== 1 ? 's' : ''} have been tagged as ${label}`;
+              }
+            }
+          }
         }
       }
     });
@@ -4171,6 +4395,7 @@
 
   function clearLogData() {
     localStorage.removeItem(STORAGE_KEY);
+    updateChartsNavVisibility();
     closeDeleteDataOverlay();
     renderStreak(); updateWeekCounter();
     if (document.getElementById('hist-panel').style.display === 'block') renderHist();
@@ -4203,6 +4428,7 @@
     document.getElementById('date-label').textContent = formatDisplayDate(selectedDate);
     document.getElementById('csv-filename').value = getFilename();
     document.getElementById('range-val').textContent = RANGE_LABELS[4];
+    updateChartsNavVisibility();
     const goals = getGoals();
     if (goals.sleep) document.getElementById('goal-sleep').value = goals.sleep;
     if (goals.water) document.getElementById('goal-water').value = goals.water;
