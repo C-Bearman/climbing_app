@@ -2822,12 +2822,11 @@
     Session type split — vertical bar rather than a pie/doughnut.
     Tags are tick-all-that-apply, so they can overlap and don't sum to
     100% of climbing days; a pie implies parts of a whole, which would
-    misrepresent that. Each bar instead shows, independently, what
-    fraction of climbing days carried that tag, scaled against a shared
-    0..climbCount axis so relative frequency (more Technical than
-    Projecting, say) reads at a glance. The axis itself is hidden since
-    the scale (climbCount) isn't self-explanatory — the tooltip spells
-    the comparison out in words instead.
+    misrepresent that. Bars auto-scale to the tallest tag (axis hidden,
+    since a bare number wouldn't be self-explanatory) so relative
+    frequency — more Technical sessions than Projecting, say — reads
+    at a glance without wasted headroom. The "out of N climbing days"
+    context lives in the tooltip instead.
   */
   function drawSessionTypeSplitChart(entries) {
     destroyChart('session-type-split');
@@ -2846,11 +2845,26 @@
       });
     });
 
+    const canvas = document.getElementById('chart-session-type-split');
+    const inner  = canvas ? canvas.closest('.chart-inner') : null;
+    const existingMsg = inner ? inner.querySelector('.chart-empty') : null;
+    if (existingMsg) existingMsg.remove();
+
     const keys = Object.keys(counts).sort((a, b) => counts[b] - counts[a]);
     if (!keys.length) {
-      if (legendEl) legendEl.innerHTML = '<span style="font-size:12px;color:var(--text3);">No tagged sessions in this range yet</span>';
+      if (legendEl) legendEl.innerHTML = '';
+      if (canvas) canvas.style.display = 'none';
+      if (inner) {
+        const msg = document.createElement('p');
+        msg.className = 'chart-empty';
+        msg.textContent = climbCount
+          ? 'No session type tags recorded yet — tag a climbing day in the Log tab to see this split.'
+          : 'No climbing days in this range yet.';
+        inner.appendChild(msg);
+      }
       return;
     }
+    if (canvas) canvas.style.display = '';
 
     const labels = keys.map(k => SESSION_TYPES[k] || k);
     const colors = keys.map(k => SESSION_TYPE_COLORS[k] || '#9B9B96');
@@ -2872,10 +2886,12 @@
             grid: { display: false }
           },
           y: {
-            // Scaled 0..climbCount so bar height still reflects proportion of
-            // climbing days, but the axis number itself isn't meaningful to
-            // someone who doesn't know that — the tooltip spells it out instead.
-            min: 0, max: climbCount,
+            // Auto-scaled to the tallest bar (not climbCount) so short
+            // bars don't leave a block of dead space above them — the
+            // axis is hidden anyway, and relative height between bars
+            // is honest either way. Absolute "out of N" context comes
+            // from the tooltip instead.
+            beginAtZero: true,
             display: false,
             grid: { display: false }
           }
