@@ -2898,22 +2898,24 @@
       });
     });
 
+    // Lives in the Activity tab's plain .section card, not a .chart-inner
+    // wrapper (that pattern belongs to the Charts tab's accordion cards).
     const canvas = document.getElementById('chart-session-type-split');
-    const inner  = canvas ? canvas.closest('.chart-inner') : null;
-    const existingMsg = inner ? inner.querySelector('.chart-empty') : null;
+    const container  = canvas ? canvas.closest('.section') : null;
+    const existingMsg = container ? container.querySelector('.chart-empty') : null;
     if (existingMsg) existingMsg.remove();
 
     const keys = Object.keys(counts).sort((a, b) => counts[b] - counts[a]);
     if (!keys.length) {
       if (legendEl) legendEl.innerHTML = '';
       if (canvas) canvas.style.display = 'none';
-      if (inner) {
+      if (container) {
         const msg = document.createElement('p');
         msg.className = 'chart-empty';
         msg.textContent = climbCount
           ? 'No session type tags recorded yet — tag a climbing day in the Log tab to see this split.'
           : 'No climbing days in this range yet.';
-        inner.appendChild(msg);
+        container.appendChild(msg);
       }
       return;
     }
