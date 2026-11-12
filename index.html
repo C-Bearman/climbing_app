@@ -776,6 +776,8 @@
             <button class="pill" data-type="max_power" onclick="toggleSessionType('max_power')">Max Power</button>
             <button class="pill" data-type="technical" onclick="toggleSessionType('technical')">Technical</button>
             <button class="pill" data-type="projecting" onclick="toggleSessionType('projecting')">Projecting</button>
+            <button class="pill" data-type="volume" onclick="toggleSessionType('volume')">Volume</button>
+            <button class="pill" data-type="outdoors" onclick="toggleSessionType('outdoors')">Outdoors</button>
             <button class="pill" data-type="social" onclick="toggleSessionType('social')">Social / Unstructured</button>
           </div>
         </div>
@@ -1289,6 +1291,37 @@
     </div>
 
     <!--
+      CHART: CLIMBING ACTIVITY
+      Two side-by-side doughnuts over the selected time range:
+      Climbing vs Rest days, and a breakdown of session type tags
+      across climbing days (a day can carry multiple tags, so this
+      counts tag occurrences, not days).
+    -->
+    <div class="chart-section" id="cs-activity">
+      <div class="chart-section-head" onclick="toggleChart('cs-activity')">
+        <div class="chart-section-head-left">
+          <div>
+            <div class="chart-section-title">Climbing Activity</div>
+            <div class="chart-section-sub">Climbing vs rest days, and session type split</div>
+          </div>
+        </div>
+        <svg class="chart-chevron" viewBox="0 0 24 24" fill="none" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div class="chart-body">
+        <div class="chart-inner">
+          <div style="font-size:13px;color:var(--text2);margin-bottom:6px;">Climbing vs Rest</div>
+          <canvas id="chart-climb-split" class="chart-canvas" style="max-height:200px;"></canvas>
+          <div class="sleep-legend" id="climb-split-legend" style="justify-content:center;margin-top:10px;"></div>
+        </div>
+        <div class="chart-inner" style="margin-top:18px;">
+          <div style="font-size:13px;color:var(--text2);margin-bottom:6px;">Session type split <span style="color:var(--text3);">· climbing days, tags can overlap</span></div>
+          <canvas id="chart-session-type-split" class="chart-canvas" style="max-height:220px;"></canvas>
+          <div class="sleep-legend" id="session-type-split-legend" style="justify-content:center;margin-top:10px;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!--
       CHART 2: FLEXIBILITY RATING
       Stretching days only. Dots coloured by sleep quality.
     -->
@@ -1447,6 +1480,8 @@
     max_power:  'Max Power',
     technical:  'Technical',
     projecting: 'Projecting',
+    volume:     'Volume',
+    outdoors:   'Outdoors',
     social:     'Social / Unstructured'
   };
   function toggleSessionType(key) {
@@ -2701,10 +2736,97 @@
     const entries = getFilteredEntries();
     updateSessionStatsCard();
     drawSessionChart(entries);
+    drawClimbSplitChart(entries);
+    drawSessionTypeSplitChart(entries);
     drawFlexChart(entries);
     drawTrendsChart(entries);
     drawStretchChart(entries);
     drawWorkoutCharts();
+  }
+
+  /* ============================================================
+     CHART: Climbing vs Rest days (doughnut), and session type
+     tag breakdown across climbing days (doughnut). Both respect
+     the main time-range slider via the filtered entries passed in.
+  ============================================================ */
+  const SESSION_TYPE_COLORS = {
+    endurance:  '#1D9E75',
+    max_power:  '#A32D2D',
+    technical:  '#6C9BD2',
+    projecting: '#BA7517',
+    volume:     '#9B59B6',
+    outdoors:   '#2E8B57',
+    social:     '#8E8E8E'
+  };
+
+  function drawClimbSplitChart(entries) {
+    destroyChart('climb-split');
+    const climbCount = entries.filter(e => e.climbing === 'yes').length;
+    const restCount  = entries.filter(e => e.climbing === 'no').length;
+    const legendEl = document.getElementById('climb-split-legend');
+
+    if (climbCount + restCount === 0) {
+      if (legendEl) legendEl.innerHTML = '';
+      return;
+    }
+
+    legendEl.innerHTML = `
+      <div class="sleep-legend-item"><div class="sleep-legend-dot" style="background:#1D9E75"></div> Climbing (${climbCount})</div>
+      <div class="sleep-legend-item"><div class="sleep-legend-dot" style="background:#6C9BD2"></div> Rest (${restCount})</div>`;
+
+    chartInstances['climb-split'] = new Chart(document.getElementById('chart-climb-split'), {
+      type: 'doughnut',
+      data: {
+        labels: ['Climbing', 'Rest'],
+        datasets: [{ data: [climbCount, restCount], backgroundColor: ['#1D9E75', '#6C9BD2'], borderWidth: 0 }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${ctx.parsed}` } }
+        }
+      }
+    });
+  }
+
+  function drawSessionTypeSplitChart(entries) {
+    destroyChart('session-type-split');
+    const legendEl = document.getElementById('session-type-split-legend');
+
+    const counts = {};
+    entries.forEach(e => {
+      if (e.climbing !== 'yes' || !e.session_type) return;
+      e.session_type.split('|').filter(Boolean).forEach(key => {
+        counts[key] = (counts[key] || 0) + 1;
+      });
+    });
+
+    const keys = Object.keys(counts);
+    if (!keys.length) {
+      if (legendEl) legendEl.innerHTML = '<span style="font-size:12px;color:var(--text3);">No tagged sessions in this range yet</span>';
+      return;
+    }
+
+    const labels = keys.map(k => SESSION_TYPES[k] || k);
+    const colors = keys.map(k => SESSION_TYPE_COLORS[k] || '#9B9B96');
+    const data   = keys.map(k => counts[k]);
+
+    legendEl.innerHTML = keys.map(k =>
+      `<div class="sleep-legend-item"><div class="sleep-legend-dot" style="background:${SESSION_TYPE_COLORS[k] || '#9B9B96'}"></div> ${SESSION_TYPES[k] || k} (${counts[k]})</div>`
+    ).join('');
+
+    chartInstances['session-type-split'] = new Chart(document.getElementById('chart-session-type-split'), {
+      type: 'doughnut',
+      data: { labels, datasets: [{ data, backgroundColor: colors, borderWidth: 0 }] },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${ctx.parsed}` } }
+        }
+      }
+    });
   }
 
   /* ============================================================
