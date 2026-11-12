@@ -1155,27 +1155,12 @@
     </header>
 
     <!--
-      STARTER VIEW
-      Shown instead of the full charts below until CHARTS_MIN_ENTRIES
-      entries exist (see checkMinData's default — roughly one week).
-      A simple Climbing vs Rest day split, since that's meaningful
-      from day one, plus a progress nudge.
+      The Charts nav tab itself is hidden (see updateChartsNavVisibility())
+      until CHARTS_MIN_ENTRIES entries exist, so everything below can
+      assume it's already unlocked — no separate starter view needed here.
+      The pre-unlock nudge lives in the Activity tab instead, since that's
+      visible from day 1.
     -->
-    <div id="charts-starter" style="display:none;">
-      <div class="section" style="margin: 10px 14px 0;">
-        <div class="section-head">
-          <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-          Getting started
-        </div>
-        <p style="font-size:14px;color:var(--text2);margin:0 0 16px;line-height:1.5;">
-          Keep logging — full charts unlock once you have a week of entries
-          (<b id="starter-count" style="color:var(--text);">0</b>/7 so far).
-        </p>
-        <canvas id="chart-starter-split" class="chart-canvas" style="max-height:220px;"></canvas>
-        <div class="sleep-legend" id="starter-split-legend" style="justify-content:center;margin-top:12px;"></div>
-      </div>
-    </div>
-
     <div id="charts-main">
 
     <!--
@@ -1436,6 +1421,24 @@
       </div>
     </header>
 
+    <!--
+      GETTING STARTED NUDGE
+      Shown until CHARTS_MIN_ENTRIES entries exist — the Charts tab
+      itself stays hidden until then, so this is the one place that
+      explains why and tracks progress toward it. The charts below
+      this still render from day 1 regardless.
+    -->
+    <div id="activity-getting-started" class="section" style="margin: 10px 14px 0; display:none;">
+      <div class="section-head">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        Getting started
+      </div>
+      <p style="font-size:14px;color:var(--text2);margin:0;line-height:1.5;">
+        Keep logging to unlock more visuals in Charts
+        (<b id="activity-starter-count" style="color:var(--text);">0</b>/7 so far).
+      </p>
+    </div>
+
     <div class="section" style="margin: 10px 14px 0;">
       <div class="section-head">
         <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
@@ -1545,7 +1548,7 @@
   function getEntries() {
     try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch(e) { return []; }
   }
-  function saveEntries(arr) { localStorage.setItem(STORAGE_KEY, JSON.stringify(arr)); }
+  function saveEntries(arr) { localStorage.setItem(STORAGE_KEY, JSON.stringify(arr)); updateChartsNavVisibility(); }
 
   /* ============================================================
      switchTab(tab)
@@ -2190,9 +2193,19 @@
   }
 
   function drawActivityCharts() {
+    updateActivityGettingStarted();
     const entries = getFilteredEntries('activity-range-slider');
     drawClimbSplitChart(entries);
     drawSessionTypeSplitChart(entries);
+  }
+
+  function updateActivityGettingStarted() {
+    const total    = getEntries().length;
+    const unlocked = total >= CHARTS_MIN_ENTRIES;
+    const card = document.getElementById('activity-getting-started');
+    if (card) card.style.display = unlocked ? 'none' : '';
+    const countEl = document.getElementById('activity-starter-count');
+    if (countEl) countEl.textContent = total;
   }
 
   /* ============================================================
@@ -2757,18 +2770,12 @@
     overlay.classList.add('show');
   }
 
-  // Full charts stay hidden behind a simple starter view until this many
-  // entries exist — matches checkMinData's default (roughly one week).
+  // The Charts nav tab itself is hidden until this many entries exist
+  // (see updateChartsNavVisibility()) — matches checkMinData's default
+  // (roughly one week). drawAllCharts() can assume it's already unlocked.
   const CHARTS_MIN_ENTRIES = 7;
 
   function drawAllCharts() {
-    const allEntries = getEntries();
-    const unlocked = allEntries.length >= CHARTS_MIN_ENTRIES;
-    document.getElementById('charts-starter').style.display   = unlocked ? 'none' : '';
-    document.getElementById('charts-main').style.display      = unlocked ? '' : 'none';
-    document.getElementById('charts-range-row').style.display = unlocked ? '' : 'none';
-    if (!unlocked) { drawStarterView(allEntries); return; }
-
     const entries = getFilteredEntries();
     updateSessionStatsCard();
     drawSessionChart(entries);
@@ -2776,6 +2783,20 @@
     drawTrendsChart(entries);
     drawStretchChart(entries);
     drawWorkoutCharts();
+  }
+
+  /* Shows/hides the Charts nav tab based on CHARTS_MIN_ENTRIES, and backs
+     out of it gracefully if it's currently open and the count drops back
+     below the threshold (e.g. deleting entries). Called on load and
+     whenever entries are saved/deleted/imported — see saveEntries(). */
+  function updateChartsNavVisibility() {
+    const unlocked = getEntries().length >= CHARTS_MIN_ENTRIES;
+    const navCharts = document.getElementById('nav-charts');
+    if (navCharts) navCharts.style.display = unlocked ? '' : 'none';
+    if (!unlocked && document.getElementById('tab-charts').classList.contains('active')) {
+      switchTab('log');
+    }
+    updateActivityGettingStarted();
   }
 
   /* ============================================================
@@ -2940,43 +2961,6 @@
               }
             }
           }
-        }
-      }
-    });
-  }
-
-  /* ============================================================
-     STARTER VIEW — Climbing vs Rest day split
-     Shown pre-CHARTS_MIN_ENTRIES instead of the full charts tab.
-  ============================================================ */
-  function drawStarterView(entries) {
-    document.getElementById('starter-count').textContent = entries.length;
-    destroyChart('starter-split');
-
-    const climbCount = entries.filter(e => e.climbing === 'yes').length;
-    const restCount  = entries.filter(e => e.climbing === 'no').length;
-    const legendEl = document.getElementById('starter-split-legend');
-
-    if (climbCount + restCount === 0) {
-      if (legendEl) legendEl.innerHTML = '';
-      return;
-    }
-
-    legendEl.innerHTML = `
-      <div class="sleep-legend-item"><div class="sleep-legend-dot" style="background:#1D9E75"></div> Climbing (${climbCount})</div>
-      <div class="sleep-legend-item"><div class="sleep-legend-dot" style="background:#6C9BD2"></div> Rest (${restCount})</div>`;
-
-    chartInstances['starter-split'] = new Chart(document.getElementById('chart-starter-split'), {
-      type: 'doughnut',
-      data: {
-        labels: ['Climbing', 'Rest'],
-        datasets: [{ data: [climbCount, restCount], backgroundColor: ['#1D9E75', '#6C9BD2'], borderWidth: 0 }]
-      },
-      options: {
-        responsive: true, maintainAspectRatio: false,
-        plugins: {
-          legend: { display: false },
-          tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${ctx.parsed}` } }
         }
       }
     });
@@ -4409,6 +4393,7 @@
 
   function clearLogData() {
     localStorage.removeItem(STORAGE_KEY);
+    updateChartsNavVisibility();
     closeDeleteDataOverlay();
     renderStreak(); updateWeekCounter();
     if (document.getElementById('hist-panel').style.display === 'block') renderHist();
@@ -4441,6 +4426,7 @@
     document.getElementById('date-label').textContent = formatDisplayDate(selectedDate);
     document.getElementById('csv-filename').value = getFilename();
     document.getElementById('range-val').textContent = RANGE_LABELS[4];
+    updateChartsNavVisibility();
     const goals = getGoals();
     if (goals.sleep) document.getElementById('goal-sleep').value = goals.sleep;
     if (goals.water) document.getElementById('goal-water').value = goals.water;
