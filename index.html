@@ -482,6 +482,55 @@
       background: var(--surface); border: 0.5px solid var(--border);
       border-radius: var(--radius); margin-bottom: 12px; overflow: hidden;
     }
+
+    /* Plan group — wraps the exercises added by a single "apply plan" tap,
+       same card/header/accordion pattern as .exercise-block, so applying
+       two plans at once is visually traceable instead of one flat pile. */
+    .plan-group {
+      background: var(--surface2); border: 0.5px solid var(--border);
+      border-radius: var(--radius); margin-bottom: 12px; overflow: hidden;
+    }
+    .plan-group-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 13px 16px; cursor: pointer;
+    }
+    .plan-group-title { font-weight: 700; font-size: 14px; color: var(--text); }
+    .plan-group-body {
+      max-height: 0; overflow: hidden;
+      transition: max-height 0.3s ease, padding 0.3s ease;
+      padding: 0 16px;
+    }
+    .plan-group-body.open { max-height: 4000px; padding: 0 16px 16px; }
+
+    /* "Plan Notes" pill — left-aligned, opens the speech-bubble panel below it */
+    .plan-notes-pill {
+      display: inline-flex; margin-bottom: 10px;
+      color: #4A7FB5; border-color: rgba(108,155,210,0.5);
+      background: rgba(108,155,210,0.12);
+    }
+    /* Speech-bubble panel — small triangular tail pointing up at the pill */
+    .plan-notes-bubble {
+      position: relative;
+      font-size: 13px; color: var(--text2); line-height: 1.6;
+      background: var(--surface); border: 0.5px solid var(--border);
+      border-radius: var(--radius-sm); padding: 12px 14px; margin: 2px 0 12px;
+    }
+    .plan-notes-bubble::before {
+      content: ''; position: absolute; top: -6px; left: 18px;
+      width: 11px; height: 11px; background: var(--surface);
+      border-left: 0.5px solid var(--border); border-top: 0.5px solid var(--border);
+      transform: rotate(45deg);
+    }
+    .plan-notes-bubble-title { font-weight: 700; color: var(--text); margin: 0 0 8px; }
+    .plan-notes-bubble b { color: var(--text); }
+    .plan-notes-edit-pill { margin-top: 2px; }
+    .plan-note-edit-textarea {
+      width: 100%; box-sizing: border-box; margin-top: 4px;
+      padding: 8px 10px; font-size: 13px; font-family: inherit;
+      color: var(--text); background: var(--surface2);
+      border: 0.5px solid var(--border-med); border-radius: var(--radius-sm);
+      outline: none; resize: vertical;
+    }
     /* Header row — always visible, tapping toggles collapse */
     .exercise-header {
       display: flex; align-items: center; justify-content: space-between;
@@ -551,7 +600,6 @@
       background: var(--surface2); border-radius: 8px;
       padding: 5px 10px; margin-bottom: 12px; display: none;
     }
-
     /* "Sets" subheading above set rows */
     .sets-label {
       font-size: 11px; font-weight: 700; color: var(--text3);
@@ -585,24 +633,26 @@
     }
 
     /* Footer row inside exercise body */
-    .ex-footer { display: flex; align-items: center; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+    .ex-footer { display: flex; align-items: center; gap: 6px; margin-top: 12px; flex-wrap: wrap; }
     .add-set-btn {
-      font-size: 13px; font-weight: 600; color: var(--green);
+      font-size: 12px; font-weight: 600; color: var(--green);
       background: var(--green-light); border: none;
-      border-radius: var(--radius-sm); padding: 8px 14px;
+      border-radius: var(--radius-sm); padding: 8px 10px;
       cursor: pointer; -webkit-tap-highlight-color: transparent;
+      white-space: nowrap;
     }
     .copy-set-btn {
-      font-size: 13px; font-weight: 600; color: var(--text2);
+      font-size: 12px; font-weight: 600; color: var(--text2);
       background: var(--surface2); border: 0.5px solid var(--border-med);
-      border-radius: var(--radius-sm); padding: 8px 14px;
+      border-radius: var(--radius-sm); padding: 8px 10px;
       cursor: pointer; -webkit-tap-highlight-color: transparent;
+      white-space: nowrap;
     }
     .remove-ex-btn {
       font-size: 12px; color: #c0392b; background: rgba(192,57,43,0.08);
       border: 0.5px solid rgba(192,57,43,0.35); border-radius: var(--radius-sm);
-      padding: 7px 12px; cursor: pointer; -webkit-tap-highlight-color: transparent;
-      margin-left: auto; font-weight: 600;
+      padding: 8px 10px; cursor: pointer; -webkit-tap-highlight-color: transparent;
+      font-weight: 600; margin-left: auto; white-space: nowrap;
     }
     .remove-ex-btn:active { background: rgba(192,57,43,0.18); }
 
@@ -1418,6 +1468,16 @@
   /* Chart.js instances — kept so we can destroy & redraw on range change */
   let chartInstances = {};
   let exerciseBlockCounter = 0;
+
+  // Plans applied to the currently-viewed workout date, in the order they
+  // were tapped — drives the pill shading below. Session-only (not saved),
+  // reset whenever the viewed date changes.
+  let appliedPlansToday = [];
+  const PLAN_PILL_SHADES = [
+    { bg: '#CFE3F5', text: '#1B4D7A' },
+    { bg: '#8FB8E0', text: '#0E3A63' },
+    { bg: '#5B93C9', text: '#FFFFFF' }
+  ];
 
   /* ── Utility ── */
   function todayStr() { return new Date().toISOString().split('T')[0]; }
@@ -2971,8 +3031,8 @@
   }
 
   /* Add a new exercise block to the workout tab */
-  function addExerciseBlock() {
-    const list  = document.getElementById('exercise-list');
+  function addExerciseBlock(container) {
+    const list  = container || document.getElementById('exercise-list');
     const block = document.createElement('div');
     block.className      = 'exercise-block';
     block.dataset.fields  = '';   // comma-separated e.g. 'reps,weight'
@@ -3451,11 +3511,16 @@
     const plans = getWorkoutPlans();
     if (!plans.length) { row.innerHTML = ''; row.style.display = 'none'; return; }
     row.style.display = 'flex';
-    row.innerHTML = plans.map(p => `
+    row.innerHTML = plans.map(p => {
+      const appliedIdx = appliedPlansToday.indexOf(p.name);
+      const shade = appliedIdx === -1 ? null : PLAN_PILL_SHADES[Math.min(appliedIdx, PLAN_PILL_SHADES.length - 1)];
+      const style = shade ? ` style="--pill-color:${shade.bg}; color:${shade.text};"` : '';
+      return `
       <span style="display:inline-flex;align-items:center;gap:2px;">
-        <button class="pill" onclick="applyWorkoutPlan('${p.name.replace(/'/g,"\\'")}')">${p.name}</button>
+        <button class="pill${shade ? ' pill-active' : ''}"${style} onclick="applyWorkoutPlan('${p.name.replace(/'/g,"\\'")}')">${p.name}</button>
         <button class="wo-remove-btn" style="font-size:15px;" onclick="deleteWorkoutPlan('${p.name.replace(/'/g,"\\'")}')" title="Delete plan">✕</button>
-      </span>`).join('');
+      </span>`;
+    }).join('');
   }
 
   /* All sets from the most recent date this exercise was logged, sorted by
@@ -3502,13 +3567,47 @@
     const preview = plan.exercises.map(ex => {
       const lastSets = getLastExerciseSets(ex.name);
       const summary  = lastSets ? formatSetSummary(lastSets, ex.fields) : 'no previous sets logged';
-      return `• ${ex.name} — last time: ${summary}`;
+      const noteLine = ex.note ? `\n  📌 ${ex.note}` : '';
+      return `• ${ex.name} — last time: ${summary}${noteLine}`;
     }).join('\n');
     if (!confirm(`Add "${name}" to today's workout?\n\n${preview}`)) return;
-    const list = document.getElementById('exercise-list');
+
+    // Wraps this plan's exercises in their own collapsible group, with the
+    // plan name as the header — so applying a second plan afterwards stays
+    // traceable (which exercise came from which plan) instead of one flat
+    // undifferentiated list.
+    const list  = document.getElementById('exercise-list');
+    const group = document.createElement('div');
+    group.className = 'plan-group';
+    group.dataset.planName = name;
+    group.innerHTML = `
+      <div class="plan-group-header" onclick="togglePlanGroup(this)">
+        <span class="plan-group-title">${name}</span>
+        <div style="display:flex; align-items:center; gap:4px;">
+          <button type="button" class="wo-remove-btn" title="Remove this plan from today's workout"
+                  onclick="event.stopPropagation(); removePlanGroupWithConfirm(this)">✕</button>
+          <div class="ex-toggle">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+          </div>
+        </div>
+      </div>
+      <div class="plan-group-body open">
+        <button type="button" class="pill plan-notes-pill" data-plan="${name.replace(/"/g, '&quot;')}"
+                onclick="togglePlanNotesBubble(this)">📌 Plan Notes</button>
+        <div class="plan-notes-bubble" style="display:none;"></div>
+        <div class="plan-group-exercises"></div>
+        <button type="button" class="add-exercise-btn" onclick="addExerciseToGroup(this)">+ Add Exercise</button>
+        <div style="display:flex; gap:8px; margin:-4px 0 4px;">
+          <button type="button" class="pill" onclick="updatePlanFromGroup(this)">💾 Add to Plan</button>
+          <button type="button" class="pill" onclick="saveGroupAsNewPlan(this)">💾 Create Plan</button>
+        </div>
+      </div>`;
+    list.appendChild(group);
+    const body = group.querySelector('.plan-group-exercises');
+
     plan.exercises.forEach(ex => {
-      addExerciseBlock();
-      const block = list.lastElementChild;
+      addExerciseBlock(body);
+      const block = body.lastElementChild;
       block.querySelector('.ex-name-input').value = ex.name;
       block.querySelectorAll('.field-cb').forEach(cb => { cb.checked = ex.fields.includes(cb.value); });
       onFieldChange(block);
@@ -3519,6 +3618,170 @@
       updatePBChip(block, ex.name, ex.pb_field);
       updateLastSessionChip(block, ex.name, ex.fields);
     });
+
+    if (!appliedPlansToday.includes(name)) appliedPlansToday.push(name);
+    renderWorkoutPlans();
+  }
+
+  /* Collapse/expand a plan group — same chevron-flip pattern as toggleExerciseBlock */
+  function togglePlanGroup(header) {
+    const body = header.nextElementSibling;
+    const poly = header.querySelector('polyline');
+    const isOpen = body.classList.contains('open');
+    body.classList.toggle('open');
+    poly.setAttribute('points', isOpen ? '18 15 12 9 6 15' : '6 9 12 15 18 9');
+  }
+
+  /* Removes this plan's exercises from today's session only — the saved
+     plan itself (and any other plans/exercises already on the list) is
+     untouched. Safety net for applying the wrong plan on the wrong day,
+     without having to permanently delete the plan to undo it. */
+  function removePlanGroupWithConfirm(btn) {
+    const group = btn.closest('.plan-group');
+    const name  = group.dataset.planName;
+    if (!confirm(`Remove "${name}" from today's workout?\n\nThis only removes it from today — the saved plan itself won't be touched.`)) return;
+    group.remove();
+    // Recompute from what's actually still on screen, in case the same
+    // plan was applied more than once today.
+    appliedPlansToday = [...document.querySelectorAll('.plan-group')].map(g => g.dataset.planName);
+    renderWorkoutPlans();
+  }
+
+  /* Adds a fresh exercise block directly into this group (e.g. applied
+     "Pull/Dip Day" — pull ups, dips — then want to add push ups too), so
+     it's visually grouped with the plan's other exercises rather than
+     sitting as a separate standalone block. */
+  function addExerciseToGroup(btn) {
+    const container = btn.closest('.plan-group-body').querySelector('.plan-group-exercises');
+    addExerciseBlock(container);
+  }
+
+  /* Reads a group's current exercises (name/fields/pb_field) — same
+     validation as the main Save as Plan flow: skips any block with no
+     name or no fields ticked. */
+  function collectGroupExercises(group) {
+    const exercises = [];
+    group.querySelectorAll('.exercise-block').forEach(block => {
+      const name    = block.querySelector('.ex-name-input').value.trim();
+      const fields  = (block.dataset.fields || '').split(',').filter(Boolean);
+      const pbField = block.dataset.pbField || '';
+      if (name && fields.length) exercises.push({ name, fields, pb_field: pbField });
+    });
+    return exercises;
+  }
+
+  /* Overwrites the saved plan this group came from with its current
+     exercises — e.g. you added Push Ups alongside Pull Ups/Dips and want
+     that to stick for next time. Existing cue notes are preserved for any
+     exercise still present (matched by name); a brand new exercise has no
+     note until added separately via the Plan Notes pill. */
+  function updatePlanFromGroup(btn) {
+    const group     = btn.closest('.plan-group');
+    const planName  = group.dataset.planName;
+    const exercises = collectGroupExercises(group);
+    if (!exercises.length) {
+      showWorkoutOverlay('⚠️', 'Nothing to save', 'Add at least one named, tracked exercise first.');
+      return;
+    }
+    if (!confirm(`Update "${planName}" with these exercises?\n\n${exercises.map(e => '• ' + e.name).join('\n')}`)) return;
+
+    const plans    = getWorkoutPlans();
+    const existing = plans.find(p => p.name === planName);
+    exercises.forEach(ex => {
+      const prevNote = existing?.exercises.find(e => e.name.toLowerCase() === ex.name.toLowerCase())?.note;
+      if (prevNote) ex.note = prevNote;
+    });
+    const idx = plans.findIndex(p => p.name === planName);
+    if (idx >= 0) plans[idx] = { name: planName, exercises };
+    else plans.push({ name: planName, exercises });
+
+    saveWorkoutPlans(plans);
+    renderWorkoutPlans();
+    showWorkoutOverlay('✅', 'Plan updated', `"${planName}" — ${exercises.length} exercise${exercises.length !== 1 ? 's' : ''}`);
+  }
+
+  /* Saves this group's current exercises as a brand new, separate plan —
+     the plan this group originally came from is left untouched. */
+  function saveGroupAsNewPlan(btn) {
+    const group     = btn.closest('.plan-group');
+    const exercises = collectGroupExercises(group);
+    if (!exercises.length) {
+      showWorkoutOverlay('⚠️', 'Nothing to save', 'Add at least one named, tracked exercise first.');
+      return;
+    }
+    const planName = (prompt('Save this as a new plan named:', '') || '').trim();
+    if (!planName) return;
+
+    const plans = getWorkoutPlans();
+    const existingIdx = plans.findIndex(p => p.name.toLowerCase() === planName.toLowerCase());
+    if (existingIdx >= 0) {
+      if (!confirm(`A plan named "${planName}" already exists. Overwrite it?`)) return;
+      plans[existingIdx] = { name: planName, exercises };
+    } else {
+      plans.push({ name: planName, exercises });
+    }
+    saveWorkoutPlans(plans);
+    renderWorkoutPlans();
+    showWorkoutOverlay('✅', 'Plan saved', `"${planName}" — ${exercises.length} exercise${exercises.length !== 1 ? 's' : ''}`);
+  }
+
+  /* ── Plan Notes pill: toggles a speech-bubble panel open/closed ── */
+  function togglePlanNotesBubble(btn) {
+    const bubble = btn.nextElementSibling;
+    const isOpen = bubble.style.display === 'block';
+    if (isOpen) { bubble.style.display = 'none'; return; }
+    bubble.dataset.plan = btn.dataset.plan;
+    renderPlanNotesReadOnly(bubble);
+    bubble.style.display = 'block';
+  }
+
+  /* Title + notes list (or "no notes yet") + an Edit notes pill underneath */
+  function renderPlanNotesReadOnly(bubble) {
+    const plan  = getWorkoutPlans().find(p => p.name === bubble.dataset.plan);
+    const noted = plan ? plan.exercises.filter(ex => ex.note) : [];
+    const list  = noted.length
+      ? noted.map(ex => `<p style="margin:0 0 8px;">${ex.note}</p>`).join('')
+      : `<p style="margin:0 0 8px;">No notes yet.</p>`;
+    bubble.innerHTML = `
+      <p class="plan-notes-bubble-title">Plan Notes</p>
+      <div class="plan-notes-bubble-content">${list}</div>
+      <button type="button" class="pill plan-notes-edit-pill" onclick="startEditPlanNotes(this)">Edit notes</button>`;
+  }
+
+  /* Swaps the read-only list for one textarea per exercise, no tight
+     character limit (these aren't graphed, unlike Session notes), and
+     swaps the Edit notes pill for a Save pill. */
+  function startEditPlanNotes(editBtn) {
+    const bubble = editBtn.closest('.plan-notes-bubble');
+    const plan   = getWorkoutPlans().find(p => p.name === bubble.dataset.plan);
+    if (!plan) return;
+    const fields = plan.exercises.map((ex, i) => `
+      <div style="margin-bottom:10px;">
+        <textarea class="plan-note-edit-textarea" data-idx="${i}" rows="2">${ex.note || ''}</textarea>
+      </div>`).join('');
+    bubble.innerHTML = `
+      <p class="plan-notes-bubble-title">Plan Notes</p>
+      <div class="plan-notes-bubble-content">${fields}</div>
+      <button type="button" class="pill plan-notes-edit-pill" onclick="savePlanNotesBubble(this)">Save</button>`;
+  }
+
+  /* Saves back to the plan itself (so the cue updates for every future use
+     of this plan, not just today), refreshes any matching chip already on
+     screen, then returns the bubble to its read-only view. */
+  function savePlanNotesBubble(saveBtn) {
+    const bubble = saveBtn.closest('.plan-notes-bubble');
+    const plans  = getWorkoutPlans();
+    const plan   = plans.find(p => p.name === bubble.dataset.plan);
+    if (!plan) return;
+    bubble.querySelectorAll('.plan-note-edit-textarea').forEach(ta => {
+      const idx = parseInt(ta.dataset.idx);
+      const val = ta.value.trim();
+      if (val) plan.exercises[idx].note = val;
+      else delete plan.exercises[idx].note;
+    });
+    saveWorkoutPlans(plans);
+
+    renderPlanNotesReadOnly(bubble);
   }
 
   /* Snapshots whatever's currently on the exercise list (name/fields/pb_field
@@ -3541,12 +3804,22 @@
 
     const plans = getWorkoutPlans();
     const existingIdx = plans.findIndex(p => p.name.toLowerCase() === planName.toLowerCase());
-    if (existingIdx >= 0) {
-      if (!confirm(`A plan named "${planName}" already exists. Overwrite it?`)) return;
-      plans[existingIdx] = { name: planName, exercises };
-    } else {
-      plans.push({ name: planName, exercises });
-    }
+    const existingPlan = existingIdx >= 0 ? plans[existingIdx] : null;
+    if (existingPlan && !confirm(`A plan named "${planName}" already exists. Overwrite it?`)) return;
+
+    // Cue notes are a reminder for setup/technique (e.g. "37° incline on
+    // bench") — not workout notes, never graphed. Optional per exercise;
+    // pre-fills with the previous note on overwrite so unchanged cues
+    // don't need retyping.
+    exercises.forEach(ex => {
+      const prevNote = existingPlan ? (existingPlan.exercises.find(e => e.name.toLowerCase() === ex.name.toLowerCase())?.note || '') : '';
+      const note = (prompt(`Cue note for "${ex.name}"? (optional — e.g. "37° incline on bench")`, prevNote) || '').trim();
+      if (note) ex.note = note;
+    });
+
+    if (existingPlan) plans[existingIdx] = { name: planName, exercises };
+    else plans.push({ name: planName, exercises });
+
     saveWorkoutPlans(plans);
     renderWorkoutPlans();
     showWorkoutOverlay('✅', 'Plan saved', `"${planName}" — ${exercises.length} exercise${exercises.length !== 1 ? 's' : ''}`);
@@ -3740,6 +4013,8 @@
     workoutDate = dateStr;
     document.getElementById('workout-date-picker-panel').classList.remove('open');
     updateWorkoutDateUI();
+    appliedPlansToday = [];
+    renderWorkoutPlans();
     loadWorkoutForDate(workoutDate);
   }
 
