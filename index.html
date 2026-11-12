@@ -1433,10 +1433,7 @@
         <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
         Getting started
       </div>
-      <p style="font-size:14px;color:var(--text2);margin:0;line-height:1.5;">
-        Keep logging to unlock more visuals in Charts
-        (<b id="activity-starter-count" style="color:var(--text);">0</b>/7 so far).
-      </p>
+      <p id="activity-getting-started-text" style="font-size:14px;color:var(--text2);margin:0;line-height:1.5;"></p>
     </div>
 
     <div class="section" style="margin: 10px 14px 0;">
@@ -2200,12 +2197,15 @@
   }
 
   function updateActivityGettingStarted() {
-    const total    = getEntries().length;
-    const unlocked = total >= CHARTS_MIN_ENTRIES;
+    const total     = getEntries().length;
+    const remaining = CHARTS_MIN_ENTRIES - total;
+    const unlocked  = remaining <= 0;
     const card = document.getElementById('activity-getting-started');
     if (card) card.style.display = unlocked ? 'none' : '';
-    const countEl = document.getElementById('activity-starter-count');
-    if (countEl) countEl.textContent = total;
+    const textEl = document.getElementById('activity-getting-started-text');
+    if (textEl && !unlocked) {
+      textEl.innerHTML = `Keep logging for visuals! <b style="color:var(--text);">${remaining}</b> more day${remaining !== 1 ? 's' : ''} to go!`;
+    }
   }
 
   /* ============================================================
