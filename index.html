@@ -1094,6 +1094,43 @@
 
     </div>
 
+    <!--
+      WORKOUT PROGRESS
+      Moved out of the Charts tab — that tab's whole nav button is gated
+      behind CHARTS_MIN_ENTRIES (7) daily Log entries, a dataset entirely
+      unrelated to workout sets. Someone training once a week but not
+      logging daily could wait 7 weeks for this to appear despite having
+      plenty of workout data already. Lives here instead, right where the
+      data is entered, with its own independent "Show last" range slider,
+      and its own much lower per-exercise bar (2 logged dates) — see
+      renderExerciseCharts().
+    -->
+    <div class="chart-section" id="cs-workout">
+      <div class="chart-section-head" onclick="toggleChart('cs-workout')">
+        <div class="chart-section-head-left">
+          <div>
+            <div class="chart-section-title">Workout Progress</div>
+            <div class="chart-section-sub">Add exercises to compare your progress</div>
+          </div>
+        </div>
+        <svg class="chart-chevron" viewBox="0 0 24 24" fill="none" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div class="chart-body">
+        <div class="range-row" style="padding:0 16px 10px;">
+          <span class="range-label">Show last:</span>
+          <input type="range" id="wo-progress-range-slider" min="0" max="4" step="1" value="4"
+                 style="flex:1;" oninput="onWorkoutProgressRangeChange(this.value)">
+          <span class="range-val" id="wo-progress-range-val">All</span>
+        </div>
+        <div class="wo-picker-row">
+          <select id="wo-exercise-picker" onchange="onWorkoutPickerChange(this.value)">
+            <option value="">— choose an exercise —</option>
+          </select>
+        </div>
+        <div id="workout-charts-container"></div>
+      </div>
+    </div>
+
     <!-- Data section — separate workout CSV file -->
     <div class="section" style="margin-top: 16px;">
       <div class="section-head">
@@ -1373,26 +1410,6 @@
       </div>
     </div>
 
-    <div class="chart-section" id="cs-workout">
-      <div class="chart-section-head" onclick="toggleChart('cs-workout')">
-        <div class="chart-section-head-left">
-          <div>
-            <div class="chart-section-title">Workout Progress</div>
-            <div class="chart-section-sub">Add exercises to compare your progress</div>
-          </div>
-        </div>
-        <svg class="chart-chevron" viewBox="0 0 24 24" fill="none" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
-      </div>
-      <div class="chart-body">
-        <div class="wo-picker-row">
-          <select id="wo-exercise-picker" onchange="onWorkoutPickerChange(this.value)">
-            <option value="">— choose an exercise —</option>
-          </select>
-        </div>
-        <div id="workout-charts-container"></div>
-      </div>
-    </div>
-
     <div style="height:10px;"></div>
 
     </div><!-- end #charts-main -->
@@ -1561,6 +1578,7 @@
     document.getElementById('nav-activity').classList.toggle('active', tab === 'activity');
     if (tab === 'charts') drawAllCharts();
     if (tab === 'activity') drawActivityCharts();
+    if (tab === 'workout') drawWorkoutCharts();
   }
 
   /* ============================================================
@@ -1572,7 +1590,10 @@
     const section = document.getElementById(id);
     const wasOpen = section.classList.contains('open');
     section.classList.toggle('open');
-    if (!wasOpen) drawAllCharts();
+    if (!wasOpen) {
+      if (id === 'cs-workout') drawWorkoutCharts();
+      else drawAllCharts();
+    }
   }
 
   /* ── Date picker ── */
@@ -2517,7 +2538,16 @@
     return new Date(dateStr + 'T12:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
   }
 
-  /* Called by drawAllCharts — refreshes the picker and redraws any open cards */
+  /* Fires on this section's own "Show last" slider — independent of the
+     Charts tab's range-slider, since Workout Progress now lives here. */
+  function onWorkoutProgressRangeChange(val) {
+    document.getElementById('wo-progress-range-val').textContent = RANGE_LABELS[val];
+    drawWorkoutCharts();
+  }
+
+  /* Refreshes the exercise picker and redraws any open cards. Called on
+     entering the Workout tab, after saving/importing/deleting workout
+     data, and when this section's own range slider moves. */
   function drawWorkoutCharts() {
     const picker   = document.getElementById('wo-exercise-picker');
     const workouts = getWorkouts();
@@ -2659,8 +2689,8 @@
       if (!byDate[s.date]) byDate[s.date] = [];
       byDate[s.date].push(s);
     });
-    // Apply the same time-range filter as the main slider
-    const rangeVal  = parseInt(document.getElementById('range-slider').value);
+    // Apply this section's own independent time-range filter
+    const rangeVal  = parseInt(document.getElementById('wo-progress-range-slider').value);
     const rangeDays = RANGE_DAYS[rangeVal];
     let dates = Object.keys(byDate).sort();
     if (rangeDays !== Infinity) {
@@ -2831,7 +2861,6 @@
     drawFlexChart(entries);
     drawTrendsChart(entries);
     drawStretchChart(entries);
-    drawWorkoutCharts();
   }
 
   /* Shows/hides the Charts nav tab based on CHARTS_MIN_ENTRIES, and backs
@@ -3753,6 +3782,7 @@
     saveWorkouts([...kept, ...newSets].sort((a,b) => a.date.localeCompare(b.date)));
     saveExerciseLib(lib);
     updateExerciseDatalist();
+    drawWorkoutCharts();
 
     // Check for new PBs after saving — compare fresh PBs against the snapshot
     let newPBName = null, newPBValue = null;
@@ -4220,6 +4250,7 @@
     saveWorkouts(imported);
     saveExerciseLib(lib);
     updateExerciseDatalist();
+    drawWorkoutCharts();
     input.value = '';
     showWorkoutOverlay('✅', `Imported ${imported.length} set${imported.length !== 1 ? 's' : ''}`, 'Your workout history is ready.');
   }
@@ -4468,6 +4499,7 @@
     const msg = document.getElementById('workout-import-msg'), toast = document.getElementById('workout-import-toast');
     msg.textContent = 'All workout data deleted';
     toast.classList.add('show'); setTimeout(() => toast.classList.remove('show'), 3000);
+    drawWorkoutCharts();
   }
 
   /* Initialise the workout tab */
@@ -4476,6 +4508,7 @@
     document.getElementById('workout-filename').value = getWorkoutFilename();
     updateExerciseDatalist();
     renderWorkoutPlans();
+    drawWorkoutCharts();
     document.getElementById('workout-file-input').addEventListener('change', function() {
       if (this.files && this.files.length > 0) importWorkoutCSV(this);
     });
