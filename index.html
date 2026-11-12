@@ -1336,20 +1336,15 @@
         <div class="chart-section-head-left">
           <div>
             <div class="chart-section-title">Stretching Consistency</div>
-            <div class="chart-section-sub">Days stretched per week</div>
+            <div class="chart-section-sub">Stretched vs not, this range</div>
           </div>
         </div>
         <svg class="chart-chevron" viewBox="0 0 24 24" fill="none" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
       </div>
       <div class="chart-body">
         <div class="chart-inner">
-          <canvas id="chart-stretch" class="chart-canvas"></canvas>
-          <!-- Colour key since bars change colour by frequency -->
-          <div class="chart-legend" style="margin-top:10px;">
-            <div class="legend-item"><div class="legend-dot" style="background:#1D9E75"></div> 4+ days</div>
-            <div class="legend-item"><div class="legend-dot" style="background:#BA7517"></div> 2–3 days</div>
-            <div class="legend-item"><div class="legend-dot" style="background:#A32D2D"></div> 0–1 days</div>
-          </div>
+          <canvas id="chart-stretch" class="chart-canvas" style="max-height:220px;"></canvas>
+          <div class="sleep-legend" id="stretch-legend" style="justify-content:center;margin-top:10px;"></div>
         </div>
       </div>
     </div>
@@ -2361,39 +2356,47 @@
   }
 
   /* ── drawStretchChart ── */
+  /*
+    Stretching Consistency — doughnut (stretched vs not), same pattern as
+    the Climbing vs Rest chart. Previously a per-week bar chart coloured
+    by raw count (4+ green, 2-3 amber, 0-1 red), but that judged partial
+    weeks unfairly — starting to track mid-week (e.g. on a Sunday) made
+    a perfect 1/1 week look like a bad one, since the colour/height
+    assumed every week had 7 possible days. A flat total sidesteps that
+    entirely. Respects the "Show last" range slider via the entries
+    already filtered by the caller.
+  */
   function drawStretchChart(entries) {
     destroyChart('stretch');
-    if (checkMinData(entries, 'chart-stretch', null)) return;
-    const weekMap = {};
-    entries.forEach(e => {
-      const d = new Date(e.date + 'T12:00:00');
-      const day = d.getDay();
-      const diff = (day === 0) ? -6 : 1 - day;
-      const monday = new Date(d);
-      monday.setDate(d.getDate() + diff);
-      const weekKey = monday.toISOString().split('T')[0];
-      if (!weekMap[weekKey]) weekMap[weekKey] = 0;
-      if (e.stretching === 'yes') weekMap[weekKey]++;
-    });
-    const weeks     = Object.keys(weekMap).sort();
-    const labels    = weeks.map(w => { const d = new Date(w+'T12:00:00'); return 'w/c ' + d.toLocaleDateString('en-GB',{day:'numeric',month:'short'}); });
-    const values    = weeks.map(w => weekMap[w]);
-    const barColors = values.map(v => v >= 4 ? '#1D9E75' : v >= 2 ? '#BA7517' : '#A32D2D');
-    const opts = baseOptions('', 0, 7);
-    opts.scales.y.ticks.stepSize = 1;
-    opts.plugins.tooltip = {
-      displayColors: false,
-      padding: 10,
-      bodySpacing: 4,
-      callbacks: {
-        title: ctx => ctx[0].label,
-        label: ctx => `Stretched ${ctx.parsed.y} time${ctx.parsed.y === 1 ? '' : 's'}`
-      }
-    };
+    const legendEl = document.getElementById('stretch-legend');
+
+    const stretchCount = entries.filter(e => e.stretching === 'yes').length;
+    const notCount     = entries.filter(e => e.stretching === 'no').length;
+    const total         = stretchCount + notCount;
+
+    if (total === 0) {
+      if (legendEl) legendEl.innerHTML = '';
+      return;
+    }
+
+    legendEl.innerHTML = `
+      <div class="sleep-legend-item"><div class="sleep-legend-dot" style="background:#1D9E75"></div> Stretched (${stretchCount})</div>
+      <div class="sleep-legend-item"><div class="sleep-legend-dot" style="background:#6C9BD2"></div> Not stretched (${notCount})</div>`;
+
     chartInstances['stretch'] = new Chart(document.getElementById('chart-stretch'), {
-      type: 'bar',
-      data: { labels, datasets: [{ data: values, backgroundColor: barColors, borderRadius: 4, borderSkipped: false }] },
-      options: opts
+      type: 'doughnut',
+      data: {
+        labels: ['Stretched', 'Not stretched'],
+        datasets: [{ data: [stretchCount, notCount], backgroundColor: ['#1D9E75', '#6C9BD2'], borderWidth: 0 }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${ctx.parsed}` } }
+        }
+      },
+      plugins: [doughnutCenterTextPlugin(() => String(total))]
     });
   }
 
