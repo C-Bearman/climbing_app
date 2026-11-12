@@ -2819,12 +2819,15 @@
   }
 
   /*
-    Session type split — horizontal bar rather than a pie/doughnut.
+    Session type split — vertical bar rather than a pie/doughnut.
     Tags are tick-all-that-apply, so they can overlap and don't sum to
     100% of climbing days; a pie implies parts of a whole, which would
     misrepresent that. Each bar instead shows, independently, what
-    fraction of climbing days carried that tag (e.g. "Technical: 3 of 6
-    · 50%"), scaled against the same 0..climbCount axis.
+    fraction of climbing days carried that tag, scaled against a shared
+    0..climbCount axis so relative frequency (more Technical than
+    Projecting, say) reads at a glance. The axis itself is hidden since
+    the scale (climbCount) isn't self-explanatory — the tooltip spells
+    the comparison out in words instead.
   */
   function drawSessionTypeSplitChart(entries) {
     destroyChart('session-type-split');
@@ -2862,22 +2865,33 @@
       type: 'bar',
       data: { labels, datasets: [{ data, backgroundColor: colors, borderWidth: 0, borderRadius: 4, barPercentage: 0.7 }] },
       options: {
-        indexAxis: 'y',
         responsive: true, maintainAspectRatio: false,
         scales: {
           x: {
-            min: 0, max: climbCount,
-            ticks: { color: '#9B9B96', font: { size: 10 }, stepSize: 1, precision: 0 },
-            grid: { color: 'rgba(0,0,0,0.04)' }
+            ticks: { color: '#9B9B96', font: { size: 11 } },
+            grid: { display: false }
           },
           y: {
-            ticks: { color: '#9B9B96', font: { size: 11 } },
+            // Scaled 0..climbCount so bar height still reflects proportion of
+            // climbing days, but the axis number itself isn't meaningful to
+            // someone who doesn't know that — the tooltip spells it out instead.
+            min: 0, max: climbCount,
+            display: false,
             grid: { display: false }
           }
         },
         plugins: {
           legend: { display: false },
-          tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${ctx.parsed.x} of ${climbCount} (${pct(keys[ctx.dataIndex])}%)` } }
+          tooltip: {
+            callbacks: {
+              title: () => '',
+              label: ctx => {
+                const key   = keys[ctx.dataIndex];
+                const label = (SESSION_TYPES[key] || key).toLowerCase();
+                return ` ${ctx.parsed.y} out of ${climbCount} session${climbCount !== 1 ? 's' : ''} have been tagged as ${label}`;
+              }
+            }
+          }
         }
       }
     });
