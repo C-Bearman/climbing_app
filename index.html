@@ -346,6 +346,7 @@
       padding: 14px 16px; cursor: pointer; -webkit-tap-highlight-color: transparent;
     }
     .chart-section-head-left { display: flex; align-items: center; gap: 8px; }
+    .chart-section-head-right { display: flex; align-items: center; gap: 6px; }
     .chart-section-title { font-size: 14px; font-weight: 600; color: var(--text); }
     .chart-section-sub { font-size: 11px; color: var(--text3); margin-top: 2px; }
     .chart-chevron {
@@ -353,6 +354,30 @@
       transition: transform 0.2s; flex-shrink: 0;
     }
     .chart-section.open .chart-chevron { transform: rotate(180deg); }
+
+    /* ── Drag-to-reorder cards ──
+       A dedicated grab target inside a card's header, kept separate
+       from any tap-to-toggle/button gestures on the card itself so
+       they never conflict. See initDragReorder() / startCardDrag(). */
+    .drag-handle {
+      display: flex; align-items: center; justify-content: center;
+      width: 24px; height: 24px; flex-shrink: 0;
+      color: var(--text3); cursor: grab; touch-action: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .drag-handle:active { cursor: grabbing; color: var(--text2); }
+    /* The card being dragged stays in the DOM (so siblings can still
+       reflow around it) but dims in place; a compact label follows
+       the pointer instead of a full clone, since canvases don't
+       survive cloneNode and a full-height ghost would be unwieldy. */
+    .drag-source { opacity: 0.35; }
+    .drag-ghost {
+      position: fixed; pointer-events: none; z-index: 1000;
+      display: flex; align-items: center; padding: 0 16px; height: 48px;
+      background: var(--surface); border: 0.5px solid var(--border-med);
+      border-radius: var(--radius); box-shadow: 0 10px 28px rgba(0,0,0,0.3);
+      font-size: 14px; font-weight: 700; color: var(--text);
+    }
 
     /* Chart body — accordion, same max-height trick as session-details */
     .chart-body {
@@ -1234,7 +1259,12 @@
             <div class="chart-section-sub">Climbing sessions · dots coloured by sleep</div>
           </div>
         </div>
-        <svg class="chart-chevron" viewBox="0 0 24 24" fill="none" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        <div class="chart-section-head-right">
+          <span class="drag-handle" onclick="event.stopPropagation()" title="Drag to reorder">
+            <svg viewBox="0 0 24 24" width="16" height="16"><circle cx="9" cy="6" r="1.4" fill="currentColor"/><circle cx="9" cy="12" r="1.4" fill="currentColor"/><circle cx="9" cy="18" r="1.4" fill="currentColor"/><circle cx="15" cy="6" r="1.4" fill="currentColor"/><circle cx="15" cy="12" r="1.4" fill="currentColor"/><circle cx="15" cy="18" r="1.4" fill="currentColor"/></svg>
+          </span>
+          <svg class="chart-chevron" viewBox="0 0 24 24" fill="none" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
       </div>
       <div class="chart-body">
         <div class="chart-inner">
@@ -1254,13 +1284,6 @@
     </div>
 
     <!--
-      CHART: CLIMBING ACTIVITY
-      Two side-by-side doughnuts over the selected time range:
-      Climbing vs Rest days, and a breakdown of session type tags
-      across climbing days (a day can carry multiple tags, so this
-      counts tag occurrences, not days).
-    -->
-    <!--
       CHART 2: FLEXIBILITY RATING
       Stretching days only. Dots coloured by sleep quality.
     -->
@@ -1272,7 +1295,12 @@
             <div class="chart-section-sub">Stretching sessions · dots coloured by sleep</div>
           </div>
         </div>
-        <svg class="chart-chevron" viewBox="0 0 24 24" fill="none" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        <div class="chart-section-head-right">
+          <span class="drag-handle" onclick="event.stopPropagation()" title="Drag to reorder">
+            <svg viewBox="0 0 24 24" width="16" height="16"><circle cx="9" cy="6" r="1.4" fill="currentColor"/><circle cx="9" cy="12" r="1.4" fill="currentColor"/><circle cx="9" cy="18" r="1.4" fill="currentColor"/><circle cx="15" cy="6" r="1.4" fill="currentColor"/><circle cx="15" cy="12" r="1.4" fill="currentColor"/><circle cx="15" cy="18" r="1.4" fill="currentColor"/></svg>
+          </span>
+          <svg class="chart-chevron" viewBox="0 0 24 24" fill="none" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
       </div>
       <div class="chart-body">
         <div class="chart-inner">
@@ -1306,7 +1334,12 @@
             <div class="chart-section-sub">All recovery & energy in one view</div>
           </div>
         </div>
-        <svg class="chart-chevron" viewBox="0 0 24 24" fill="none" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        <div class="chart-section-head-right">
+          <span class="drag-handle" onclick="event.stopPropagation()" title="Drag to reorder">
+            <svg viewBox="0 0 24 24" width="16" height="16"><circle cx="9" cy="6" r="1.4" fill="currentColor"/><circle cx="9" cy="12" r="1.4" fill="currentColor"/><circle cx="9" cy="18" r="1.4" fill="currentColor"/><circle cx="15" cy="6" r="1.4" fill="currentColor"/><circle cx="15" cy="12" r="1.4" fill="currentColor"/><circle cx="15" cy="18" r="1.4" fill="currentColor"/></svg>
+          </span>
+          <svg class="chart-chevron" viewBox="0 0 24 24" fill="none" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
       </div>
       <div class="chart-body">
         <div class="chart-inner">
@@ -1339,7 +1372,12 @@
             <div class="chart-section-sub">Stretched vs not, this range</div>
           </div>
         </div>
-        <svg class="chart-chevron" viewBox="0 0 24 24" fill="none" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        <div class="chart-section-head-right">
+          <span class="drag-handle" onclick="event.stopPropagation()" title="Drag to reorder">
+            <svg viewBox="0 0 24 24" width="16" height="16"><circle cx="9" cy="6" r="1.4" fill="currentColor"/><circle cx="9" cy="12" r="1.4" fill="currentColor"/><circle cx="9" cy="18" r="1.4" fill="currentColor"/><circle cx="15" cy="6" r="1.4" fill="currentColor"/><circle cx="15" cy="12" r="1.4" fill="currentColor"/><circle cx="15" cy="18" r="1.4" fill="currentColor"/></svg>
+          </span>
+          <svg class="chart-chevron" viewBox="0 0 24 24" fill="none" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
       </div>
       <div class="chart-body">
         <div class="chart-inner">
@@ -1389,19 +1427,29 @@
       <p id="activity-getting-started-text" style="font-size:14px;color:var(--text2);margin:0;line-height:1.5;"></p>
     </div>
 
-    <div class="section" style="margin: 10px 14px 0;">
-      <div class="section-head">
-        <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
-        Climbing vs Rest
+    <div class="section activity-card" id="activity-climb-split-card" style="margin: 10px 14px 0;">
+      <div class="section-head" style="justify-content:space-between;">
+        <div style="display:flex;align-items:center;gap:5px;">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+          Climbing vs Rest
+        </div>
+        <span class="drag-handle" title="Drag to reorder">
+          <svg viewBox="0 0 24 24" width="16" height="16"><circle cx="9" cy="6" r="1.4" fill="currentColor"/><circle cx="9" cy="12" r="1.4" fill="currentColor"/><circle cx="9" cy="18" r="1.4" fill="currentColor"/><circle cx="15" cy="6" r="1.4" fill="currentColor"/><circle cx="15" cy="12" r="1.4" fill="currentColor"/><circle cx="15" cy="18" r="1.4" fill="currentColor"/></svg>
+        </span>
       </div>
       <canvas id="chart-climb-split" class="chart-canvas" style="max-height:220px;"></canvas>
       <div class="sleep-legend" id="climb-split-legend" style="justify-content:center;margin-top:10px;"></div>
     </div>
 
-    <div class="section" style="margin: 10px 14px 0;">
-      <div class="section-head">
-        <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><rect x="3" y="12" width="4" height="8"/><rect x="10" y="7" width="4" height="13"/><rect x="17" y="3" width="4" height="17"/></svg>
-        Session type split
+    <div class="section activity-card" id="activity-session-type-card" style="margin: 10px 14px 0;">
+      <div class="section-head" style="justify-content:space-between;">
+        <div style="display:flex;align-items:center;gap:5px;">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><rect x="3" y="12" width="4" height="8"/><rect x="10" y="7" width="4" height="13"/><rect x="17" y="3" width="4" height="17"/></svg>
+          Session type split
+        </div>
+        <span class="drag-handle" title="Drag to reorder">
+          <svg viewBox="0 0 24 24" width="16" height="16"><circle cx="9" cy="6" r="1.4" fill="currentColor"/><circle cx="9" cy="12" r="1.4" fill="currentColor"/><circle cx="9" cy="18" r="1.4" fill="currentColor"/><circle cx="15" cy="6" r="1.4" fill="currentColor"/><circle cx="15" cy="12" r="1.4" fill="currentColor"/><circle cx="15" cy="18" r="1.4" fill="currentColor"/></svg>
+        </span>
       </div>
       <p id="session-type-split-sub" style="font-size:12px;color:var(--text3);margin:-8px 0 12px;"></p>
       <canvas id="chart-session-type-split" class="chart-canvas" style="max-height:220px;"></canvas>
@@ -1534,6 +1582,108 @@
       else drawAllCharts();
     }
   }
+
+  /* ============================================================
+     DRAG-TO-REORDER CARDS
+     Lets users rearrange cards to their own preference (Charts tab,
+     Activity tab, and the per-exercise cards inside Workout
+     Progress), persisted per group in localStorage.
+
+     Each reorderable card is a direct child of its group's
+     container, matched by itemSelector, with a unique `id`. Grab a
+     ".drag-handle" inside the card to start — kept as a dedicated
+     element so dragging never fights with the card's own
+     tap-to-toggle header or buttons (info/remove etc).
+
+     Rather than fully cloning the dragged card into a "ghost" that
+     follows the pointer (canvases don't survive cloneNode, and a
+     full-height clone would be unwieldy for a tall chart card), the
+     real card stays in the DOM — dimmed in place — so its siblings
+     can keep reflowing around it, while a small ghost label
+     (just the card's title) follows the pointer for visual feedback.
+  ============================================================ */
+
+  /* Re-orders container's matching children to match a saved order.
+     Any ids not in the saved list (new cards, never dragged before)
+     keep their current relative position. Call once per group at
+     setup, and again whenever a new card is inserted into a
+     dynamic group (e.g. Workout Progress). */
+  function applyCardOrder(container, itemSelector, orderKey) {
+    if (!container) return;
+    let saved;
+    try { saved = JSON.parse(localStorage.getItem(orderKey) || '[]'); } catch(e) { saved = []; }
+    if (!saved.length) return;
+    const byId = {};
+    container.querySelectorAll(':scope > ' + itemSelector).forEach(el => { if (el.id) byId[el.id] = el; });
+    saved.forEach(id => { if (byId[id]) container.appendChild(byId[id]); });
+  }
+
+  function saveCardOrder(container, itemSelector, orderKey) {
+    const ids = [...container.querySelectorAll(':scope > ' + itemSelector)].map(el => el.id).filter(Boolean);
+    localStorage.setItem(orderKey, JSON.stringify(ids));
+  }
+
+  /* Applies the saved order and wires up any not-yet-wired drag
+     handles inside the container. Safe to call repeatedly (e.g.
+     after a new card is added) — already-wired handles are skipped. */
+  function initDragReorder(container, itemSelector, orderKey) {
+    if (!container) return;
+    applyCardOrder(container, itemSelector, orderKey);
+    container.querySelectorAll(':scope > ' + itemSelector + ' .drag-handle').forEach(handle => {
+      if (handle.dataset.dragWired) return;
+      handle.dataset.dragWired = '1';
+      handle.addEventListener('pointerdown', e => startCardDrag(e, handle, container, itemSelector, orderKey));
+    });
+  }
+
+  function startCardDrag(e, handle, container, itemSelector, orderKey) {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    const card = handle.closest(itemSelector);
+    if (!card) return;
+    e.preventDefault();
+
+    const rect  = card.getBoundingClientRect();
+    const label = (card.querySelector('.chart-section-title, .wo-exercise-title, .section-head') || {}).textContent;
+
+    const ghost = document.createElement('div');
+    ghost.className = 'drag-ghost';
+    ghost.textContent = (label || '').trim();
+    ghost.style.width = rect.width + 'px';
+    ghost.style.left  = rect.left + 'px';
+    ghost.style.top   = (e.clientY - 24) + 'px';
+    document.body.appendChild(ghost);
+
+    card.classList.add('drag-source');
+
+    function onMove(ev) {
+      ghost.style.top = (ev.clientY - 24) + 'px';
+      const siblings = [...container.querySelectorAll(':scope > ' + itemSelector)].filter(el => el !== card);
+      let target = null;
+      for (const sib of siblings) {
+        const r = sib.getBoundingClientRect();
+        if (ev.clientY < r.top + r.height / 2) { target = sib; break; }
+      }
+      if (target) container.insertBefore(card, target);
+      else container.appendChild(card);
+    }
+
+    function onUp() {
+      document.removeEventListener('pointermove', onMove);
+      document.removeEventListener('pointerup', onUp);
+      document.removeEventListener('pointercancel', onUp);
+      ghost.remove();
+      card.classList.remove('drag-source');
+      saveCardOrder(container, itemSelector, orderKey);
+    }
+
+    document.addEventListener('pointermove', onMove);
+    document.addEventListener('pointerup', onUp);
+    document.addEventListener('pointercancel', onUp);
+  }
+
+  const CHARTS_CARD_ORDER_KEY   = 'bearmanclimbs_charts_order_v1';
+  const ACTIVITY_CARD_ORDER_KEY = 'bearmanclimbs_activity_order_v1';
+  const WORKOUT_CARD_ORDER_KEY  = 'bearmanclimbs_workout_progress_order_v1';
 
   /* ── Date picker ── */
   let logCalViewYear = null, logCalViewMonth = null;
@@ -2579,6 +2729,9 @@
       <div class="wo-card-header">
         <p class="wo-exercise-title">${name}</p>
         <div class="wo-card-actions">
+          <span class="drag-handle" title="Drag to reorder">
+            <svg viewBox="0 0 24 24" width="16" height="16"><circle cx="9" cy="6" r="1.4" fill="currentColor"/><circle cx="9" cy="12" r="1.4" fill="currentColor"/><circle cx="9" cy="18" r="1.4" fill="currentColor"/><circle cx="15" cy="6" r="1.4" fill="currentColor"/><circle cx="15" cy="12" r="1.4" fill="currentColor"/><circle cx="15" cy="18" r="1.4" fill="currentColor"/></svg>
+          </span>
           <button class="wo-info-btn" onclick="showWoInfo('${name}')">ℹ︎</button>
           <button class="wo-remove-btn" onclick="removeExerciseCard('${name}')">×</button>
         </div>
@@ -2593,6 +2746,7 @@
         <select class="wo-color-select" onchange="setWoColor('${name}', this.value)">${colorOpts}</select>
       </div>`;
     container.appendChild(card);
+    initDragReorder(container, '.wo-exercise-card', WORKOUT_CARD_ORDER_KEY);
 
     renderExerciseCharts(name);
 
@@ -4422,6 +4576,9 @@
     document.getElementById('csv-file-input').addEventListener('change', function() {
       if (this.files && this.files.length > 0) importCSV(this);
     });
+
+    initDragReorder(document.getElementById('charts-main'), '.chart-section', CHARTS_CARD_ORDER_KEY);
+    initDragReorder(document.getElementById('tab-activity'), '.activity-card', ACTIVITY_CARD_ORDER_KEY);
 
     initWorkout(); // set up the workout tab
   }
