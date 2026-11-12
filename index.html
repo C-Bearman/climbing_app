@@ -81,7 +81,7 @@
       padding-bottom: var(--safe-bottom);
       background: var(--surface);
       border-top: 0.5px solid var(--border);
-      display: grid; grid-template-columns: 1fr 1fr 1fr;
+      display: grid; grid-template-columns: 1fr 1fr 1fr 1fr;
       z-index: 100;
     }
     .nav-btn {
@@ -366,8 +366,6 @@
     .chart-section.open .chart-body { max-height: 400px; }
     /* Workout section stacks many exercises — needs much more room */
     #cs-workout.open .chart-body { max-height: 6000px; }
-    /* Climbing Activity stacks two doughnuts + legends — taller than the single-chart default */
-    #cs-activity.open .chart-body { max-height: 800px; }
 
     /* Exercise picker dropdown inside workout charts */
     .wo-picker-row { margin-bottom: 12px; }
@@ -1299,30 +1297,6 @@
       across climbing days (a day can carry multiple tags, so this
       counts tag occurrences, not days).
     -->
-    <div class="chart-section" id="cs-activity">
-      <div class="chart-section-head" onclick="toggleChart('cs-activity')">
-        <div class="chart-section-head-left">
-          <div>
-            <div class="chart-section-title">Climbing Activity</div>
-            <div class="chart-section-sub">Climbing vs rest days, and session type split</div>
-          </div>
-        </div>
-        <svg class="chart-chevron" viewBox="0 0 24 24" fill="none" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
-      </div>
-      <div class="chart-body">
-        <div class="chart-inner">
-          <div style="font-size:13px;color:var(--text2);margin-bottom:6px;">Climbing vs Rest</div>
-          <canvas id="chart-climb-split" class="chart-canvas" style="max-height:200px;"></canvas>
-          <div class="sleep-legend" id="climb-split-legend" style="justify-content:center;margin-top:10px;"></div>
-        </div>
-        <div class="chart-inner" style="margin-top:18px;">
-          <div style="font-size:13px;color:var(--text2);margin-bottom:6px;">Session type split <span id="session-type-split-sub" style="color:var(--text3);"></span></div>
-          <canvas id="chart-session-type-split" class="chart-canvas" style="max-height:220px;"></canvas>
-          <div class="sleep-legend" id="session-type-split-legend" style="justify-content:center;margin-top:10px;"></div>
-        </div>
-      </div>
-    </div>
-
     <!--
       CHART 2: FLEXIBILITY RATING
       Stretching days only. Dots coloured by sleep quality.
@@ -1443,6 +1417,46 @@
 
   </div><!-- end #tab-charts -->
 
+  <!-- ═══════════════════════════════════════════
+       ACTIVITY TAB
+       Climbing vs Rest days, and session type split.
+       Unlike the Charts tab, shown from day 1 — meaningful
+       even with just a couple of entries, no 7-day gate.
+       Has its own independent "Show last" time range slider.
+  ═══════════════════════════════════════════ -->
+  <div class="tab-view" id="tab-activity">
+
+    <header class="charts-header">
+      <div class="charts-title">Bearman<em>Climbs</em></div>
+      <div class="range-row">
+        <span class="range-label">Show last:</span>
+        <input type="range" id="activity-range-slider" min="0" max="4" step="1" value="4"
+               style="flex:1;" oninput="onActivityRangeChange(this.value)">
+        <span class="range-val" id="activity-range-val">All</span>
+      </div>
+    </header>
+
+    <div class="section" style="margin: 10px 14px 0;">
+      <div class="section-head">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+        Climbing vs Rest
+      </div>
+      <canvas id="chart-climb-split" class="chart-canvas" style="max-height:220px;"></canvas>
+      <div class="sleep-legend" id="climb-split-legend" style="justify-content:center;margin-top:10px;"></div>
+    </div>
+
+    <div class="section" style="margin: 10px 14px 0;">
+      <div class="section-head">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><rect x="3" y="12" width="4" height="8"/><rect x="10" y="7" width="4" height="13"/><rect x="17" y="3" width="4" height="17"/></svg>
+        Session type split
+      </div>
+      <p id="session-type-split-sub" style="font-size:12px;color:var(--text3);margin:-8px 0 12px;"></p>
+      <canvas id="chart-session-type-split" class="chart-canvas" style="max-height:220px;"></canvas>
+      <div class="sleep-legend" id="session-type-split-legend" style="justify-content:center;margin-top:10px;"></div>
+    </div>
+
+  </div><!-- end #tab-activity -->
+
 </div><!-- end .app -->
 
 <!--
@@ -1462,6 +1476,10 @@
   <button class="nav-btn" id="nav-charts" onclick="switchTab('charts')">
     <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
     Charts
+  </button>
+  <button class="nav-btn" id="nav-activity" onclick="switchTab('activity')">
+    <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2v10l7 7"/></svg>
+    Activity
   </button>
 </nav>
 
@@ -1536,13 +1554,16 @@
      When switching to charts, draws them fresh so data is current.
   ============================================================ */
   function switchTab(tab) {
-    document.getElementById('tab-log').classList.toggle('active',     tab === 'log');
-    document.getElementById('tab-workout').classList.toggle('active', tab === 'workout');
-    document.getElementById('tab-charts').classList.toggle('active',  tab === 'charts');
-    document.getElementById('nav-log').classList.toggle('active',     tab === 'log');
-    document.getElementById('nav-workout').classList.toggle('active', tab === 'workout');
-    document.getElementById('nav-charts').classList.toggle('active',  tab === 'charts');
+    document.getElementById('tab-log').classList.toggle('active',      tab === 'log');
+    document.getElementById('tab-workout').classList.toggle('active',  tab === 'workout');
+    document.getElementById('tab-charts').classList.toggle('active',   tab === 'charts');
+    document.getElementById('tab-activity').classList.toggle('active', tab === 'activity');
+    document.getElementById('nav-log').classList.toggle('active',      tab === 'log');
+    document.getElementById('nav-workout').classList.toggle('active',  tab === 'workout');
+    document.getElementById('nav-charts').classList.toggle('active',   tab === 'charts');
+    document.getElementById('nav-activity').classList.toggle('active', tab === 'activity');
     if (tab === 'charts') drawAllCharts();
+    if (tab === 'activity') drawActivityCharts();
   }
 
   /* ============================================================
@@ -2149,9 +2170,11 @@
     drawAllCharts();
   }
 
-  /* Returns entries filtered to the current time range selection */
-  function getFilteredEntries() {
-    const val  = parseInt(document.getElementById('range-slider').value);
+  /* Returns entries filtered to the current time range selection.
+     sliderId defaults to the main Charts tab's slider; the Activity
+     tab passes its own independent slider id. */
+  function getFilteredEntries(sliderId = 'range-slider') {
+    const val  = parseInt(document.getElementById(sliderId).value);
     const days = RANGE_DAYS[val];
     const all  = getEntries();
     if (days === Infinity) return all;
@@ -2159,6 +2182,17 @@
     cutoff.setDate(cutoff.getDate() - days);
     const cutoffStr = cutoff.toISOString().split('T')[0];
     return all.filter(e => e.date >= cutoffStr);
+  }
+
+  function onActivityRangeChange(val) {
+    document.getElementById('activity-range-val').textContent = RANGE_LABELS[val];
+    drawActivityCharts();
+  }
+
+  function drawActivityCharts() {
+    const entries = getFilteredEntries('activity-range-slider');
+    drawClimbSplitChart(entries);
+    drawSessionTypeSplitChart(entries);
   }
 
   /* ============================================================
@@ -2738,8 +2772,6 @@
     const entries = getFilteredEntries();
     updateSessionStatsCard();
     drawSessionChart(entries);
-    drawClimbSplitChart(entries);
-    drawSessionTypeSplitChart(entries);
     drawFlexChart(entries);
     drawTrendsChart(entries);
     drawStretchChart(entries);
@@ -2835,7 +2867,7 @@
 
     const climbDays  = entries.filter(e => e.climbing === 'yes');
     const climbCount = climbDays.length;
-    if (subEl) subEl.textContent = climbCount ? `· ${climbCount} climbing day${climbCount !== 1 ? 's' : ''}, tags can overlap` : '';
+    if (subEl) subEl.textContent = climbCount ? `${climbCount} climbing day${climbCount !== 1 ? 's' : ''} · tags can overlap` : '';
 
     const counts = {};
     climbDays.forEach(e => {
