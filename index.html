@@ -1316,7 +1316,7 @@
           <div class="sleep-legend" id="climb-split-legend" style="justify-content:center;margin-top:10px;"></div>
         </div>
         <div class="chart-inner" style="margin-top:18px;">
-          <div style="font-size:13px;color:var(--text2);margin-bottom:6px;">Session type split <span style="color:var(--text3);">· climbing days, tags can overlap</span></div>
+          <div style="font-size:13px;color:var(--text2);margin-bottom:6px;">Session type split <span id="session-type-split-sub" style="color:var(--text3);"></span></div>
           <canvas id="chart-session-type-split" class="chart-canvas" style="max-height:220px;"></canvas>
           <div class="sleep-legend" id="session-type-split-legend" style="justify-content:center;margin-top:10px;"></div>
         </div>
@@ -2761,13 +2761,38 @@
     social:     '#8E8E8E'
   };
 
+  /* Draws a total count in the middle of a doughnut's hole. Pass a
+     getter so the text reflects whatever's current when drawn/redrawn. */
+  function doughnutCenterTextPlugin(getText) {
+    return {
+      id: 'centerText',
+      afterDraw(chart) {
+        const text = getText();
+        if (!text) return;
+        const { ctx, chartArea: { left, right, top, bottom } } = chart;
+        ctx.save();
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        const cx = (left + right) / 2, cy = (top + bottom) / 2;
+        ctx.font = '700 24px -apple-system, BlinkMacSystemFont, sans-serif';
+        ctx.fillStyle = getComputedStyle(document.body).getPropertyValue('--text').trim() || '#1a1a1a';
+        ctx.fillText(text, cx, cy - 8);
+        ctx.font = '500 11px -apple-system, BlinkMacSystemFont, sans-serif';
+        ctx.fillStyle = getComputedStyle(document.body).getPropertyValue('--text3').trim() || '#9B9B96';
+        ctx.fillText('days', cx, cy + 12);
+        ctx.restore();
+      }
+    };
+  }
+
   function drawClimbSplitChart(entries) {
     destroyChart('climb-split');
     const climbCount = entries.filter(e => e.climbing === 'yes').length;
     const restCount  = entries.filter(e => e.climbing === 'no').length;
+    const total      = climbCount + restCount;
     const legendEl = document.getElementById('climb-split-legend');
 
-    if (climbCount + restCount === 0) {
+    if (total === 0) {
       if (legendEl) legendEl.innerHTML = '';
       return;
     }
@@ -2788,23 +2813,37 @@
           legend: { display: false },
           tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${ctx.parsed}` } }
         }
-      }
+      },
+      plugins: [doughnutCenterTextPlugin(() => String(total))]
     });
   }
 
+  /*
+    Session type split — horizontal bar rather than a pie/doughnut.
+    Tags are tick-all-that-apply, so they can overlap and don't sum to
+    100% of climbing days; a pie implies parts of a whole, which would
+    misrepresent that. Each bar instead shows, independently, what
+    fraction of climbing days carried that tag (e.g. "Technical: 3 of 6
+    · 50%"), scaled against the same 0..climbCount axis.
+  */
   function drawSessionTypeSplitChart(entries) {
     destroyChart('session-type-split');
     const legendEl = document.getElementById('session-type-split-legend');
+    const subEl    = document.getElementById('session-type-split-sub');
+
+    const climbDays  = entries.filter(e => e.climbing === 'yes');
+    const climbCount = climbDays.length;
+    if (subEl) subEl.textContent = climbCount ? `· ${climbCount} climbing day${climbCount !== 1 ? 's' : ''}, tags can overlap` : '';
 
     const counts = {};
-    entries.forEach(e => {
-      if (e.climbing !== 'yes' || !e.session_type) return;
+    climbDays.forEach(e => {
+      if (!e.session_type) return;
       e.session_type.split('|').filter(Boolean).forEach(key => {
         counts[key] = (counts[key] || 0) + 1;
       });
     });
 
-    const keys = Object.keys(counts);
+    const keys = Object.keys(counts).sort((a, b) => counts[b] - counts[a]);
     if (!keys.length) {
       if (legendEl) legendEl.innerHTML = '<span style="font-size:12px;color:var(--text3);">No tagged sessions in this range yet</span>';
       return;
@@ -2813,19 +2852,32 @@
     const labels = keys.map(k => SESSION_TYPES[k] || k);
     const colors = keys.map(k => SESSION_TYPE_COLORS[k] || '#9B9B96');
     const data   = keys.map(k => counts[k]);
+    const pct    = k => climbCount ? Math.round(counts[k] / climbCount * 100) : 0;
 
     legendEl.innerHTML = keys.map(k =>
-      `<div class="sleep-legend-item"><div class="sleep-legend-dot" style="background:${SESSION_TYPE_COLORS[k] || '#9B9B96'}"></div> ${SESSION_TYPES[k] || k} (${counts[k]})</div>`
+      `<div class="sleep-legend-item"><div class="sleep-legend-dot" style="background:${SESSION_TYPE_COLORS[k] || '#9B9B96'}"></div> ${SESSION_TYPES[k] || k} (${counts[k]} · ${pct(k)}%)</div>`
     ).join('');
 
     chartInstances['session-type-split'] = new Chart(document.getElementById('chart-session-type-split'), {
-      type: 'doughnut',
-      data: { labels, datasets: [{ data, backgroundColor: colors, borderWidth: 0 }] },
+      type: 'bar',
+      data: { labels, datasets: [{ data, backgroundColor: colors, borderWidth: 0, borderRadius: 4, barPercentage: 0.7 }] },
       options: {
+        indexAxis: 'y',
         responsive: true, maintainAspectRatio: false,
+        scales: {
+          x: {
+            min: 0, max: climbCount,
+            ticks: { color: '#9B9B96', font: { size: 10 }, stepSize: 1, precision: 0 },
+            grid: { color: 'rgba(0,0,0,0.04)' }
+          },
+          y: {
+            ticks: { color: '#9B9B96', font: { size: 11 } },
+            grid: { display: false }
+          }
+        },
         plugins: {
           legend: { display: false },
-          tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${ctx.parsed}` } }
+          tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${ctx.parsed.x} of ${climbCount} (${pct(keys[ctx.dataIndex])}%)` } }
         }
       }
     });
