@@ -4303,6 +4303,92 @@
     drawWorkoutCharts();
     input.value = '';
     showWorkoutOverlay('✅', `Imported ${imported.length} set${imported.length !== 1 ? 's' : ''}`, 'Your workout history is ready.');
+
+    // Let the import success overlay actually render before any native
+    // confirm()/prompt() dialogs start blocking the thread.
+    const candidates = detectPlanCandidatesFromImport(imported);
+    if (candidates.length) setTimeout(() => reviewPlanCandidates(candidates), 500);
+  }
+
+  /*
+    Scans a freshly-imported workout CSV for recurring exercise
+    combinations and offers to save them as plans — so a plan doesn't
+    have to be rebuilt by hand just because it already exists in your
+    workout history. Heuristic, not exact: groups each date's distinct
+    exercises into a "signature" (sorted, case-insensitive) and flags
+    any signature that recurs across 2+ dates and has 2+ exercises (a
+    single exercise isn't really a "plan"). This can't know what to
+    call a plan or guarantee every date meant to be the same routine —
+    e.g. a day with one exercise skipped for time won't match — so
+    nothing is saved without the user confirming a name for it in
+    reviewPlanCandidates(). Already-saved plans with the exact same
+    exercise set are skipped so re-importing the same file repeatedly
+    doesn't re-prompt for ones you've already made.
+  */
+  function detectPlanCandidatesFromImport(imported) {
+    const lib = getExerciseLib();
+    const byDate = {};
+    imported.forEach(s => {
+      if (!byDate[s.date]) byDate[s.date] = new Set();
+      byDate[s.date].add(s.exercise);
+    });
+
+    const bySignature = {};
+    Object.values(byDate).forEach(namesSet => {
+      if (namesSet.size < 2) return;
+      const names = [...namesSet].sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
+      const sig = names.map(n => n.toLowerCase()).join('|');
+      if (!bySignature[sig]) bySignature[sig] = { names, count: 0 };
+      bySignature[sig].count++;
+    });
+
+    const existingSignatures = new Set(
+      getWorkoutPlans().map(p => p.exercises.map(e => e.name.toLowerCase()).sort().join('|'))
+    );
+
+    return Object.values(bySignature)
+      .filter(c => c.count >= 2 && !existingSignatures.has(c.names.map(n => n.toLowerCase()).join('|')))
+      .sort((a, b) => b.count - a.count)
+      .map(c => ({
+        names: c.names,
+        count: c.count,
+        exercises: c.names.map(name => {
+          const exLib = lib.find(e => e.name.toLowerCase() === name.toLowerCase());
+          return { name, fields: exLib ? exLib.fields.slice() : ['reps'], pb_field: exLib ? exLib.pb_field : 'reps' };
+        })
+      }));
+  }
+
+  /* Walks the user through each detected candidate one at a time —
+     confirm it's really a routine, then name it, same pattern as
+     saveWorkoutAsPlan(). Nothing is saved until named and confirmed. */
+  function reviewPlanCandidates(candidates) {
+    const plans = getWorkoutPlans();
+    let addedCount = 0;
+
+    candidates.forEach(c => {
+      const label  = c.names.join(', ');
+      const wantIt = confirm(`Found a recurring routine across ${c.count} sessions:\n\n${label}\n\nSave this as a workout plan?`);
+      if (!wantIt) return;
+
+      const planName = (prompt('Name this plan:', '') || '').trim();
+      if (!planName) return;
+
+      const existingIdx = plans.findIndex(p => p.name.toLowerCase() === planName.toLowerCase());
+      if (existingIdx >= 0) {
+        if (!confirm(`A plan named "${planName}" already exists. Overwrite it?`)) return;
+        plans[existingIdx] = { name: planName, exercises: c.exercises };
+      } else {
+        plans.push({ name: planName, exercises: c.exercises });
+      }
+      addedCount++;
+    });
+
+    if (addedCount) {
+      saveWorkoutPlans(plans);
+      renderWorkoutPlans();
+      showWorkoutOverlay('✅', `${addedCount} plan${addedCount !== 1 ? 's' : ''} added`, 'Detected from your imported workout history.');
+    }
   }
 
   /* Workout filename helpers */
