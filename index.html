@@ -98,11 +98,16 @@
     .nav-btn svg { width: 22px; height: 22px; stroke: currentColor; }
     .nav-btn.active { color: var(--green); }
 
-    /* ── Header ── */
+    /* ── Header ──
+       .sticky-head wraps the header AND its date-picker panel together,
+       so opening the calendar while scrolled down still shows it pinned
+       right under the header — not off-screen back at the panel's
+       original (unstuck) document position, which is what "stickying"
+       only the header on its own would do. */
+    .sticky-head { position: sticky; top: 0; z-index: 50; }
     .header {
       background: var(--surface); border-bottom: 0.5px solid var(--border);
       padding: calc(16px + var(--safe-top)) 20px 14px;
-      position: sticky; top: 0; z-index: 50;
     }
     .header-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
     .app-title { font-size: 20px; font-weight: 700; letter-spacing: -0.5px; }
@@ -722,25 +727,27 @@
   ═══════════════════════════════════════════ -->
   <div class="tab-view active" id="tab-log">
 
-    <header class="header">
-      <div class="header-top">
-        <div class="app-title">Bearman<em>Climbs</em></div>
-        <div class="date-badge" id="date-badge" onclick="toggleDatePicker()">
-          <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-          <span id="date-label"></span>
-          <svg class="wo-date-chevron" viewBox="0 0 24 24" fill="none" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
+    <div class="sticky-head">
+      <header class="header">
+        <div class="header-top">
+          <div class="app-title">Bearman<em>Climbs</em></div>
+          <div class="date-badge" id="date-badge" onclick="toggleDatePicker()">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            <span id="date-label"></span>
+            <svg class="wo-date-chevron" viewBox="0 0 24 24" fill="none" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
+          </div>
         </div>
-      </div>
-      <div class="header-meta">
-        <div class="week-tag" id="week-tag"></div>
-        <div class="streak-dots" id="streak-dots"></div>
-      </div>
-    </header>
+        <div class="header-meta">
+          <div class="week-tag" id="week-tag"></div>
+          <div class="streak-dots" id="streak-dots"></div>
+        </div>
+      </header>
 
-    <!-- Date picker panel — same custom calendar grid as the Workout tab,
-         coloured green/blue for climbing vs rest days instead of has-workout -->
-    <div class="date-picker-panel wo-cal-panel" id="date-picker-panel">
-      <div class="wo-cal" id="log-calendar"></div>
+      <!-- Date picker panel — same custom calendar grid as the Workout tab,
+           coloured green/blue for climbing vs rest days instead of has-workout -->
+      <div class="date-picker-panel wo-cal-panel" id="date-picker-panel">
+        <div class="wo-cal" id="log-calendar"></div>
+      </div>
     </div>
 
     <div class="past-date-banner" id="past-banner">
@@ -1057,20 +1064,22 @@
   <div class="tab-view" id="tab-workout">
 
     <!-- Header — same pattern as log tab, own date state -->
-    <header class="header">
-      <div class="header-top">
-        <div class="app-title">Bearman<em>Climbs</em></div>
-        <div class="date-badge" id="workout-date-badge" onclick="toggleWorkoutDatePicker()">
-          <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-          <span id="workout-date-label"></span>
-          <svg class="wo-date-chevron" viewBox="0 0 24 24" fill="none" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
+    <div class="sticky-head">
+      <header class="header">
+        <div class="header-top">
+          <div class="app-title">Bearman<em>Climbs</em></div>
+          <div class="date-badge" id="workout-date-badge" onclick="toggleWorkoutDatePicker()">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            <span id="workout-date-label"></span>
+            <svg class="wo-date-chevron" viewBox="0 0 24 24" fill="none" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
+          </div>
         </div>
-      </div>
-    </header>
+      </header>
 
-    <!-- Date picker panel -->
-    <div class="date-picker-panel wo-cal-panel" id="workout-date-picker-panel">
-      <div class="wo-cal" id="workout-calendar"></div>
+      <!-- Date picker panel -->
+      <div class="date-picker-panel wo-cal-panel" id="workout-date-picker-panel">
+        <div class="wo-cal" id="workout-calendar"></div>
+      </div>
     </div>
 
     <!-- Past date banner -->
