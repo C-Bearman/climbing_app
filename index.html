@@ -4404,29 +4404,71 @@
       });
   }
 
-  /* Walks the user through each detected candidate one at a time —
-     confirm it's really a routine, then name it, same pattern as
-     saveWorkoutAsPlan(). Nothing is saved until named and confirmed. */
+  /* A short, readable default name built from the detected exercise
+     list — just a starting point the user is expected to edit into
+     something meaningful (e.g. "S&C Day B"), same spirit as the rest
+     of this heuristic. */
+  function suggestPlanName(names) {
+    if (names.length <= 3) return names.join(' / ');
+    return names.slice(0, 2).join(' / ') + ` +${names.length - 2} more`;
+  }
+
+  /* Appends " (2)", " (3)" etc. until `base` no longer collides with
+     an existing plan name — used both to pre-resolve the suggested
+     default name and to suggest a rename when the user's own typed
+     name collides with something. */
+  function uniquePlanName(base, plans) {
+    const taken = new Set(plans.map(p => p.name.toLowerCase()));
+    if (!taken.has(base.toLowerCase())) return base;
+    let n = 2;
+    while (taken.has(`${base} (${n})`.toLowerCase())) n++;
+    return `${base} (${n})`;
+  }
+
+  /* Walks the user through each detected candidate one at a time, in
+     a single prompt that shows the exercise list and a pre-filled,
+     already-conflict-free suggested name — edit it or just accept it.
+     If they instead type a name that collides with an existing plan,
+     that's treated as an error to resolve, not a silent overwrite: a
+     second prompt explains the conflict and suggests a rename, and
+     only re-typing the exact existing name counts as an explicit
+     choice to overwrite it. Nothing is saved until a name is settled
+     on (Cancel at any point skips that candidate). */
   function reviewPlanCandidates(candidates) {
     const plans = getWorkoutPlans();
     let addedCount = 0;
 
     candidates.forEach(c => {
-      const label  = c.names.join(', ');
-      const wantIt = confirm(`Found a recurring routine across ${c.count} sessions:\n\n${label}\n\nSave this as a workout plan?`);
-      if (!wantIt) return;
-
-      const planName = (prompt('Name this plan:', '') || '').trim();
+      const label = c.names.join(', ');
+      let planName = prompt(
+        `Found a recurring routine across ${c.count} sessions:\n\n${label}\n\nSave as a workout plan named:`,
+        uniquePlanName(suggestPlanName(c.names), plans)
+      );
+      if (planName === null) return;
+      planName = planName.trim();
       if (!planName) return;
 
-      const existingIdx = plans.findIndex(p => p.name.toLowerCase() === planName.toLowerCase());
-      if (existingIdx >= 0) {
-        if (!confirm(`A plan named "${planName}" already exists. Overwrite it?`)) return;
-        plans[existingIdx] = { name: planName, exercises: c.exercises };
-      } else {
-        plans.push({ name: planName, exercises: c.exercises });
+      for (;;) {
+        const existingIdx = plans.findIndex(p => p.name.toLowerCase() === planName.toLowerCase());
+        if (existingIdx === -1) {
+          plans.push({ name: planName, exercises: c.exercises });
+          addedCount++;
+          break;
+        }
+        const resolved = prompt(
+          `A plan named "${planName}" already exists.\n\nEnter a different name, or re-enter "${planName}" to overwrite it:`,
+          uniquePlanName(planName, plans)
+        );
+        if (resolved === null) break; // skip this candidate entirely
+        const trimmed = resolved.trim();
+        if (!trimmed) break;
+        if (trimmed.toLowerCase() === plans[existingIdx].name.toLowerCase()) {
+          plans[existingIdx] = { name: plans[existingIdx].name, exercises: c.exercises };
+          addedCount++;
+          break;
+        }
+        planName = trimmed; // loop again — re-check the new name for conflicts
       }
-      addedCount++;
     });
 
     if (addedCount) {
