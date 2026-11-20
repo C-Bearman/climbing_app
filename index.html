@@ -4310,53 +4310,98 @@
     if (candidates.length) setTimeout(() => reviewPlanCandidates(candidates), 500);
   }
 
+  /* Jaccard similarity between two Sets: |intersection| / |union|.
+     1.0 = identical sets, 0 = no overlap at all. */
+  function jaccardSimilarity(a, b) {
+    let intersection = 0;
+    a.forEach(x => { if (b.has(x)) intersection++; });
+    const union = a.size + b.size - intersection;
+    return union === 0 ? 0 : intersection / union;
+  }
+
   /*
     Scans a freshly-imported workout CSV for recurring exercise
     combinations and offers to save them as plans — so a plan doesn't
     have to be rebuilt by hand just because it already exists in your
-    workout history. Heuristic, not exact: groups each date's distinct
-    exercises into a "signature" (sorted, case-insensitive) and flags
-    any signature that recurs across 2+ dates and has 2+ exercises (a
-    single exercise isn't really a "plan"). This can't know what to
-    call a plan or guarantee every date meant to be the same routine —
-    e.g. a day with one exercise skipped for time won't match — so
-    nothing is saved without the user confirming a name for it in
-    reviewPlanCandidates(). Already-saved plans with the exact same
-    exercise set are skipped so re-importing the same file repeatedly
-    doesn't re-prompt for ones you've already made.
+    workout history.
+
+    Groups each date's distinct exercises into a set, then clusters
+    dates together by similarity (Jaccard overlap >= CLUSTER_THRESHOLD)
+    rather than requiring an exact match — real sessions routinely skip
+    or add one exercise (ran out of time, supersetted something extra),
+    so two dates that are "clearly the same routine" to a person almost
+    never have byte-identical exercise lists. A date only enters
+    clustering at all if it has 2+ exercises (a single lift isn't a
+    "plan"). Each cluster's final exercise list is the UNION of every
+    exercise seen across its dates — an exercise genuinely belongs to
+    the routine if it shows up on any occurrence of it, not just every
+    single one.
+
+    This still can't know what to call a plan, or guarantee that two
+    merely-similar sessions were actually meant to be the same routine
+    — so nothing is saved without the user confirming a name for it in
+    reviewPlanCandidates(). Plans already saved with a very similar
+    exercise set (Jaccard >= DEDUP_THRESHOLD) are skipped so
+    re-importing the same file repeatedly doesn't re-prompt for ones
+    you've already made.
   */
   function detectPlanCandidatesFromImport(imported) {
+    const CLUSTER_THRESHOLD = 0.7;
+    const DEDUP_THRESHOLD   = 0.8;
     const lib = getExerciseLib();
+
     const byDate = {};
     imported.forEach(s => {
-      if (!byDate[s.date]) byDate[s.date] = new Set();
-      byDate[s.date].add(s.exercise);
+      if (!byDate[s.date]) byDate[s.date] = new Map();
+      byDate[s.date].set(s.exercise.toLowerCase(), s.exercise);
     });
 
-    const bySignature = {};
-    Object.values(byDate).forEach(namesSet => {
-      if (namesSet.size < 2) return;
-      const names = [...namesSet].sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
-      const sig = names.map(n => n.toLowerCase()).join('|');
-      if (!bySignature[sig]) bySignature[sig] = { names, count: 0 };
-      bySignature[sig].count++;
+    const dateSets = Object.values(byDate)
+      .filter(displayByLower => displayByLower.size >= 2)
+      .map(displayByLower => ({ lower: new Set(displayByLower.keys()), displayByLower }));
+
+    // Greedy clustering: each date joins the single best-matching
+    // existing cluster if it clears the threshold, else starts a new
+    // one. Compared against each cluster's ORIGINAL representative set
+    // (not a running union) so a cluster can't gradually drift into
+    // absorbing unrelated sessions one small overlap at a time.
+    const clusters = [];
+    dateSets.forEach(d => {
+      let best = null, bestScore = 0;
+      clusters.forEach(c => {
+        const score = jaccardSimilarity(c.representative, d.lower);
+        if (score > bestScore) { bestScore = score; best = c; }
+      });
+      if (best && bestScore >= CLUSTER_THRESHOLD) {
+        best.dateCount++;
+        d.lower.forEach(n => { best.unionLower.add(n); best.displayByLower.set(n, d.displayByLower.get(n)); });
+      } else {
+        clusters.push({
+          representative: d.lower,
+          dateCount: 1,
+          unionLower: new Set(d.lower),
+          displayByLower: new Map(d.displayByLower)
+        });
+      }
     });
 
-    const existingSignatures = new Set(
-      getWorkoutPlans().map(p => p.exercises.map(e => e.name.toLowerCase()).sort().join('|'))
-    );
+    const existingPlanSets = getWorkoutPlans().map(p => new Set(p.exercises.map(e => e.name.toLowerCase())));
 
-    return Object.values(bySignature)
-      .filter(c => c.count >= 2 && !existingSignatures.has(c.names.map(n => n.toLowerCase()).join('|')))
-      .sort((a, b) => b.count - a.count)
-      .map(c => ({
-        names: c.names,
-        count: c.count,
-        exercises: c.names.map(name => {
-          const exLib = lib.find(e => e.name.toLowerCase() === name.toLowerCase());
-          return { name, fields: exLib ? exLib.fields.slice() : ['reps'], pb_field: exLib ? exLib.pb_field : 'reps' };
-        })
-      }));
+    return clusters
+      .filter(c => c.dateCount >= 2)
+      .filter(c => !existingPlanSets.some(existing => jaccardSimilarity(existing, c.unionLower) >= DEDUP_THRESHOLD))
+      .sort((a, b) => b.dateCount - a.dateCount)
+      .map(c => {
+        const names = [...c.unionLower].map(n => c.displayByLower.get(n)).sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
+        return {
+          names,
+          count: c.dateCount,
+          exercises: names.map(name => {
+            const exLib = lib.find(e => e.name.toLowerCase() === name.toLowerCase());
+            return { name, fields: exLib ? exLib.fields.slice() : ['reps'], pb_field: exLib ? exLib.pb_field : 'reps' };
+          })
+        };
+      });
   }
 
   /* Walks the user through each detected candidate one at a time —
